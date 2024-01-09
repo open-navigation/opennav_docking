@@ -172,16 +172,13 @@ void DockingServer::dockRobot()
 
 
 
-  // } catch (DockingException & e) {  // TODO(sm): set contextual error codes
-  //   RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
-  //   result->error_code = DockRobot::Result::INVALID_MODE_SET;
-  // } catch (std::invalid_argument & e) {
-  //   RCLCPP_ERROR(get_logger(), "Invalid GML File or Coordinates: %s", e.what());
-  //   result->error_code = DockRobot::Result::INVALID_COORDS;
-  // } catch (std::exception & e) {
-  //   RCLCPP_ERROR(get_logger(), "Internal Fields2Cover error: %s", e.what());
-  //   result->error_code = DockRobot::Result::INTERNAL_F2C_ERROR;
-  // }
+  } catch (DockingException & e) {  // TODO(sm): set contextual error codes + number range
+    RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
+    result->error_code = DockRobot::Result::INVALID_MODE_SET;
+  } catch (std::exception & e) {
+    RCLCPP_ERROR(get_logger(), "Internal error: %s", e.what());
+    result->error_code = DockRobot::Result::UNKNOWN;
+  }
 
   // TODO store dock information for undocking
   docking_action_server_->terminate_current(result);
@@ -236,15 +233,12 @@ void DockingServer::undockRobot()
     // (3) return charge level
 
 
-  // } catch (DockingException & e) {  // TODO(sm): set contextual error codes
+  // } catch (DockingException & e) {  // TODO(sm): set contextual error codes+ number range
   //   RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
   //   result->error_code = DockRobot::Result::INVALID_MODE_SET;
-  // } catch (std::invalid_argument & e) {
-  //   RCLCPP_ERROR(get_logger(), "Invalid GML File or Coordinates: %s", e.what());
-  //   result->error_code = DockRobot::Result::INVALID_COORDS;
   // } catch (std::exception & e) {
   //   RCLCPP_ERROR(get_logger(), "Internal Fields2Cover error: %s", e.what());
-  //   result->error_code = DockRobot::Result::INTERNAL_F2C_ERROR;
+  //   result->error_code = DockRobot::Result::UNKNOWN;
   // }
 
   undocking_action_server_->terminate_current(result);

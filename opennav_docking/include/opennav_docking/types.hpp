@@ -21,4 +21,11 @@
 typedef opennav_docking_msgs::action::DockRobot DockRobot;
 typedef opennav_docking_msgs::action::UndockRobot UndockRobot;
 
+class DockingException : public std::runtime_error
+{
+public:
+  explicit DockingException(const std::string & description)
+  : std::runtime_error(description) {}
+};
+
 #endif  // OPENNAV_DOCKING__TYPES_HPP_

@@ -15,7 +15,7 @@ find_package(geometry_msgs REQUIRED)
 find_package(builtin_interfaces REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(opennav_docking_msgs REQUIRED)
-find_package(Fields2Cover REQUIRED)
+find_package(opennav_docking_core REQUIRED)
 
 # potentially replace with nav2_common, nav2_package()
 set(CMAKE_CXX_STANDARD 17)
@@ -42,6 +42,7 @@ set(dependencies
   builtin_interfaces
   tf2_ros
   opennav_docking_msgs
+  opennav_docking_core
 )
 
 add_library(${library_name} SHARED
