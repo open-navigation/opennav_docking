@@ -152,7 +152,7 @@ void DockingServer::dockRobot()
   Dock * dock{nullptr};
 
   try {
-    // (0) Get dock (instance and plugin information) from request
+    // (1) Get dock (instance and plugin information) from request
     if (goal->use_dock_id) {
       RCLCPP_INFO(
         get_logger(),
@@ -171,18 +171,21 @@ void DockingServer::dockRobot()
       dock->plugin = dock_db_->findDockPlugin(dock->type);
     }
 
-    // (1) Send robot to its staging pose (TODO nav2pose recursion? handle beforehand?)
+    // (2) Send robot to its staging pose
+    auto staging_pose = dock->getDocksStagingPose();
+    // navigator_->goToPose(staging_pose);
+      // TODO Nav2Pose recursion if this is called in the BT? handle going to staging pose in BT prior?
 
-    // (2) Detect dock & docking pose using sensors (TODO process for dead reckoning too)
+    // (3) Detect dock pose using sensors, Get docking pose relative to dock's pose from plugin. (TODO process for dead reckoning too)
 
-    // (3) Fergs: main loop here - make preemptable/cancelable. TODO
-
-
+    // (4) Fergs: main loop here - make preemptable/cancelable. TODO
 
 
-    // (4) Wait for contact to conduct charging (TODO process to enable charging if not automatic) TODO
 
-    // (5) Check if contact is made. Yes -> success. No -> retry to limit going back to (1). TODO
+
+    // (5) Wait for contact to conduct charging (TODO process to enable charging if not automatic) TODO
+
+    // (6) Check if charging. Yes -> success. No -> retry to limit going back to (1). TODO
 
   } catch (DockingException & e) {  // TODO(sm): set contextual error codes + number range
     RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
@@ -192,12 +195,11 @@ void DockingServer::dockRobot()
     result->error_code = DockRobot::Result::UNKNOWN;
   }
 
-  // (6) store dock information for undocking TODO
+  // (7) Store dock state for later undocking and delete temp dock, if applicable
   if (dock) {
     curr_dock_type_ = dock->type;
   }
 
-  // Delete manually created dock for this request.
   if (!goal->use_dock_id && dock) {
     delete dock;
   }
@@ -228,9 +230,8 @@ void DockingServer::undockRobot()
   rclcpp::Duration max_duration(goal->max_undocking_time);
 
   try {
-    // (0) Get dock  plugin information from request or docked state, reset state.
+    // (1) Get dock  plugin information from request or docked state, reset state.
     std::string dock_type = curr_dock_type_;
-    curr_dock_type_.clear();
     if (!goal->dock_type.empty()) {
       dock_type = goal->dock_type;
     }
@@ -243,13 +244,14 @@ void DockingServer::undockRobot()
       get_logger(),
       "Attempting to undock robot from charger of type %s.", dock->getName().c_str());
 
-    // (1) Check if path to undock is clear  TODO
+    // (2) Check if path to undock is clear  TODO
   
-    // (2) Send robot to its staging pose, asked dock API (fergs, undocking controller). check max_duration. TODO
-
+    // (3) Send robot to its staging pose, asked dock API (fergs, undocking controller). check max_duration. TODO
+      // (2.0) Make sure docking relative pose in right frame (docked pose -> staging pose, not dock itself pose)
       // (2.1) In loop, check that we are no longer charging in state TODO
 
-    // (3) return charge level TODO
+
+    // (4) return charge level TODO
 
   } catch (DockingException & e) {  // TODO(sm): set contextual error codes+ number range
     RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
@@ -258,6 +260,9 @@ void DockingServer::undockRobot()
     RCLCPP_ERROR(get_logger(), "Internal Fields2Cover error: %s", e.what());
     result->error_code = DockRobot::Result::UNKNOWN;
   }
+
+  // (5) Reset docking state
+  curr_dock_type_.clear();
 
   undocking_action_server_->terminate_current(result);
 }

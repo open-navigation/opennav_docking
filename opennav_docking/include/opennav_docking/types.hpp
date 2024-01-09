@@ -27,6 +27,11 @@ typedef opennav_docking_msgs::action::UndockRobot UndockRobot;
 */
 struct Dock
 {
+  geometry_msgs::msg::PoseStamped getDocksStagingPose()
+  {
+    return this->plugin->getDocksStagingPose(this->pose, this->frame);
+  }
+
   geometry_msgs::msg::Pose pose;
   std::string frame;
   std::string type;

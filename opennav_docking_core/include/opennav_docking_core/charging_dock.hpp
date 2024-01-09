@@ -22,6 +22,7 @@
 #include "nav2_util/lifecycle_node.hpp"
 #include "tf2_ros/buffer.h"
 
+
 namespace opennav_docking_core
 {
 
@@ -62,6 +63,17 @@ public:
    * @brief Method to deactive Behavior and any threads involved in execution.
    */
   virtual void deactivate() = 0;
+
+  /**
+   * @brief Method to obtain the dock's staging pose. This method should likely
+   * be using TF and the dock's pose information to find the staging pose from
+   * a static or parameterized staging pose relative to the docking pose
+   * @param pose Dock with pose
+   * @param frame Dock's frame of pose
+   * @return PoseStamped of staging pose in the specified frame
+   */
+  virtual geometry_msgs::msg::PoseStamped getDocksStagingPose(
+    const geometry_msgs::msg::Pose & pose, const std::string & frame) = 0;
 
   std::string getName() {return name_;}
 
