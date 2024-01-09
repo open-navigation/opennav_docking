@@ -27,7 +27,6 @@
 #include "nav2_util/simple_action_server.hpp"
 #include "opennav_docking/utils.hpp"
 #include "opennav_docking/types.hpp"
-#include "opennav_docking_core/charging_dock.hpp"
 
 namespace opennav_docking
 {
@@ -66,6 +65,33 @@ public:
   void deactivate();
 
   /**
+   * @brief Find a dock instance & plugin in the databases from ID
+   * @param dock_id Id of dock to find
+   * @return Dock pointer
+   */
+  Dock * findDock(const std::string & dock_id);
+
+  /**
+   * @brief Find a dock plugin to use for a given type
+   * @param type Dock type to find plugin for
+   * @return Dock plugin pointer
+   */
+  ChargingDock::Ptr findDockPlugin(const std::string & type);
+
+  /**
+   * @brief Get the number of docks in the database
+   * @return unsigned int Number of dock instances in the database
+   */
+  unsigned int instance_size() const;
+
+  /**
+   * @brief Get the number of dock types in the database
+   * @return unsigned int Number of dock types in the database
+   */
+  unsigned int plugin_size() const;
+
+protected:
+  /**
    * @brief Populate database of dock type plugins
    */
   bool getDockPlugins(const rclcpp_lifecycle::LifecycleNode::SharedPtr & node);
@@ -76,18 +102,12 @@ public:
   bool getDockInstances(const rclcpp_lifecycle::LifecycleNode::SharedPtr & node);
 
   /**
-   * @brief Get the number of docks in the database
-   * @return unsigned int Number of dock instances in the database
+   * @brief Find a dock instance in the database from ID
+   * @param dock_id Id of dock to find
+   * @return Dock pointer
    */
-  unsigned int dock_size() const;
+  Dock * findDockInstance(const std::string & dock_id);
 
-  /**
-   * @brief Get the number of dock types in the database
-   * @return unsigned int Number of dock types in the database
-   */
-  unsigned int plugin_size() const;
-
-protected:
   rclcpp_lifecycle::LifecycleNode::WeakPtr node_;
   DockPluginMap dock_plugins_;
   DockMap dock_instances_;

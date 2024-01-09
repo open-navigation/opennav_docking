@@ -15,6 +15,7 @@ find_package(geometry_msgs REQUIRED)
 find_package(builtin_interfaces REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(pluginlib REQUIRED)
+find_package(yaml_cpp_vendor REQUIRED)
 find_package(opennav_docking_msgs REQUIRED)
 find_package(opennav_docking_core REQUIRED)
 
@@ -43,6 +44,7 @@ set(dependencies
   builtin_interfaces
   tf2_ros
   pluginlib
+  yaml_cpp_vendor
   opennav_docking_msgs
   opennav_docking_core
 )

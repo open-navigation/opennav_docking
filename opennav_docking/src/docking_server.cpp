@@ -71,6 +71,7 @@ DockingServer::on_activate(const rclcpp_lifecycle::State & /*state*/)
   dock_db_->activate();
   docking_action_server_->activate();
   undocking_action_server_->activate();
+  curr_dock_type_.clear();
 
   // Add callback for dynamic parameters
   auto node = shared_from_this();
@@ -107,6 +108,7 @@ DockingServer::on_cleanup(const rclcpp_lifecycle::State & /*state*/)
   docking_action_server_.reset();
   undocking_action_server_.reset();
   dock_db_.reset();
+  curr_dock_type_.clear();
   return nav2_util::CallbackReturn::SUCCESS;
 }
 
@@ -147,40 +149,40 @@ void DockingServer::dockRobot()
   }
 
   getPreemptedGoalIfRequested(goal, docking_action_server_);
+  Dock * dock{nullptr};
 
   try {
-    // (0) Get dock from request and find its plugin. If only 1 dock type special case
-
-    // if (!/*cannot correlate */) {
-    //   throw invalid dock;
-    // }
-
-    // if (/*dock name*/) {
-    //   RCLCPP_INFO(
-    //     get_logger(),
-    //     "Attempting to dock robot at charger %s.", );
-
-    // } else { // Dock pose
-    //   RCLCPP_INFO(
-    //     get_logger(),
-    //     "Attempting to dock robot at charger at pose (%0.2f, %0.2f, %0.2f).", );
-    // }
+    // (0) Get dock (instance and plugin information) from request
+    if (goal->use_dock_id) {
+      RCLCPP_INFO(
+        get_logger(),
+        "Attempting to dock robot at charger %s.", goal->dock_id.c_str());
+      dock = dock_db_->findDock(goal->dock_id);
+    } else {
+      RCLCPP_INFO(
+        get_logger(),
+        "Attempting to dock robot at charger at position (%0.2f, %0.2f).",
+        goal->dock_pose.pose.position.x, goal->dock_pose.pose.position.y);
+      
+      dock = new Dock();
+      dock->frame = goal->dock_pose.header.frame_id;
+      dock->pose = goal->dock_pose.pose;
+      dock->type = goal->dock_type;
+      dock->plugin = dock_db_->findDockPlugin(dock->type);
+    }
 
     // (1) Send robot to its staging pose (TODO nav2pose recursion? handle beforehand?)
 
     // (2) Detect dock & docking pose using sensors (TODO process for dead reckoning too)
 
-    // (3) Fergs: main loop here - make preemptable/cancelable
+    // (3) Fergs: main loop here - make preemptable/cancelable. TODO
 
 
 
 
+    // (4) Wait for contact to conduct charging (TODO process to enable charging if not automatic) TODO
 
-    // (4) Wait for contact to conduct charging (TODO process to enable charging if not automatic)
-
-    // (5) Check if contact is made. Yes -> success. No -> retry to limit going back to (1).
-
-
+    // (5) Check if contact is made. Yes -> success. No -> retry to limit going back to (1). TODO
 
   } catch (DockingException & e) {  // TODO(sm): set contextual error codes + number range
     RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
@@ -190,7 +192,16 @@ void DockingServer::dockRobot()
     result->error_code = DockRobot::Result::UNKNOWN;
   }
 
-  // TODO store dock information for undocking
+  // (6) store dock information for undocking TODO
+  if (dock) {
+    curr_dock_type_ = dock->type;
+  }
+
+  // Delete manually created dock for this request.
+  if (!goal->use_dock_id && dock) {
+    delete dock;
+  }
+
   docking_action_server_->terminate_current(result);
 }
 
@@ -214,42 +225,39 @@ void DockingServer::undockRobot()
   }
 
   getPreemptedGoalIfRequested(goal, undocking_action_server_);
+  rclcpp::Duration max_duration(goal->max_undocking_time);
 
-  // try {
-    // (0) Get dock info from dock request (todo what if starting docked? -> If only 1 dock type special case or grab from msg)
+  try {
+    // (0) Get dock  plugin information from request or docked state, reset state.
+    std::string dock_type = curr_dock_type_;
+    curr_dock_type_.clear();
+    if (!goal->dock_type.empty()) {
+      dock_type = goal->dock_type;
+    }
 
+    ChargingDock::Ptr dock = dock_db_->findDockPlugin(dock_type);
+    if (!dock) {
+      throw DockingException("No dock information to undock from!"); // TODO specialize
+    }
+    RCLCPP_INFO(
+      get_logger(),
+      "Attempting to undock robot from charger of type %s.", dock->getName().c_str());
 
-    // if (!/*cannot correlate */) {
-    //   throw invalid dock;
-    // }
-
-    // if (/*dock name*/) {
-    //   RCLCPP_INFO(
-    //     get_logger(),
-    //     "Attempting to undock robot at charger %s.", );
-
-    // } else { // Dock pose
-    //   RCLCPP_INFO(
-    //     get_logger(),
-    //     "Attempting to undock robot at charger at pose (%0.2f, %0.2f, %0.2f).", );
-    // }
-
-    // (1) Check if path to undock is clear 
+    // (1) Check if path to undock is clear  TODO
   
-    // (2) Send robot to its staging pose (fergs, undocking controller)
+    // (2) Send robot to its staging pose, asked dock API (fergs, undocking controller). check max_duration. TODO
 
-      // (2.1) In loop, check that we are no longer charging in state
+      // (2.1) In loop, check that we are no longer charging in state TODO
 
-    // (3) return charge level
+    // (3) return charge level TODO
 
-
-  // } catch (DockingException & e) {  // TODO(sm): set contextual error codes+ number range
-  //   RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
-  //   result->error_code = DockRobot::Result::INVALID_MODE_SET;
-  // } catch (std::exception & e) {
-  //   RCLCPP_ERROR(get_logger(), "Internal Fields2Cover error: %s", e.what());
-  //   result->error_code = DockRobot::Result::UNKNOWN;
-  // }
+  } catch (DockingException & e) {  // TODO(sm): set contextual error codes+ number range
+    RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
+    result->error_code = DockRobot::Result::INVALID_MODE_SET;
+  } catch (std::exception & e) {
+    RCLCPP_ERROR(get_logger(), "Internal Fields2Cover error: %s", e.what());
+    result->error_code = DockRobot::Result::UNKNOWN;
+  }
 
   undocking_action_server_->terminate_current(result);
 }

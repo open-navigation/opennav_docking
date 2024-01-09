@@ -23,8 +23,8 @@ DockDatabase::DockDatabase()
 
 DockDatabase::~DockDatabase()
 {
-  dock_plugins_.clear();
   dock_instances_.clear();
+  dock_plugins_.clear();
 }
 
 bool DockDatabase::initialize(const rclcpp_lifecycle::LifecycleNode::WeakPtr & parent)
@@ -36,7 +36,7 @@ bool DockDatabase::initialize(const rclcpp_lifecycle::LifecycleNode::WeakPtr & p
     RCLCPP_INFO(
       node->get_logger(),
       "Docking Server has %u dock types and %u dock instances available.",
-      this->plugin_size(), this->dock_size());
+      this->plugin_size(), this->instance_size());
     return true;
   }
 
@@ -57,6 +57,46 @@ void DockDatabase::deactivate()
   for (it = dock_plugins_.begin(); it != dock_plugins_.end(); ++it) {
     it->second->deactivate();
   }
+}
+
+Dock * DockDatabase::findDock(const std::string & dock_id)
+{
+  Dock * dock_instance = findDockInstance(dock_id);
+  ChargingDock::Ptr dock_plugin{nullptr};
+
+  if (dock_instance) {
+    dock_plugin = findDockPlugin(dock_instance->type);
+    if (dock_plugin) {
+      // Populate the plugin shared pointer
+      dock_instance->plugin = dock_plugin;
+      return dock_instance;
+    }
+    throw DockingException("Dock requested has no valid plugin!"); // TODO specialize
+  }
+  throw DockingException("Dock ID requested is not in database!"); // TODO specialize
+}
+
+Dock * DockDatabase::findDockInstance(const std::string & dock_id)
+{
+  auto it = dock_instances_.find(dock_id);
+  if (it != dock_instances_.end()) {
+    return &(it->second);
+  }
+  return nullptr;
+}
+
+ChargingDock::Ptr DockDatabase::findDockPlugin(const std::string & type)
+{
+  // If only one dock plugin and type not set, use the default dock
+  if (type.empty() && dock_plugins_.size() == 1) {
+    return dock_plugins_.begin()->second;
+  }
+
+  auto it = dock_plugins_.find(type);
+  if (it != dock_plugins_.end()) {
+    return it->second;
+  }
+  return nullptr;
 }
 
 bool DockDatabase::getDockPlugins(const rclcpp_lifecycle::LifecycleNode::SharedPtr & node)
@@ -97,8 +137,37 @@ bool DockDatabase::getDockPlugins(const rclcpp_lifecycle::LifecycleNode::SharedP
 
 bool DockDatabase::getDockInstances(const rclcpp_lifecycle::LifecycleNode::SharedPtr & node)
 {
-  // TODO parse dock instances. From file or from param file? Both support?
-  (void)node;
+  using rclcpp::ParameterType::PARAMETER_STRING;
+  using rclcpp::ParameterType::PARAMETER_STRING_ARRAY;
+
+  // Attempt to obtain docks from separate file
+  std::string dock_filepath;
+  node->declare_parameter("dock_database", PARAMETER_STRING);
+  if (node->get_parameter("dock_database", dock_filepath)) {
+    RCLCPP_INFO(
+      node->get_logger(), "Loading dock from database file  %s.", dock_filepath.c_str());
+    try {
+      return utils::parseDockFile(dock_filepath, node, dock_instances_);
+    } catch (YAML::ParserException & e) {
+      RCLCPP_ERROR(
+        node->get_logger(),
+        "Dock database (%s) is malformed: %s.", dock_filepath.c_str(), e.what());
+      return false;
+    }
+    return true;
+  }
+
+  // Attempt to obtain docks from parameter file
+  std::vector<std::string> docks_param;
+  node->declare_parameter("docks", PARAMETER_STRING_ARRAY);
+  if (node->get_parameter("docks", docks_param)) {
+    RCLCPP_INFO(node->get_logger(), "Loading docks from parameter file.");
+    return utils::parseDockParams(docks_param, node, dock_instances_);
+  }
+
+  RCLCPP_ERROR(
+    node->get_logger(),
+    "Dock database filepath nor dock parameters set. Unable to perform docking actions.");
   return false;
 }
 
@@ -106,7 +175,7 @@ unsigned int DockDatabase::plugin_size() const {
   return dock_plugins_.size();
 }
 
-unsigned int DockDatabase::dock_size() const {
+unsigned int DockDatabase::instance_size() const {
   return dock_instances_.size();
 }
 

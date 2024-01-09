@@ -122,6 +122,7 @@ protected:
   std::unique_ptr<UndockingActionServer> undocking_action_server_;
 
   std::unique_ptr<DockDatabase> dock_db_;
+  std::string curr_dock_type_;
 };
 
 }  // namespace opennav_docking

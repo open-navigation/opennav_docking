@@ -62,6 +62,11 @@ public:
    * @brief Method to deactive Behavior and any threads involved in execution.
    */
   virtual void deactivate() = 0;
+
+  std::string getName() {return name_;}
+
+protected:
+  std::string name_;
 };
 
 }  // namespace opennav_docking_core

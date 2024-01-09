@@ -30,8 +30,10 @@ struct Dock
   geometry_msgs::msg::Pose pose;
   std::string frame;
   std::string type;
+  opennav_docking_core::ChargingDock::Ptr plugin{nullptr};
 };
 
+using opennav_docking_core::ChargingDock;
 using DockPluginMap = std::unordered_map<std::string, opennav_docking_core::ChargingDock::Ptr>;
 using DockMap = std::unordered_map<std::string, Dock>;
 
