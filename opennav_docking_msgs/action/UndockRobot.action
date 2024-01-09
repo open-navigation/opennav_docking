@@ -18,6 +18,7 @@ uint16 INTERNAL_F2C_ERROR=801
 uint16 INVALID_MODE_SET=802
 uint16 INVALID_REQUEST=803
 uint16 INVALID_COORDS=803
+uint16 UNKNOWN=804
 
 bool success True  # docking success status
 uint16 error_code 0  # Contextual error code, if any
