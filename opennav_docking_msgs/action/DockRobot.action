@@ -1,0 +1,30 @@
+#goal definition
+
+bool use_dock_id True  # Whether to use the dock_id or dock_pose fields
+string dock_id  # Dock name or ID to dock at, from given dock database
+
+geometry_msgs/PoseStamped dock_pose  # Dock pose
+string dock_type  # If using dock_pose, what type of dock it is. Not necessary if only using one type of dock.
+builtin_interfaces/Duration max_docking_time  # Maximum time to dock
+
+---
+#result definition
+
+# Error codes
+# Note: The expected priority order of the errors should match the message order
+uint16 NONE=0
+uint16 INTERNAL_F2C_ERROR=801
+uint16 INVALID_MODE_SET=802
+uint16 INVALID_REQUEST=803
+uint16 INVALID_COORDS=803
+
+bool success True  # docking success status
+uint16 error_code 0  # Contextual error code, if any
+uint16 num_retries 0  # Number of retries attempted
+
+---
+#feedback definition
+
+uint16 state  # Current docking state
+builtin_interfaces/Duration docking_time  # Docking time elapsed
+uint16 num_retries 0  # Number of retries attempted
