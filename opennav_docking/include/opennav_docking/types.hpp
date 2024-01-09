@@ -17,9 +17,23 @@
 
 #include "opennav_docking_msgs/action/dock_robot.hpp"
 #include "opennav_docking_msgs/action/undock_robot.hpp"
+#include "opennav_docking_core/charging_dock.hpp"
 
 typedef opennav_docking_msgs::action::DockRobot DockRobot;
 typedef opennav_docking_msgs::action::UndockRobot UndockRobot;
+
+/**
+* @struct A dock instance struct for a database
+*/
+struct Dock
+{
+  geometry_msgs::msg::Pose pose;
+  std::string frame;
+  std::string type;
+};
+
+using DockPluginMap = std::unordered_map<std::string, opennav_docking_core::ChargingDock::Ptr>;
+using DockMap = std::unordered_map<std::string, Dock>;
 
 class DockingException : public std::runtime_error
 {

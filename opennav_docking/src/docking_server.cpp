@@ -33,7 +33,12 @@ DockingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
   RCLCPP_INFO(get_logger(), "Configuring %s", get_name());
   auto node = shared_from_this();
 
-  // TODO(XYZ): get parameters, construct objects, plugins
+  // TODO(XYZ): get parameters, construct objects
+
+  dock_db_ = std::make_unique<DockDatabase>();
+  if (!dock_db_->initialize(node)) {
+    return nav2_util::CallbackReturn::FAILURE;
+  }
 
   double action_server_result_timeout;
   nav2_util::declare_parameter_if_not_declared(
@@ -62,6 +67,8 @@ nav2_util::CallbackReturn
 DockingServer::on_activate(const rclcpp_lifecycle::State & /*state*/)
 {
   RCLCPP_INFO(get_logger(), "Activating %s", get_name());
+
+  dock_db_->activate();
   docking_action_server_->activate();
   undocking_action_server_->activate();
 
@@ -80,8 +87,11 @@ nav2_util::CallbackReturn
 DockingServer::on_deactivate(const rclcpp_lifecycle::State & /*state*/)
 {
   RCLCPP_INFO(get_logger(), "Deactivating %s", get_name());
+
   docking_action_server_->deactivate();
   undocking_action_server_->deactivate();
+  dock_db_->deactivate();
+
   dyn_params_handler_.reset();
 
   // destroy bond connection
@@ -96,6 +106,7 @@ DockingServer::on_cleanup(const rclcpp_lifecycle::State & /*state*/)
   RCLCPP_INFO(get_logger(), "Cleaning up %s", get_name());
   docking_action_server_.reset();
   undocking_action_server_.reset();
+  dock_db_.reset();
   return nav2_util::CallbackReturn::SUCCESS;
 }
 
@@ -137,9 +148,8 @@ void DockingServer::dockRobot()
 
   getPreemptedGoalIfRequested(goal, docking_action_server_);
 
-  // try {
+  try {
     // (0) Get dock from request and find its plugin. If only 1 dock type special case
-
 
     // if (!/*cannot correlate */) {
     //   throw invalid dock;
@@ -156,11 +166,11 @@ void DockingServer::dockRobot()
     //     "Attempting to dock robot at charger at pose (%0.2f, %0.2f, %0.2f).", );
     // }
 
-    // (1) Send robot to its staging pose
+    // (1) Send robot to its staging pose (TODO nav2pose recursion? handle beforehand?)
 
     // (2) Detect dock & docking pose using sensors (TODO process for dead reckoning too)
 
-    // (3) Fergs: main loop here
+    // (3) Fergs: main loop here - make preemptable/cancelable
 
 
 
@@ -206,7 +216,7 @@ void DockingServer::undockRobot()
   getPreemptedGoalIfRequested(goal, undocking_action_server_);
 
   // try {
-    // (0) Get dock info from dock request (todo what if starting docked? -> default relative staging pose?) If only 1 dock type special case
+    // (0) Get dock info from dock request (todo what if starting docked? -> If only 1 dock type special case or grab from msg)
 
 
     // if (!/*cannot correlate */) {

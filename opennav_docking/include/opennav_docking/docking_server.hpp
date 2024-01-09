@@ -24,6 +24,8 @@
 #include "nav2_util/simple_action_server.hpp"
 #include "opennav_docking/utils.hpp"
 #include "opennav_docking/types.hpp"
+#include "opennav_docking/dock_database.hpp"
+#include "opennav_docking_core/charging_dock.hpp"
 
 namespace opennav_docking
 {
@@ -118,6 +120,8 @@ protected:
 
   std::unique_ptr<DockingActionServer> docking_action_server_;
   std::unique_ptr<UndockingActionServer> undocking_action_server_;
+
+  std::unique_ptr<DockDatabase> dock_db_;
 };
 
 }  // namespace opennav_docking

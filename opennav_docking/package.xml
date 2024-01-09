@@ -17,6 +17,7 @@
   <depend>nav_msgs</depend>
   <depend>geometry_msgs</depend>
   <depend>builtin_interfaces</depend>
+  <depend>pluginlib</depend>
   <depend>opennav_docking_msgs</depend>
   <depend>opennav_docking_core</depend>
   <depend>tf2_ros</depend>

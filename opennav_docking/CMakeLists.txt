@@ -14,6 +14,7 @@ find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(builtin_interfaces REQUIRED)
 find_package(tf2_ros REQUIRED)
+find_package(pluginlib REQUIRED)
 find_package(opennav_docking_msgs REQUIRED)
 find_package(opennav_docking_core REQUIRED)
 
@@ -41,12 +42,14 @@ set(dependencies
   geometry_msgs
   builtin_interfaces
   tf2_ros
+  pluginlib
   opennav_docking_msgs
   opennav_docking_core
 )
 
 add_library(${library_name} SHARED
   src/docking_server.cpp
+  src/dock_database.cpp
 )
 
 ament_target_dependencies(${library_name}
