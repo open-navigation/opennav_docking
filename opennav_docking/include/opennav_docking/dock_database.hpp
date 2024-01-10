@@ -17,6 +17,7 @@
 
 #include <vector>
 #include <memory>
+#include <string>
 
 #include "rclcpp/rclcpp.hpp"
 #include "pluginlib/class_loader.hpp"

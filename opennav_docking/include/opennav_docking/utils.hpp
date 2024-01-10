@@ -15,6 +15,9 @@
 #ifndef OPENNAV_DOCKING__UTILS_HPP_
 #define OPENNAV_DOCKING__UTILS_HPP_
 
+#include <string>
+#include <vector>
+
 #include "yaml-cpp/yaml.h"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
 #include "rclcpp/rclcpp.hpp"
@@ -105,16 +108,23 @@ inline bool parseDockParams(
   Dock curr_dock;
   std::vector<double> pose_arr;
   for (const auto & dock_name : docks_param) {
-    node->declare_parameter(dock_name + ".frame", "map");
+    if (!node->has_parameter(dock_name + ".frame")) {
+      node->declare_parameter(dock_name + ".frame", "map");
+    }
     node->get_parameter(dock_name + ".frame", curr_dock.frame);
-    node->declare_parameter(dock_name + ".type", PARAMETER_STRING);
+
+    if (!node->has_parameter(dock_name + ".type")) {
+      node->declare_parameter(dock_name + ".type", PARAMETER_STRING);
+    }
     if (!node->get_parameter(dock_name + ".type", curr_dock.type)) {
       RCLCPP_ERROR(node->get_logger(), "Dock %s has no dock 'type'.", dock_name.c_str());
       return false;
     }
 
     pose_arr.clear();
-    node->declare_parameter(dock_name + ".pose", PARAMETER_DOUBLE_ARRAY);
+    if (!node->has_parameter(dock_name + ".pose")) {
+      node->declare_parameter(dock_name + ".pose", PARAMETER_DOUBLE_ARRAY);
+    }
     if (!node->get_parameter(dock_name + ".pose", pose_arr) || pose_arr.size() != 3u) {
       RCLCPP_ERROR(node->get_logger(), "Dock %s has no valid 'pose'.", dock_name.c_str());
       return false;
@@ -129,6 +139,6 @@ inline bool parseDockParams(
   return true;
 }
 
-}  // namespace opennav_docking
+}  // namespace utils
 
 #endif  // OPENNAV_DOCKING__UTILS_HPP_

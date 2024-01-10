@@ -119,7 +119,7 @@ DockingServer::on_shutdown(const rclcpp_lifecycle::State &)
   return nav2_util::CallbackReturn::SUCCESS;
 }
 
-template <typename ActionT>
+template<typename ActionT>
 void DockingServer::getPreemptedGoalIfRequested(
   typename std::shared_ptr<const typename ActionT::Goal> goal,
   const std::unique_ptr<nav2_util::SimpleActionServer<ActionT>> & action_server)
@@ -173,10 +173,9 @@ void DockingServer::dockRobot()
 
     // (2) Send robot to its staging pose
     auto staging_pose = dock->getDocksStagingPose();
-    // navigator_->goToPose(staging_pose);
-      // TODO Nav2Pose recursion if this is called in the BT? handle going to staging pose in BT prior?
+    // navigator_->goToPose(staging_pose); // TODO Nav2Pose recursion if this is called in the BT? handle going to staging pose in BT prior?
 
-    // (3) Detect dock pose using sensors, Get docking pose relative to dock's pose from plugin. (TODO process for dead reckoning too)
+    // (3) Detect dock pose using sensors, Get docking pose relative to dock's pose from plugin. (TODO plugin for dead reckoning too)
 
     // (4) Fergs: main loop here - make preemptable/cancelable. TODO
 
@@ -252,7 +251,6 @@ void DockingServer::undockRobot()
 
 
     // (4) return charge level TODO
-
   } catch (DockingException & e) {  // TODO(sm): set contextual error codes+ number range
     RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
     result->error_code = DockRobot::Result::INVALID_MODE_SET;

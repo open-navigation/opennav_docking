@@ -15,6 +15,9 @@
 #ifndef OPENNAV_DOCKING__TYPES_HPP_
 #define OPENNAV_DOCKING__TYPES_HPP_
 
+#include <unordered_map>
+#include <string>
+
 #include "opennav_docking_msgs/action/dock_robot.hpp"
 #include "opennav_docking_msgs/action/undock_robot.hpp"
 #include "opennav_docking_core/charging_dock.hpp"

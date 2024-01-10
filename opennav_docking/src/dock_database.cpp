@@ -102,7 +102,9 @@ ChargingDock::Ptr DockDatabase::findDockPlugin(const std::string & type)
 bool DockDatabase::getDockPlugins(const rclcpp_lifecycle::LifecycleNode::SharedPtr & node)
 {
   std::vector<std::string> docks_plugins;
-  node->declare_parameter("dock_plugins", rclcpp::ParameterType::PARAMETER_STRING_ARRAY);
+  if (!node->has_parameter("dock_plugins")) {
+    node->declare_parameter("dock_plugins", rclcpp::ParameterType::PARAMETER_STRING_ARRAY);
+  }
   if (!node->get_parameter("dock_plugins", docks_plugins)) {
     RCLCPP_ERROR(node->get_logger(), "Charging dock plugins not given!");
     return false;
@@ -171,11 +173,13 @@ bool DockDatabase::getDockInstances(const rclcpp_lifecycle::LifecycleNode::Share
   return false;
 }
 
-unsigned int DockDatabase::plugin_size() const {
+unsigned int DockDatabase::plugin_size() const
+{
   return dock_plugins_.size();
 }
 
-unsigned int DockDatabase::instance_size() const {
+unsigned int DockDatabase::instance_size() const
+{
   return dock_instances_.size();
 }
 

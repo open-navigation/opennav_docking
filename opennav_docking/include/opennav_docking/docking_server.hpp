@@ -17,6 +17,7 @@
 
 #include <vector>
 #include <memory>
+#include <string>
 
 #include "rclcpp/rclcpp.hpp"
 #include "nav2_util/lifecycle_node.hpp"
@@ -67,7 +68,7 @@ protected:
    * @param action_server Action server to check for preemptions on
    * @return SUCCESS or FAILURE
    */
-  template <typename ActionT>
+  template<typename ActionT>
   void getPreemptedGoalIfRequested(
     typename std::shared_ptr<const typename ActionT::Goal> goal,
     const std::unique_ptr<nav2_util::SimpleActionServer<ActionT>> & action_server);
