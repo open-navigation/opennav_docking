@@ -12,7 +12,11 @@ This is split into 4 packages
 - `opennav_docking_bt`: Contains behavior tree nodes and example XML files using the docking task server
 
 
-TODO video / software diagram / nv & on graphic
+TODO video in action / nv & on graphic
+
+## Architecture
+
+TODO + diagram
 
 ## Dock Specification
 
