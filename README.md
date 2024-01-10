@@ -2,7 +2,7 @@
 
 This package contains an automatic robot docking framework & auxiliary tools. It uses plugin `dock` implementations for a particular platform to enable the framework to generalize to robots of many different kinematic models, charging methods, sensor modalities, and so on. It can also handle a database of many different docking locations and dock models to handle a heterogeneous environment. 
 
-This work is sponsored by [NVIDIA](https://www.nvidia.com/en-us/) and created by [Open Navigation LLC](opennav.org).
+This work is sponsored by [NVIDIA](https://www.nvidia.com/en-us/) and created by [Open Navigation LLC](https://opennav.org).
 
 This is split into 4 packages
 
@@ -13,8 +13,6 @@ This is split into 4 packages
 
 
 TODO video / software diagram / nv & on graphic
-
-TODO - server into behavior plugin to share costmap subscribers and TF buffer?
 
 ## Dock Specification
 
@@ -65,6 +63,10 @@ Note that you may leave the `type` to an empty string **if** there is only one t
 
 TODO - docking and undocking spec.
 
+## Dock Plugin
+
+TODO describe API and role.
+
 ## Configuration
 
 TODO parameters
@@ -72,3 +74,4 @@ TODO parameters
 ## Etc
 
 TODO notes of interest
+- staging pose and different robot kinematics (make contacts towards, so feasible planning to only require straight-ish)
