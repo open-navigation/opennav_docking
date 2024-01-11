@@ -52,6 +52,7 @@ set(dependencies
 add_library(${library_name} SHARED
   src/docking_server.cpp
   src/dock_database.cpp
+  src/navigator.cpp
 )
 
 ament_target_dependencies(${library_name}

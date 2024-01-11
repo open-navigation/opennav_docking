@@ -40,7 +40,6 @@ class DockDatabase
 public:
   /**
    * @brief A constructor for opennav_docking::DockDatabase
-   * @param parent Weakptr to the node to use to get interances and parameters
    */
   DockDatabase();
 

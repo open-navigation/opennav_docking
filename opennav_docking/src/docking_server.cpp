@@ -40,6 +40,8 @@ DockingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
     return nav2_util::CallbackReturn::FAILURE;
   }
 
+  navigator_ = std::make_unique<Navigator>(node);
+
   double action_server_result_timeout;
   nav2_util::declare_parameter_if_not_declared(
     node, "action_server_result_timeout", rclcpp::ParameterValue(10.0));
@@ -69,6 +71,7 @@ DockingServer::on_activate(const rclcpp_lifecycle::State & /*state*/)
   RCLCPP_INFO(get_logger(), "Activating %s", get_name());
 
   dock_db_->activate();
+  navigator_->activate();
   docking_action_server_->activate();
   undocking_action_server_->activate();
   curr_dock_type_.clear();
@@ -92,6 +95,7 @@ DockingServer::on_deactivate(const rclcpp_lifecycle::State & /*state*/)
   docking_action_server_->deactivate();
   undocking_action_server_->deactivate();
   dock_db_->deactivate();
+  navigator_->deactivate();
 
   dyn_params_handler_.reset();
 
@@ -108,6 +112,7 @@ DockingServer::on_cleanup(const rclcpp_lifecycle::State & /*state*/)
   docking_action_server_.reset();
   undocking_action_server_.reset();
   dock_db_.reset();
+  navigator_.reset();
   curr_dock_type_.clear();
   return nav2_util::CallbackReturn::SUCCESS;
 }
@@ -172,8 +177,7 @@ void DockingServer::dockRobot()
     }
 
     // (2) Send robot to its staging pose
-    auto staging_pose = dock->getDocksStagingPose();
-    // navigator_->goToPose(staging_pose); // TODO Nav2Pose recursion if this is called in the BT? handle going to staging pose in BT prior?
+    navigator_->goToPose(dock->getDocksStagingPose());
 
     // (3) Detect dock pose using sensors, Get docking pose relative to dock's pose from plugin. (TODO plugin for dead reckoning too)
 
