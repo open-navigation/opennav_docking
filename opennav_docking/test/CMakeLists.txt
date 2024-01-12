@@ -19,3 +19,14 @@ ament_target_dependencies(test_dock_database
 target_link_libraries(test_dock_database
   ${library_name}
 )
+
+# Test navigator
+ament_add_gtest(test_navigator
+  test_navigator.cpp
+)
+ament_target_dependencies(test_navigator
+  ${dependencies}
+)
+target_link_libraries(test_navigator
+  ${library_name}
+)

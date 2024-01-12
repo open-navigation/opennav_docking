@@ -35,12 +35,11 @@ DockingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
 
   // TODO(XYZ): get parameters, construct objects
 
+  navigator_ = std::make_unique<Navigator>(node);
   dock_db_ = std::make_unique<DockDatabase>();
   if (!dock_db_->initialize(node)) {
     return nav2_util::CallbackReturn::FAILURE;
   }
-
-  navigator_ = std::make_unique<Navigator>(node);
 
   double action_server_result_timeout;
   nav2_util::declare_parameter_if_not_declared(
@@ -177,9 +176,9 @@ void DockingServer::dockRobot()
     }
 
     // (2) Send robot to its staging pose
-    navigator_->goToPose(dock->getDocksStagingPose());
+    navigator_->goToPose(dock->getDocksStagingPose(), rclcpp::Duration(goal->max_staging_time));
 
-    // (3) Detect dock pose using sensors, Get docking pose relative to dock's pose from plugin. (TODO plugin for dead reckoning too)
+    // (3) Fergs: Detect dock pose using sensors, Get docking pose relative to dock's pose from plugin. (TODO plugin for dead reckoning too)
 
     // (4) Fergs: main loop here - make preemptable/cancelable. TODO
 
@@ -249,7 +248,7 @@ void DockingServer::undockRobot()
 
     // (2) Check if path to undock is clear  TODO
   
-    // (3) Send robot to its staging pose, asked dock API (fergs, undocking controller). check max_duration. TODO
+    // (3) Fergs: Send robot to its staging pose, asked dock API (controller). check max_duration. TODO
       // (2.0) Make sure docking relative pose in right frame (docked pose -> staging pose, not dock itself pose)
       // (2.1) In loop, check that we are no longer charging in state TODO
 

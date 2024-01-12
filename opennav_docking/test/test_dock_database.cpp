@@ -17,6 +17,10 @@
 #include "opennav_docking/dock_database.hpp"
 #include "ament_index_cpp/get_package_share_directory.hpp"
 
+// These sets of tests are admittedly incomplete without a dummy docking plugin.
+// Integration tests handle coverage more fully than the database lookups and population.
+// However, Utils unit tests already validate the key database population functions.
+
 class RosLockGuard
 {
 public:
@@ -33,7 +37,7 @@ class DbShim : public opennav_docking::DockDatabase
 public:
   DbShim()
   : DockDatabase()
-  {};
+  {}
 
   void populateOne()
   {

@@ -12,10 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <chrono>
 #include "opennav_docking/navigator.hpp"
 
 namespace opennav_docking
 {
+
+using namespace std::chrono_literals;  // NOLINT
 
 Navigator::Navigator(const rclcpp_lifecycle::LifecycleNode::WeakPtr & parent)
 : node_(parent)
@@ -46,17 +49,26 @@ void Navigator::deactivate()
   nav_to_pose_client_.reset();
 }
 
-void Navigator::goToPose(const geometry_msgs::msg::PoseStamped & pose)
+void Navigator::goToPose(
+  const geometry_msgs::msg::PoseStamped & pose,
+  const rclcpp::Duration & max_staging_duration,
+  bool recursed)
 {
   Nav2Pose::Goal goal;
   goal.pose = pose;
   goal.behavior_tree = navigator_bt_xml_;
-  // auto timeout = // TODO param
+  const auto timeout = max_staging_duration.to_chrono<std::chrono::milliseconds>();
 
+  // Wait for server to be active
+  nav_to_pose_client_->wait_for_action_server(1s);
   auto future_goal_handle = nav_to_pose_client_->async_send_goal(goal);
-  if (executor_.spin_until_future_complete(future_goal_handle) == rclcpp::FutureReturnCode::SUCCESS) {
+  if (executor_.spin_until_future_complete(
+      future_goal_handle, 2s) == rclcpp::FutureReturnCode::SUCCESS)
+  {
     auto future_result = nav_to_pose_client_->async_get_result(future_goal_handle.get());
-    if (executor_.spin_until_future_complete(future_result) == rclcpp::FutureReturnCode::SUCCESS) {
+    if (executor_.spin_until_future_complete(
+        future_result, timeout) == rclcpp::FutureReturnCode::SUCCESS)
+    {
       auto result = future_result.get();
       if (result.code == rclcpp_action::ResultCode::SUCCEEDED && result.result->error_code == 0) {
         return;  // Success!
@@ -64,7 +76,12 @@ void Navigator::goToPose(const geometry_msgs::msg::PoseStamped & pose)
     }
   }
 
-  // TODO retry? recursion
+  // Attempt to retry once using single iteration recursion
+  if (!recursed) {
+    goToPose(pose, max_staging_duration, true);
+    return;
+  }
+
   throw DockingException("Navigation request to staging pose failed.");  // TODO specialize
 }
 

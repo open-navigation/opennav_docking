@@ -6,6 +6,8 @@ string dock_id  # Dock name or ID to dock at, from given dock database
 geometry_msgs/PoseStamped dock_pose  # Dock pose
 string dock_type  # If using dock_pose, what type of dock it is. Not necessary if only using one type of dock.
 
+builtin_interfaces/Duration max_staging_time  # Maximum time for navigation to get to the dock's staging pose.
+
 ---
 #result definition
 

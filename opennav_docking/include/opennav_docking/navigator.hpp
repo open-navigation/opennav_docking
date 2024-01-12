@@ -66,8 +66,13 @@ public:
    * @brief An method to go to a particular pose
    * May throw exception if fails to navigate or communicate
    * Blocks until completion.
+   * @param pose Pose to go to
+   * @param max_staging_duration Maximum time to get to the staging pose
    */
-  void goToPose(const geometry_msgs::msg::PoseStamped & pose);
+  void goToPose(
+    const geometry_msgs::msg::PoseStamped & pose,
+    const rclcpp::Duration & max_staging_duration,
+    bool recursed = false);
 
 protected:
   rclcpp_lifecycle::LifecycleNode::WeakPtr node_;
