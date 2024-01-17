@@ -27,6 +27,7 @@
 #include "opennav_docking/types.hpp"
 #include "opennav_docking/dock_database.hpp"
 #include "opennav_docking/navigator.hpp"
+#include "opennav_docking_core/controller.hpp"
 #include "opennav_docking_core/charging_dock.hpp"
 
 namespace opennav_docking
@@ -125,6 +126,7 @@ protected:
 
   std::unique_ptr<DockDatabase> dock_db_;
   std::unique_ptr<Navigator> navigator_;
+  std::unique_ptr<opennav_docking_core::Controller> controller_;
   std::string curr_dock_type_;
 };
 

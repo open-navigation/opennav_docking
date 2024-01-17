@@ -176,18 +176,45 @@ void DockingServer::dockRobot()
     }
 
     // (2) Send robot to its staging pose
-    navigator_->goToPose(dock->getDocksStagingPose(), rclcpp::Duration(goal->max_staging_time));
+    navigator_->goToPose(dock->getStagingPose(), rclcpp::Duration(goal->max_staging_time));
 
-    // (3) Fergs: Detect dock pose using sensors, Get docking pose relative to dock's pose from plugin. (TODO plugin for dead reckoning too)
+    // Construct initial estimate of where the dock is located
+    geometry_msgs::msg::PoseStamped dock_pose;
+    dock_pose.pose = dock->pose;
+    dock_pose.header.frame_id = dock->frame;
 
-    // (4) Fergs: main loop here - make preemptable/cancelable. TODO
+    // Get initial detection of dock before proceeding to move
+    while (!dock->plugin->getRefinedPose(dock_pose))
+    {
+      // TODO: add timeout
+    }
 
+    // Docking control loop: while not docked, run controller
+    while (rclcpp::ok()) {
+      // Stop controlling when successfully charging
+      if (dock->plugin->isCharging()) {
+        break;
+      }
 
+      // Update perception
+      if (!dock->plugin->getRefinedPose(dock_pose))
+      {
+        // TODO: handle loss of perception
+      }
 
+      // Use the dock pose to determine where to put the robot base
+      geometry_msgs::msg::PoseStamped target_pose = dock->plugin->getTargetPose(dock_pose);
 
-    // (5) Wait for contact to conduct charging (TODO process to enable charging if not automatic) TODO
+      // TODO: transform target_pose into base_link frame
 
-    // (6) Check if charging. Yes -> success. No -> retry to limit going back to (1). TODO
+      // Run controller
+      geometry_msgs::msg::Twist command;
+      if (!controller_->computeVelocityCommand(target_pose.pose, command))
+      {
+        // If controller has reached/failed goal but we are not yet charging, retry
+        // TODO
+      }
+    }
 
   } catch (DockingException & e) {  // TODO(sm): set contextual error codes + number range
     RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
@@ -247,10 +274,13 @@ void DockingServer::undockRobot()
       "Attempting to undock robot from charger of type %s.", dock->getName().c_str());
 
     // (2) Check if path to undock is clear  TODO
+
+
   
     // (3) Fergs: Send robot to its staging pose, asked dock API (controller). check max_duration. TODO
       // (2.0) Make sure docking relative pose in right frame (docked pose -> staging pose, not dock itself pose)
       // (2.1) In loop, check that we are no longer charging in state TODO
+
 
 
     // (4) return charge level TODO
