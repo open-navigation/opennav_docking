@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.5)
 project(opennav_docking)
 
 find_package(ament_cmake REQUIRED)
+find_package(angles REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
@@ -13,6 +14,7 @@ find_package(nav2_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(builtin_interfaces REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(yaml_cpp_vendor REQUIRED)
@@ -31,6 +33,7 @@ set(executable_name opennav_docking)
 set(library_name ${executable_name}_core)
 
 set(dependencies
+  angles
   rclcpp
   rclcpp_action
   rclcpp_lifecycle
@@ -43,6 +46,7 @@ set(dependencies
   geometry_msgs
   builtin_interfaces
   tf2_ros
+  tf2_geometry_msgs
   pluginlib
   yaml_cpp_vendor
   opennav_docking_msgs
@@ -52,6 +56,7 @@ set(dependencies
 add_library(${library_name} SHARED
   src/docking_server.cpp
   src/dock_database.cpp
+  src/graceful_controller.cpp
   src/navigator.cpp
 )
 

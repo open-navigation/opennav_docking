@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 #include "opennav_docking/docking_server.hpp"
+#include "opennav_docking/graceful_controller.hpp"
 
 using namespace std::chrono_literals;
 using rcl_interfaces::msg::ParameterType;
@@ -40,6 +42,9 @@ DockingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
   if (!dock_db_->initialize(node)) {
     return nav2_util::CallbackReturn::FAILURE;
   }
+
+  // Create a controller
+  controller_ = std::make_unique<GracefulController>();
 
   double action_server_result_timeout;
   nav2_util::declare_parameter_if_not_declared(
@@ -69,6 +74,12 @@ DockingServer::on_activate(const rclcpp_lifecycle::State & /*state*/)
 {
   RCLCPP_INFO(get_logger(), "Activating %s", get_name());
 
+  auto node = shared_from_this();
+
+  // Setup TF2
+  tf2_buffer_ = std::make_shared<tf2_ros::Buffer>(node->get_clock());
+  tf2_listener_ = std::make_unique<tf2_ros::TransformListener>(*tf2_buffer_);
+
   dock_db_->activate();
   navigator_->activate();
   docking_action_server_->activate();
@@ -76,11 +87,10 @@ DockingServer::on_activate(const rclcpp_lifecycle::State & /*state*/)
   curr_dock_type_.clear();
 
   // Add callback for dynamic parameters
-  auto node = shared_from_this();
   dyn_params_handler_ = node->add_on_set_parameters_callback(
     std::bind(&DockingServer::dynamicParametersCallback, this, _1));
 
-  // create bond connection
+  // Create bond connection
   createBond();
 
   return nav2_util::CallbackReturn::SUCCESS;
@@ -97,8 +107,10 @@ DockingServer::on_deactivate(const rclcpp_lifecycle::State & /*state*/)
   navigator_->deactivate();
 
   dyn_params_handler_.reset();
+  tf2_listener_.reset();
+  tf2_buffer_.reset();
 
-  // destroy bond connection
+  // Destroy bond connection
   destroyBond();
 
   return nav2_util::CallbackReturn::SUCCESS;
@@ -205,15 +217,27 @@ void DockingServer::dockRobot()
       // Use the dock pose to determine where to put the robot base
       geometry_msgs::msg::PoseStamped target_pose = dock->plugin->getTargetPose(dock_pose);
 
-      // TODO: transform target_pose into base_link frame
+      // Transform target_pose into base_link frame
+      geometry_msgs::msg::PoseStamped target_in_base;
+      try
+      {
+        target_pose.header.stamp = rclcpp::Time(0);
+        tf2_buffer_->transform(target_pose, target_in_base, "base_link");
+      }
+      catch (const tf2::TransformException& ex)
+      {
+        RCLCPP_ERROR(get_logger(), "Could not transform pose");
+      }
 
       // Run controller
       geometry_msgs::msg::Twist command;
-      if (!controller_->computeVelocityCommand(target_pose.pose, command))
+      if (!controller_->computeVelocityCommand(target_in_base.pose, command))
       {
         // If controller has reached/failed goal but we are not yet charging, retry
         // TODO
       }
+
+      // TODO(fergs): publish command
     }
 
   } catch (DockingException & e) {  // TODO(sm): set contextual error codes + number range

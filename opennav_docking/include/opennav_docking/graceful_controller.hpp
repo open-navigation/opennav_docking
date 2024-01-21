@@ -12,29 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef OPENNAV_DOCKING_CORE__CONTROLLER_HPP_
-#define OPENNAV_DOCKING_CORE__CONTROLLER_HPP_
+#ifndef OPENNAV_DOCKING__GRACEFUL_CONTROLLER_HPP_
+#define OPENNAV_DOCKING__GRACEFUL_CONTROLLER_HPP_
 
 #include <memory>
 #include <string>
 
-#include "rclcpp/rclcpp.hpp"
-#include "geometry_msgs/msg/twist.hpp"
-#include "geometry_msgs/msg/pose.hpp"
-#include "nav2_util/lifecycle_node.hpp"
-#include "tf2_ros/buffer.h"
+#include "opennav_docking_core/controller.hpp"
 
-namespace opennav_docking_core
+namespace opennav_docking
 {
 /**
- * @class opennav_docking_core::Controller
- * @brief Control law for approaching a dock target
+ * @class opennav_docking::GracefulController
+ * @brief Default control law for approaching a dock target
  */
-class Controller
+class GracefulController : public opennav_docking_core::Controller
 {
 public:
-  using Ptr = std::shared_ptr<Controller>;
-
   /**
    * @param parent pointer to user's node
    * @param name The name of this planner
@@ -42,27 +36,22 @@ public:
    */
   virtual void configure(
     const rclcpp_lifecycle::LifecycleNode::WeakPtr & parent,
-    const std::string & name, std::shared_ptr<tf2_ros::Buffer> tf) = 0;
-
-  /**
-   * @brief A destructor for opennav_docking_core::Controller
-   */
-  ~Controller() = default;
+    const std::string & name, std::shared_ptr<tf2_ros::Buffer> tf);
 
   /**
    * @brief Method to cleanup resources used on shutdown.
    */
-  virtual void cleanup() = 0;
+  virtual void cleanup();
 
   /**
    * @brief Method to active Behavior and any threads involved in execution.
    */
-  virtual void activate() = 0;
+  virtual void activate();
 
   /**
    * @brief Method to deactive Behavior and any threads involved in execution.
    */
-  virtual void deactivate() = 0;
+  virtual void deactivate();
 
   /**
    * @brief Compute control velocities.
@@ -71,9 +60,23 @@ public:
    */
   virtual bool computeVelocityCommand(
     const geometry_msgs::msg::Pose & target,
-    geometry_msgs::msg::Twist & command) = 0;
+    geometry_msgs::msg::Twist & command);
+
+private:
+  double calculateCurvature(double r, double phi, double delta);
+
+  rclcpp_lifecycle::LifecycleNode::WeakPtr parent_;
+  std::string name_;
+
+  double k_phi_;
+  double k_delta_;
+  double beta_;
+  double lambda_;
+  double v_linear_min_, v_linear_max_;
+  double v_angular_max_;
+  double slowdown_radius_;
 };
 
-}  // namespace opennav_docking_core
+}  // namespace opennav_docking
 
-#endif  // OPENNAV_DOCKING_CORE__CONTROLLER_HPP_
+#endif  // OPENNAV_DOCKING__GRACEFUL_CONTROLLER_HPP_

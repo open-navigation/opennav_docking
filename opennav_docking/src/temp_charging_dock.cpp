@@ -11,8 +11,12 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 
+#include <cmath>
 #include <string>
 #include <memory>
+
+#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
+#include "tf2/utils.h"
 
 #include "opennav_docking_core/charging_dock.hpp"
 
@@ -69,10 +73,20 @@ class TempChargingDock : public opennav_docking_core::ChargingDock
   virtual geometry_msgs::msg::PoseStamped getStagingPose(
     const geometry_msgs::msg::Pose & pose, const std::string & frame)
   {
-    geometry_msgs::msg::PoseStamped p;
-    p.pose = pose;
-    p.header.frame_id = frame;
-    return p;
+    // This gets called at the start of docking
+    // Reset our internally tracked dock pose
+    dock_pose_.header.frame_id = frame;
+    dock_pose_.pose = pose;
+
+    // Compute the staging pose - robot pointed at dock, but backed up a bit (0.5m)
+    const double offset = -0.5;
+    const double yaw = tf2::getYaw(dock_pose_.pose.orientation);
+    geometry_msgs::msg::PoseStamped staging_pose;
+    staging_pose = dock_pose_;
+    staging_pose.pose.position.x += cos(yaw) * offset;
+    staging_pose.pose.position.y += sin(yaw) * offset;
+
+    return staging_pose;
   }
 
   /**
@@ -80,8 +94,10 @@ class TempChargingDock : public opennav_docking_core::ChargingDock
    * @param pose The initial estimate of the dock pose.
    * @param frame The frame of the initial estimate.
    */
-  virtual bool getRefinedPose(geometry_msgs::msg::PoseStamped & /*pose*/)
+  virtual bool getRefinedPose(geometry_msgs::msg::PoseStamped & pose)
   {
+    // Just returned cached pose
+    pose = dock_pose_;
     return false;
   }
 
@@ -91,7 +107,15 @@ class TempChargingDock : public opennav_docking_core::ChargingDock
   virtual geometry_msgs::msg::PoseStamped getTargetPose(
     const geometry_msgs::msg::PoseStamped & dock_pose)
   {
-    return dock_pose;
+    // Let's pretend our robot is 12" diameter - center should be about 15cm from dock
+    // Similar to staging pose, but a lot closer!
+    const double offset = -0.15;
+    const double yaw = tf2::getYaw(dock_pose_.pose.orientation);
+    geometry_msgs::msg::PoseStamped target_pose;
+    target_pose = dock_pose;
+    target_pose.pose.position.x += cos(yaw) * offset;
+    target_pose.pose.position.y += sin(yaw) * offset;
+    return target_pose;
   }
 
   /**
@@ -104,6 +128,8 @@ class TempChargingDock : public opennav_docking_core::ChargingDock
    */
   virtual bool isCharging()
   {
+    // TODO: need to figure out where the robot is
+    // If we are close enough, pretend we are charging
     return false;
   }
 
@@ -112,9 +138,14 @@ class TempChargingDock : public opennav_docking_core::ChargingDock
    */
   virtual bool hasStoppedCharging()
   {
-    return false;
+    // Nothing to do here - just pretend we've already disabled charging
+    return true;
   }
+
 private:
+  // For testing, have the dock pose be hard coded (maybe add a service to set it?)
+  geometry_msgs::msg::PoseStamped dock_pose_;
+
   std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
 };
 
