@@ -19,6 +19,7 @@
 #include <memory>
 
 #include "rclcpp/rclcpp.hpp"
+#include "geometry_msgs/msg/pose_stamped.hpp"
 #include "nav2_util/lifecycle_node.hpp"
 #include "tf2_ros/buffer.h"
 
