@@ -71,7 +71,16 @@ ament_target_dependencies(${executable_name}
 
 rclcpp_components_register_nodes(${library_name} "opennav_docking::DockingServer")
 
-install(TARGETS ${library_name}
+add_library(temp_charging_dock SHARED
+  src/temp_charging_dock.cpp
+)
+ament_target_dependencies(temp_charging_dock
+  ${dependencies}
+)
+
+pluginlib_export_plugin_description_file(opennav_docking_core temp_plugins.xml)
+
+install(TARGETS ${library_name} temp_charging_dock
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
@@ -88,6 +97,10 @@ install(DIRECTORY include/
 install(FILES test/test_dock_file.yaml
   DESTINATION share/${PROJECT_NAME}/
 )
+
+#install(FILES temp_plugins.xml
+#  DESTINATION share/${PROJECT_NAME}
+#)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
