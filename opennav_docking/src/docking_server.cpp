@@ -37,6 +37,8 @@ DockingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
 
   // TODO(XYZ): get parameters, construct objects
 
+  vel_publisher_ = create_publisher<geometry_msgs::msg::Twist>("cmd_vel", 1);
+
   navigator_ = std::make_unique<Navigator>(node);
   dock_db_ = std::make_unique<DockDatabase>();
   if (!dock_db_->initialize(node)) {
@@ -84,6 +86,7 @@ DockingServer::on_activate(const rclcpp_lifecycle::State & /*state*/)
   navigator_->activate();
   docking_action_server_->activate();
   undocking_action_server_->activate();
+  vel_publisher_->on_activate();
   curr_dock_type_.clear();
 
   // Add callback for dynamic parameters
@@ -105,6 +108,7 @@ DockingServer::on_deactivate(const rclcpp_lifecycle::State & /*state*/)
   undocking_action_server_->deactivate();
   dock_db_->deactivate();
   navigator_->deactivate();
+  vel_publisher_->on_deactivate();
 
   dyn_params_handler_.reset();
   tf2_listener_.reset();
@@ -125,6 +129,7 @@ DockingServer::on_cleanup(const rclcpp_lifecycle::State & /*state*/)
   dock_db_.reset();
   navigator_.reset();
   curr_dock_type_.clear();
+  vel_publisher_.reset();
   return nav2_util::CallbackReturn::SUCCESS;
 }
 
@@ -205,6 +210,7 @@ void DockingServer::dockRobot()
     while (rclcpp::ok()) {
       // Stop controlling when successfully charging
       if (dock->plugin->isCharging()) {
+        RCLCPP_INFO(get_logger(), "Robot is charging!");
         break;
       }
 
@@ -237,7 +243,8 @@ void DockingServer::dockRobot()
         // TODO
       }
 
-      // TODO(fergs): publish command
+      // Publish command
+      vel_publisher_->publish(command);
     }
 
   } catch (DockingException & e) {  // TODO(sm): set contextual error codes + number range
