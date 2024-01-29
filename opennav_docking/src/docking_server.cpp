@@ -178,7 +178,7 @@ void DockingServer::dockRobot()
     // (2) Send robot to its staging pose
     navigator_->goToPose(
       dock->getDocksStagingPose(), rclcpp::Duration::from_seconds(goal->max_staging_time));
-
+    
     // (3) Fergs: Detect dock pose using sensors, Get docking pose relative to dock's pose from plugin. (TODO plugin for dead reckoning too)
 
     // (4) Fergs: main loop here - make preemptable/cancelable. TODO
@@ -190,9 +190,27 @@ void DockingServer::dockRobot()
 
     // (6) Check if charging. Yes -> success. No -> retry to limit going back to (1). TODO
 
-  } catch (DockingException & e) {  // TODO(sm): set contextual error codes + number range
+  } catch (opennav_docking_core::DockNotInDB & e) {
     RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
-    result->error_code = DockRobot::Result::INVALID_MODE_SET;
+    result->error_code = DockRobot::Result::DOCK_NOT_IN_DB;
+  } catch (opennav_docking_core::DockNotValid & e) {
+    RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
+    result->error_code = DockRobot::Result::DOCK_NOT_VALID;
+  } catch (opennav_docking_core::FailedToStage & e) {
+    RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
+    result->error_code = DockRobot::Result::FAILED_TO_STAGE;
+  } catch (opennav_docking_core::FailedToDetectDock & e) {  // TODO fergs: use this for failure contextual exception
+    RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
+    result->error_code = DockRobot::Result::FAILED_TO_DETECT_DOCK;
+  } catch (opennav_docking_core::FailedToControl & e) {  // TODO fergs: use this for failure contextual exception
+    RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
+    result->error_code = DockRobot::Result::FAILED_TO_CONTROL;
+  } catch (opennav_docking_core::FailedToCharge & e) {  // TODO fergs: use this for failure contextual exception
+    RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
+    result->error_code = DockRobot::Result::FAILED_TO_CHARGE;
+  } catch (opennav_docking_core::DockingException & e) {
+    RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
+    result->error_code = DockRobot::Result::UNKNOWN;
   } catch (std::exception & e) {
     RCLCPP_ERROR(get_logger(), "Internal error: %s", e.what());
     result->error_code = DockRobot::Result::UNKNOWN;
@@ -241,7 +259,7 @@ void DockingServer::undockRobot()
 
     ChargingDock::Ptr dock = dock_db_->findDockPlugin(dock_type);
     if (!dock) {
-      throw DockingException("No dock information to undock from!"); // TODO specialize
+      throw opennav_docking_core::DockNotValid("No dock information to undock from!");
     }
     RCLCPP_INFO(
       get_logger(),
@@ -255,11 +273,18 @@ void DockingServer::undockRobot()
 
 
     // (4) return charge level TODO
-  } catch (DockingException & e) {  // TODO(sm): set contextual error codes+ number range
+
+  } catch (opennav_docking_core::DockNotValid & e) {
     RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
-    result->error_code = DockRobot::Result::INVALID_MODE_SET;
+    result->error_code = DockRobot::Result::DOCK_NOT_VALID;
+  } catch (opennav_docking_core::FailedToControl & e) {  // TODO fergs: use this for failure contextual exception
+    RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
+    result->error_code = DockRobot::Result::FAILED_TO_CONTROL;
+  } catch (opennav_docking_core::DockingException & e) {  // TODO fergs: use this for failure contextual exception
+    RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
+    result->error_code = DockRobot::Result::UNKNOWN;
   } catch (std::exception & e) {
-    RCLCPP_ERROR(get_logger(), "Internal Fields2Cover error: %s", e.what());
+    RCLCPP_ERROR(get_logger(), "Internal error: %s", e.what());
     result->error_code = DockRobot::Result::UNKNOWN;
   }
 

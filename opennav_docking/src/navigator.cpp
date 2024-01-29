@@ -82,7 +82,7 @@ void Navigator::goToPose(
     return;
   }
 
-  throw DockingException("Navigation request to staging pose failed.");  // TODO specialize
+  throw opennav_docking_core::FailedToStage("Navigation request to staging pose failed.");
 }
 
 }  // namespace opennav_docking

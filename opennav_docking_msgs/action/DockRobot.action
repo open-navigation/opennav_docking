@@ -14,11 +14,13 @@ float32 max_staging_time 1000.0 # Maximum time for navigation to get to the dock
 # Error codes
 # Note: The expected priority order of the errors should match the message order
 uint16 NONE=0
-uint16 INTERNAL_F2C_ERROR=801
-uint16 INVALID_MODE_SET=802
-uint16 INVALID_REQUEST=803
-uint16 INVALID_COORDS=803
-uint16 UNKNOWN=804
+uint16 DOCK_NOT_IN_DB=901
+uint16 DOCK_NOT_VALID=902
+uint16 FAILED_TO_STAGE=903
+uint16 FAILED_TO_DETECT_DOCK=904
+uint16 FAILED_TO_CONTROL=905
+uint16 FAILED_TO_CHARGE=906
+uint16 UNKNOWN=999
 
 bool success True  # docking success status
 uint16 error_code 0  # Contextual error code, if any
