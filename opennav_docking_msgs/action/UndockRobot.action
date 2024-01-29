@@ -6,7 +6,7 @@
 # If not set & server instance was used to dock, server will use current dock information from last docking request.
 string dock_type
 
-builtin_interfaces/Duration max_undocking_time  # Maximum time to undock
+float32 max_undocking_time 30.0 # Maximum time to undock
 
 ---
 #result definition

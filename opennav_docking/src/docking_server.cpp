@@ -176,7 +176,8 @@ void DockingServer::dockRobot()
     }
 
     // (2) Send robot to its staging pose
-    navigator_->goToPose(dock->getDocksStagingPose(), rclcpp::Duration(goal->max_staging_time));
+    navigator_->goToPose(
+      dock->getDocksStagingPose(), rclcpp::Duration::from_seconds(goal->max_staging_time));
 
     // (3) Fergs: Detect dock pose using sensors, Get docking pose relative to dock's pose from plugin. (TODO plugin for dead reckoning too)
 
@@ -229,7 +230,7 @@ void DockingServer::undockRobot()
   }
 
   getPreemptedGoalIfRequested(goal, undocking_action_server_);
-  rclcpp::Duration max_duration(goal->max_undocking_time);
+  auto max_duration = rclcpp::Duration::from_seconds(goal->max_undocking_time);
 
   try {
     // (1) Get dock  plugin information from request or docked state, reset state.
