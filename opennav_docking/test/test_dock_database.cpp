@@ -60,7 +60,7 @@ TEST(DatabaseTests, ObjectLifecycle)
 {
   auto node = std::make_shared<rclcpp_lifecycle::LifecycleNode>("test");
   opennav_docking::DockDatabase db;
-  db.initialize(node);
+  db.initialize(node, nullptr);
   db.activate();
   db.deactivate();
 
@@ -74,11 +74,11 @@ TEST(DatabaseTests, initializeBogusPlugins)
   std::vector<std::string> plugins{"dockv1", "dockv2"};
   node->declare_parameter("dock_plugins", rclcpp::ParameterValue(plugins));
   opennav_docking::DockDatabase db;
-  db.initialize(node);
+  db.initialize(node, nullptr);
 
   plugins.clear();
   node->set_parameter(rclcpp::Parameter("dock_plugins", rclcpp::ParameterValue(plugins)));
-  db.initialize(node);
+  db.initialize(node, nullptr);
 }
 
 TEST(DatabaseTests, findTests)

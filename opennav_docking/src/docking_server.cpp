@@ -41,7 +41,7 @@ DockingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
 
   navigator_ = std::make_unique<Navigator>(node);
   dock_db_ = std::make_unique<DockDatabase>();
-  if (!dock_db_->initialize(node)) {
+  if (!dock_db_->initialize(node, tf2_buffer_)) {
     return nav2_util::CallbackReturn::FAILURE;
   }
 

@@ -27,12 +27,14 @@ DockDatabase::~DockDatabase()
   dock_plugins_.clear();
 }
 
-bool DockDatabase::initialize(const rclcpp_lifecycle::LifecycleNode::WeakPtr & parent)
+bool DockDatabase::initialize(
+  const rclcpp_lifecycle::LifecycleNode::WeakPtr & parent,
+  std::shared_ptr<tf2_ros::Buffer> tf)
 {
   node_ = parent;
   auto node = node_.lock();
 
-  if (getDockPlugins(node) && getDockInstances(node)) {
+  if (getDockPlugins(node, tf) && getDockInstances(node)) {
     RCLCPP_INFO(
       node->get_logger(),
       "Docking Server has %u dock types and %u dock instances available.",
@@ -99,7 +101,9 @@ ChargingDock::Ptr DockDatabase::findDockPlugin(const std::string & type)
   return nullptr;
 }
 
-bool DockDatabase::getDockPlugins(const rclcpp_lifecycle::LifecycleNode::SharedPtr & node)
+bool DockDatabase::getDockPlugins(
+  const rclcpp_lifecycle::LifecycleNode::SharedPtr & node,
+  std::shared_ptr<tf2_ros::Buffer> tf)
 {
   std::vector<std::string> docks_plugins;
   if (!node->has_parameter("dock_plugins")) {
@@ -124,7 +128,7 @@ bool DockDatabase::getDockPlugins(const rclcpp_lifecycle::LifecycleNode::SharedP
       RCLCPP_INFO(
         node->get_logger(), "Created charging dock plugin %s of type %s",
         docks_plugins[i].c_str(), plugin_type.c_str());
-      dock->configure(node, docks_plugins[i], nullptr); // TODO TF buffer
+      dock->configure(node, docks_plugins[i], tf);
       dock_plugins_.insert({docks_plugins[i], dock});
     } catch (const std::exception & ex) {
       RCLCPP_FATAL(

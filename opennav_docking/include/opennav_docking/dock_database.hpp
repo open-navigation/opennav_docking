@@ -46,8 +46,11 @@ public:
   /**
    * @brief A setup function to populate database
    * @param parent Weakptr to the node to use to get interances and parameters
+   * @param tf TF buffer
+   * @return If successful
    */
-  bool initialize(const rclcpp_lifecycle::LifecycleNode::WeakPtr & parent);
+  bool initialize(
+    const rclcpp_lifecycle::LifecycleNode::WeakPtr & parent, std::shared_ptr<tf2_ros::Buffer> tf);
 
   /**
    * @brief A destructor for opennav_docking::DockDatabase
@@ -93,11 +96,16 @@ public:
 protected:
   /**
    * @brief Populate database of dock type plugins
+   * @param Node Node to get values from
+   * @param tf TF buffer
+   * @return bool If successful
    */
-  bool getDockPlugins(const rclcpp_lifecycle::LifecycleNode::SharedPtr & node);
+  bool getDockPlugins(
+    const rclcpp_lifecycle::LifecycleNode::SharedPtr & node, std::shared_ptr<tf2_ros::Buffer> tf);
 
   /**
    * @brief Populate database of dock instances
+   * @param Node Node to get values from
    */
   bool getDockInstances(const rclcpp_lifecycle::LifecycleNode::SharedPtr & node);
 
