@@ -19,6 +19,7 @@
 #include <memory>
 
 #include "rclcpp/rclcpp.hpp"
+#include "geometry_msgs/msg/pose_stamped.hpp"
 #include "nav2_util/lifecycle_node.hpp"
 #include "tf2_ros/buffer.h"
 
@@ -72,8 +73,36 @@ public:
    * @param frame Dock's frame of pose
    * @return PoseStamped of staging pose in the specified frame
    */
-  virtual geometry_msgs::msg::PoseStamped getDocksStagingPose(
+  virtual geometry_msgs::msg::PoseStamped getStagingPose(
     const geometry_msgs::msg::Pose & pose, const std::string & frame) = 0;
+
+  /**
+   * @brief Method to obtain the refined pose of the dock, usually based on sensors
+   * @param pose The initial estimate of the dock pose.
+   * @param frame The frame of the initial estimate.
+   */
+  virtual bool getRefinedPose(geometry_msgs::msg::PoseStamped & pose) = 0;
+
+  /**
+   * @brief Method to obtain the target pose for the robot from a refined dock pose.
+   */
+  virtual geometry_msgs::msg::PoseStamped getTargetPose(
+    const geometry_msgs::msg::PoseStamped & dock_pose) = 0;
+
+  /**
+   * @brief Are we charging? If a charge dock requires any sort of negotiation
+   * to begin charging, that should happen inside this function as this function
+   * will be called repeatedly within the docking loop.
+   *
+   * NOTE: this function is expected to return QUICKLY. Blocking here will block
+   * the docking controller loop.
+   */
+  virtual bool isCharging() = 0;
+
+  /**
+   * @brief Similar to isCharging() but called when undocking.
+   */
+  virtual bool hasStoppedCharging() = 0;
 
   std::string getName() {return name_;}
 

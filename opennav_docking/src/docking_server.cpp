@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 #include "opennav_docking/docking_server.hpp"
+#include "opennav_docking/graceful_controller.hpp"
 
 using namespace std::chrono_literals;
 using rcl_interfaces::msg::ParameterType;
@@ -35,11 +37,16 @@ DockingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
 
   // TODO(XYZ): get parameters, construct objects
 
+  vel_publisher_ = create_publisher<geometry_msgs::msg::Twist>("cmd_vel", 1);
+
   navigator_ = std::make_unique<Navigator>(node);
   dock_db_ = std::make_unique<DockDatabase>();
   if (!dock_db_->initialize(node)) {
     return nav2_util::CallbackReturn::FAILURE;
   }
+
+  // Create a controller
+  controller_ = std::make_unique<GracefulController>();
 
   double action_server_result_timeout;
   nav2_util::declare_parameter_if_not_declared(
@@ -69,18 +76,24 @@ DockingServer::on_activate(const rclcpp_lifecycle::State & /*state*/)
 {
   RCLCPP_INFO(get_logger(), "Activating %s", get_name());
 
+  auto node = shared_from_this();
+
+  // Setup TF2
+  tf2_buffer_ = std::make_shared<tf2_ros::Buffer>(node->get_clock());
+  tf2_listener_ = std::make_unique<tf2_ros::TransformListener>(*tf2_buffer_);
+
   dock_db_->activate();
   navigator_->activate();
   docking_action_server_->activate();
   undocking_action_server_->activate();
+  vel_publisher_->on_activate();
   curr_dock_type_.clear();
 
   // Add callback for dynamic parameters
-  auto node = shared_from_this();
   dyn_params_handler_ = node->add_on_set_parameters_callback(
     std::bind(&DockingServer::dynamicParametersCallback, this, _1));
 
-  // create bond connection
+  // Create bond connection
   createBond();
 
   return nav2_util::CallbackReturn::SUCCESS;
@@ -95,10 +108,13 @@ DockingServer::on_deactivate(const rclcpp_lifecycle::State & /*state*/)
   undocking_action_server_->deactivate();
   dock_db_->deactivate();
   navigator_->deactivate();
+  vel_publisher_->on_deactivate();
 
   dyn_params_handler_.reset();
+  tf2_listener_.reset();
+  tf2_buffer_.reset();
 
-  // destroy bond connection
+  // Destroy bond connection
   destroyBond();
 
   return nav2_util::CallbackReturn::SUCCESS;
@@ -113,6 +129,7 @@ DockingServer::on_cleanup(const rclcpp_lifecycle::State & /*state*/)
   dock_db_.reset();
   navigator_.reset();
   curr_dock_type_.clear();
+  vel_publisher_.reset();
   return nav2_util::CallbackReturn::SUCCESS;
 }
 
@@ -177,18 +194,59 @@ void DockingServer::dockRobot()
 
     // (2) Send robot to its staging pose
     navigator_->goToPose(
-      dock->getDocksStagingPose(), rclcpp::Duration::from_seconds(goal->max_staging_time));
-    
-    // (3) Fergs: Detect dock pose using sensors, Get docking pose relative to dock's pose from plugin. (TODO plugin for dead reckoning too)
+      dock->getStagingPose(), rclcpp::Duration::from_seconds(goal->max_staging_time));
 
-    // (4) Fergs: main loop here - make preemptable/cancelable. TODO
+    // Construct initial estimate of where the dock is located
+    geometry_msgs::msg::PoseStamped dock_pose;
+    dock_pose.pose = dock->pose;
+    dock_pose.header.frame_id = dock->frame;
 
+    // Get initial detection of dock before proceeding to move
+    while (!dock->plugin->getRefinedPose(dock_pose))
+    {
+      // TODO: add timeout
+    }
 
+    // Docking control loop: while not docked, run controller
+    while (rclcpp::ok()) {
+      // Stop controlling when successfully charging
+      if (dock->plugin->isCharging()) {
+        RCLCPP_INFO(get_logger(), "Robot is charging!");
+        break;
+      }
 
+      // Update perception
+      if (!dock->plugin->getRefinedPose(dock_pose))
+      {
+        // TODO: handle loss of perception
+      }
 
-    // (5) Wait for contact to conduct charging (TODO process to enable charging if not automatic) TODO
+      // Use the dock pose to determine where to put the robot base
+      geometry_msgs::msg::PoseStamped target_pose = dock->plugin->getTargetPose(dock_pose);
 
-    // (6) Check if charging. Yes -> success. No -> retry to limit going back to (1). TODO
+      // Transform target_pose into base_link frame
+      geometry_msgs::msg::PoseStamped target_in_base;
+      try
+      {
+        target_pose.header.stamp = rclcpp::Time(0);
+        tf2_buffer_->transform(target_pose, target_in_base, "base_link");
+      }
+      catch (const tf2::TransformException& ex)
+      {
+        RCLCPP_ERROR(get_logger(), "Could not transform pose");
+      }
+
+      // Run controller
+      geometry_msgs::msg::Twist command;
+      if (!controller_->computeVelocityCommand(target_in_base.pose, command))
+      {
+        // If controller has reached/failed goal but we are not yet charging, retry
+        // TODO
+      }
+
+      // Publish command
+      vel_publisher_->publish(command);
+    }
 
   } catch (opennav_docking_core::DockNotInDB & e) {
     RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
@@ -266,10 +324,13 @@ void DockingServer::undockRobot()
       "Attempting to undock robot from charger of type %s.", dock->getName().c_str());
 
     // (2) Check if path to undock is clear  TODO
+
+
   
     // (3) Fergs: Send robot to its staging pose, asked dock API (controller). check max_duration. TODO
       // (2.0) Make sure docking relative pose in right frame (docked pose -> staging pose, not dock itself pose)
       // (2.1) In loop, check that we are no longer charging in state TODO
+
 
 
     // (4) return charge level TODO

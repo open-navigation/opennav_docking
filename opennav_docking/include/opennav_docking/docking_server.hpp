@@ -27,7 +27,9 @@
 #include "opennav_docking/types.hpp"
 #include "opennav_docking/dock_database.hpp"
 #include "opennav_docking/navigator.hpp"
+#include "opennav_docking_core/controller.hpp"
 #include "opennav_docking_core/charging_dock.hpp"
+#include "tf2_ros/transform_listener.h"
 
 namespace opennav_docking
 {
@@ -120,12 +122,18 @@ protected:
   rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr dyn_params_handler_;
   std::mutex dynamic_params_lock_;
 
+  rclcpp_lifecycle::LifecyclePublisher<geometry_msgs::msg::Twist>::SharedPtr vel_publisher_;
+
   std::unique_ptr<DockingActionServer> docking_action_server_;
   std::unique_ptr<UndockingActionServer> undocking_action_server_;
 
   std::unique_ptr<DockDatabase> dock_db_;
   std::unique_ptr<Navigator> navigator_;
+  std::unique_ptr<opennav_docking_core::Controller> controller_;
   std::string curr_dock_type_;
+
+  std::shared_ptr<tf2_ros::Buffer> tf2_buffer_;
+  std::unique_ptr<tf2_ros::TransformListener> tf2_listener_;
 };
 
 }  // namespace opennav_docking
