@@ -89,8 +89,8 @@ TEST(DatabaseTests, findTests)
 
   db.findDockPlugin("");
   db.findDockPlugin("first_dock_t");
-  EXPECT_THROW(db.findDock("first_dock"), DockingException);
-  EXPECT_THROW(db.findDock("bogus_dock"), DockingException);
+  EXPECT_THROW(db.findDock("first_dock"), opennav_docking_core::DockNotValid);
+  EXPECT_THROW(db.findDock("bogus_dock"), opennav_docking_core::DockNotInDB);
 
   db.populateTwo();
   db.findDockPlugin("");

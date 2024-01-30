@@ -193,7 +193,8 @@ void DockingServer::dockRobot()
     }
 
     // (2) Send robot to its staging pose
-    navigator_->goToPose(dock->getStagingPose(), rclcpp::Duration(goal->max_staging_time));
+    navigator_->goToPose(
+      dock->getStagingPose(), rclcpp::Duration::from_seconds(goal->max_staging_time));
 
     // Construct initial estimate of where the dock is located
     geometry_msgs::msg::PoseStamped dock_pose;
@@ -247,9 +248,27 @@ void DockingServer::dockRobot()
       vel_publisher_->publish(command);
     }
 
-  } catch (DockingException & e) {  // TODO(sm): set contextual error codes + number range
+  } catch (opennav_docking_core::DockNotInDB & e) {
     RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
-    result->error_code = DockRobot::Result::INVALID_MODE_SET;
+    result->error_code = DockRobot::Result::DOCK_NOT_IN_DB;
+  } catch (opennav_docking_core::DockNotValid & e) {
+    RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
+    result->error_code = DockRobot::Result::DOCK_NOT_VALID;
+  } catch (opennav_docking_core::FailedToStage & e) {
+    RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
+    result->error_code = DockRobot::Result::FAILED_TO_STAGE;
+  } catch (opennav_docking_core::FailedToDetectDock & e) {  // TODO fergs: use this for failure contextual exception
+    RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
+    result->error_code = DockRobot::Result::FAILED_TO_DETECT_DOCK;
+  } catch (opennav_docking_core::FailedToControl & e) {  // TODO fergs: use this for failure contextual exception
+    RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
+    result->error_code = DockRobot::Result::FAILED_TO_CONTROL;
+  } catch (opennav_docking_core::FailedToCharge & e) {  // TODO fergs: use this for failure contextual exception
+    RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
+    result->error_code = DockRobot::Result::FAILED_TO_CHARGE;
+  } catch (opennav_docking_core::DockingException & e) {
+    RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
+    result->error_code = DockRobot::Result::UNKNOWN;
   } catch (std::exception & e) {
     RCLCPP_ERROR(get_logger(), "Internal error: %s", e.what());
     result->error_code = DockRobot::Result::UNKNOWN;
@@ -287,7 +306,7 @@ void DockingServer::undockRobot()
   }
 
   getPreemptedGoalIfRequested(goal, undocking_action_server_);
-  rclcpp::Duration max_duration(goal->max_undocking_time);
+  auto max_duration = rclcpp::Duration::from_seconds(goal->max_undocking_time);
 
   try {
     // (1) Get dock  plugin information from request or docked state, reset state.
@@ -298,7 +317,7 @@ void DockingServer::undockRobot()
 
     ChargingDock::Ptr dock = dock_db_->findDockPlugin(dock_type);
     if (!dock) {
-      throw DockingException("No dock information to undock from!"); // TODO specialize
+      throw opennav_docking_core::DockNotValid("No dock information to undock from!");
     }
     RCLCPP_INFO(
       get_logger(),
@@ -315,11 +334,18 @@ void DockingServer::undockRobot()
 
 
     // (4) return charge level TODO
-  } catch (DockingException & e) {  // TODO(sm): set contextual error codes+ number range
+
+  } catch (opennav_docking_core::DockNotValid & e) {
     RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
-    result->error_code = DockRobot::Result::INVALID_MODE_SET;
+    result->error_code = DockRobot::Result::DOCK_NOT_VALID;
+  } catch (opennav_docking_core::FailedToControl & e) {  // TODO fergs: use this for failure contextual exception
+    RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
+    result->error_code = DockRobot::Result::FAILED_TO_CONTROL;
+  } catch (opennav_docking_core::DockingException & e) {  // TODO fergs: use this for failure contextual exception
+    RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
+    result->error_code = DockRobot::Result::UNKNOWN;
   } catch (std::exception & e) {
-    RCLCPP_ERROR(get_logger(), "Internal Fields2Cover error: %s", e.what());
+    RCLCPP_ERROR(get_logger(), "Internal error: %s", e.what());
     result->error_code = DockRobot::Result::UNKNOWN;
   }
 

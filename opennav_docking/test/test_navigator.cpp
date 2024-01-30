@@ -102,13 +102,13 @@ TEST(NavigatorTests, TestNavigator)
   // Should fail, timeout exceeded
   EXPECT_THROW(
     navigator->goToPose(geometry_msgs::msg::PoseStamped(), rclcpp::Duration(0.0, 0.0)),
-    DockingException);
+    opennav_docking_core::FailedToStage);
 
   // Should fail, action server set to succeed
   dummy_navigator_node->setReturn(false);
   EXPECT_THROW(
     navigator->goToPose(geometry_msgs::msg::PoseStamped(), rclcpp::Duration(10.0, 10.0)),
-    DockingException);
+    opennav_docking_core::FailedToStage);
 
   // First should fail, recursion should succeed
   dummy_navigator_node->setToggle();

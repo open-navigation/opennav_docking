@@ -21,6 +21,7 @@
 #include "opennav_docking_msgs/action/dock_robot.hpp"
 #include "opennav_docking_msgs/action/undock_robot.hpp"
 #include "opennav_docking_core/charging_dock.hpp"
+#include "opennav_docking_core/docking_exceptions.hpp"
 
 typedef opennav_docking_msgs::action::DockRobot DockRobot;
 typedef opennav_docking_msgs::action::UndockRobot UndockRobot;
@@ -44,12 +45,5 @@ struct Dock
 using opennav_docking_core::ChargingDock;
 using DockPluginMap = std::unordered_map<std::string, opennav_docking_core::ChargingDock::Ptr>;
 using DockMap = std::unordered_map<std::string, Dock>;
-
-class DockingException : public std::runtime_error
-{
-public:
-  explicit DockingException(const std::string & description)
-  : std::runtime_error(description) {}
-};
 
 #endif  // OPENNAV_DOCKING__TYPES_HPP_

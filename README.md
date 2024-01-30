@@ -77,5 +77,7 @@ TODO parameters
 
 ## Etc
 
-TODO notes of interest
-- staging pose and different robot kinematics (make contacts towards, so feasible planning to only require straight-ish)
+### On Staging Poses
+
+Staging poses are where the robot should navigate to in order to start the docking procedure. This pose should be close enough to the dock to accurately detect the dock's presence, but far enough that if its moved slightly or the robot's localization isn't perfect it can still be detected. The robot's charging contacts or charging location should be pointed towards the dock in this staging pose. That way, a feasible global planner can be used to model your robot's real constraints while getting to the docking pose (non-circular, non-holonomic), rather than complicating the docking process itself.
+

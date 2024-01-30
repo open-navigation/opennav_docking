@@ -71,9 +71,9 @@ Dock * DockDatabase::findDock(const std::string & dock_id)
       dock_instance->plugin = dock_plugin;
       return dock_instance;
     }
-    throw DockingException("Dock requested has no valid plugin!"); // TODO specialize
+    throw opennav_docking_core::DockNotValid("Dock requested has no valid plugin!");
   }
-  throw DockingException("Dock ID requested is not in database!"); // TODO specialize
+  throw opennav_docking_core::DockNotInDB("Dock ID requested is not in database!");
 }
 
 Dock * DockDatabase::findDockInstance(const std::string & dock_id)
