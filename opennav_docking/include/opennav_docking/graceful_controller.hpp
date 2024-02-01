@@ -18,7 +18,7 @@
 #include <memory>
 #include <string>
 
-#include "opennav_docking_core/controller.hpp"
+#include "opennav_docking/controller.hpp"
 
 namespace opennav_docking
 {
@@ -26,7 +26,7 @@ namespace opennav_docking
  * @class opennav_docking::GracefulController
  * @brief Default control law for approaching a dock target
  */
-class GracefulController : public opennav_docking_core::Controller
+class GracefulController : public Controller
 {
 public:
   /**

@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef OPENNAV_DOCKING_CORE__CONTROLLER_HPP_
-#define OPENNAV_DOCKING_CORE__CONTROLLER_HPP_
+#ifndef OPENNAV_DOCKING__CONTROLLER_HPP_
+#define OPENNAV_DOCKING__CONTROLLER_HPP_
 
 #include <memory>
 #include <string>
@@ -24,10 +24,10 @@
 #include "nav2_util/lifecycle_node.hpp"
 #include "tf2_ros/buffer.h"
 
-namespace opennav_docking_core
+namespace opennav_docking
 {
 /**
- * @class opennav_docking_core::Controller
+ * @class opennav_docking::Controller
  * @brief Control law for approaching a dock target
  */
 class Controller
@@ -45,7 +45,7 @@ public:
     const std::string & name, std::shared_ptr<tf2_ros::Buffer> tf) = 0;
 
   /**
-   * @brief A destructor for opennav_docking_core::Controller
+   * @brief A destructor for opennav_docking::Controller
    */
   ~Controller() = default;
 
@@ -74,6 +74,6 @@ public:
     geometry_msgs::msg::Twist & command) = 0;
 };
 
-}  // namespace opennav_docking_core
+}  // namespace opennav_docking
 
-#endif  // OPENNAV_DOCKING_CORE__CONTROLLER_HPP_
+#endif  // OPENNAV_DOCKING__CONTROLLER_HPP_
