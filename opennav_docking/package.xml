@@ -24,6 +24,8 @@
   <depend>opennav_docking_core</depend>
   <depend>tf2_ros</depend>
 
+  <test_depend>ament_cmake_gtest</test_depend>
+  <test_depend>ament_cmake_pytest</test_depend>
   <test_depend>ament_lint_common</test_depend>
   <test_depend>ament_lint_auto</test_depend>
 

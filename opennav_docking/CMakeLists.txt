@@ -110,6 +110,7 @@ install(FILES test/test_dock_file.yaml
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   find_package(ament_cmake_gtest REQUIRED)
+  find_package(ament_cmake_pytest REQUIRED)
   ament_lint_auto_find_test_dependencies()
   add_subdirectory(test)
 endif()

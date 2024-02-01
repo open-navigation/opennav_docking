@@ -27,6 +27,9 @@ DockingServer::DockingServer(const rclcpp::NodeOptions & options)
 : nav2_util::LifecycleNode("docking_server", "", options)
 {
   RCLCPP_INFO(get_logger(), "Creating %s", get_name());
+
+  declare_parameter("controller_frequency", 20.0);
+  declare_parameter("initial_perception_timeout_sec", 2.0);
 }
 
 nav2_util::CallbackReturn
@@ -35,9 +38,15 @@ DockingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
   RCLCPP_INFO(get_logger(), "Configuring %s", get_name());
   auto node = shared_from_this();
 
-  // TODO(XYZ): get parameters, construct objects
+  get_parameter("controller_frequency", controller_frequency_);
+  get_parameter("initial_perception_timeout_sec", initial_perception_timeout_sec_);
+  RCLCPP_INFO(get_logger(), "Controller frequency set to %.4fHz", controller_frequency_);
 
   vel_publisher_ = create_publisher<geometry_msgs::msg::Twist>("cmd_vel", 1);
+
+  // Setup TF2
+  tf2_buffer_ = std::make_shared<tf2_ros::Buffer>(node->get_clock());
+  tf2_listener_ = std::make_unique<tf2_ros::TransformListener>(*tf2_buffer_);
 
   navigator_ = std::make_unique<Navigator>(node);
   dock_db_ = std::make_unique<DockDatabase>();
@@ -47,6 +56,7 @@ DockingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
 
   // Create a controller
   controller_ = std::make_unique<GracefulController>();
+  controller_->activate();
 
   double action_server_result_timeout;
   nav2_util::declare_parameter_if_not_declared(
@@ -77,10 +87,6 @@ DockingServer::on_activate(const rclcpp_lifecycle::State & /*state*/)
   RCLCPP_INFO(get_logger(), "Activating %s", get_name());
 
   auto node = shared_from_this();
-
-  // Setup TF2
-  tf2_buffer_ = std::make_shared<tf2_ros::Buffer>(node->get_clock());
-  tf2_listener_ = std::make_unique<tf2_ros::TransformListener>(*tf2_buffer_);
 
   dock_db_->activate();
   navigator_->activate();
@@ -155,6 +161,8 @@ void DockingServer::dockRobot()
   std::lock_guard<std::mutex> lock(dynamic_params_lock_);
   auto start_time = this->now();
 
+  rclcpp::Rate loop_rate(controller_frequency_);
+
   auto goal = docking_action_server_->get_current_goal();
   auto result = std::make_shared<DockRobot::Result>();
 
@@ -195,6 +203,7 @@ void DockingServer::dockRobot()
     // (2) Send robot to its staging pose
     navigator_->goToPose(
       dock->getStagingPose(), rclcpp::Duration::from_seconds(goal->max_staging_time));
+    RCLCPP_INFO(get_logger(), "Successful navigation to staging pose");
 
     // Construct initial estimate of where the dock is located
     geometry_msgs::msg::PoseStamped dock_pose;
@@ -202,9 +211,15 @@ void DockingServer::dockRobot()
     dock_pose.header.frame_id = dock->frame;
 
     // Get initial detection of dock before proceeding to move
+    rclcpp::Time loop_start = this->now();
     while (!dock->plugin->getRefinedPose(dock_pose)) {
-      // TODO(fergs): add timeout
+      auto timeout = rclcpp::Duration::from_seconds(initial_perception_timeout_sec_);
+      if (this->now() - loop_start > timeout) {
+        throw opennav_docking_core::FailedToDetectDock("Failed initial dock detection");
+      }
+      loop_rate.sleep();
     }
+    RCLCPP_INFO(get_logger(), "Successful initial dock detection");
 
     // Docking control loop: while not docked, run controller
     while (rclcpp::ok()) {
@@ -216,7 +231,7 @@ void DockingServer::dockRobot()
 
       // Update perception
       if (!dock->plugin->getRefinedPose(dock_pose)) {
-        // TODO(fergs): handle loss of perception
+        throw opennav_docking_core::FailedToDetectDock("Failed dock detection");
       }
 
       // Use the dock pose to determine where to put the robot base
@@ -238,8 +253,9 @@ void DockingServer::dockRobot()
         // TODO(fergs)
       }
 
-      // Publish command
+      // Publish command and sleep
       vel_publisher_->publish(command);
+      loop_rate.sleep();
     }
   } catch (opennav_docking_core::DockNotInDB & e) {
     RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
@@ -251,7 +267,6 @@ void DockingServer::dockRobot()
     RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
     result->error_code = DockRobot::Result::FAILED_TO_STAGE;
   } catch (opennav_docking_core::FailedToDetectDock & e) {
-    // TODO(fergs): use this for failure contextual exception
     RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
     result->error_code = DockRobot::Result::FAILED_TO_DETECT_DOCK;
   } catch (opennav_docking_core::FailedToControl & e) {

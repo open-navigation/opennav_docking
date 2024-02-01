@@ -15,7 +15,7 @@
 # limitations under the License.
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, SetEnvironmentVariable
+from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
@@ -37,7 +37,11 @@ def generate_launch_description():
             parameters=[{'dock_plugins': ['temp_dock_plugin'],
                          'temp_dock_plugin': {'plugin': 'opennav_docking::TempChargingDock'},
                          'docks': ['test_dock'],
-                         'test_dock': {'type': 'temp_dock_plugin', 'frame': 'test_frame', 'pose': [0.0, 0.0, 0.0]}}],
+                         'test_dock': {
+                            'type': 'temp_dock_plugin',
+                            'frame': 'test_frame',
+                            'pose': [0.0, 0.0, 0.0]
+                         }}],
             output='screen',
         ),
 

@@ -122,6 +122,9 @@ protected:
   rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr dyn_params_handler_;
   std::mutex dynamic_params_lock_;
 
+  double controller_frequency_;
+  double initial_perception_timeout_sec_;
+
   rclcpp_lifecycle::LifecyclePublisher<geometry_msgs::msg::Twist>::SharedPtr vel_publisher_;
 
   std::unique_ptr<DockingActionServer> docking_action_server_;

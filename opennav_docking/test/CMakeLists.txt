@@ -30,3 +30,6 @@ ament_target_dependencies(test_navigator
 target_link_libraries(test_navigator
   ${library_name}
 )
+
+# Test docking server
+ament_add_pytest_test("test_docking_server" test_docking_server.py)
