@@ -25,7 +25,7 @@ namespace opennav_docking
 
 void GracefulController::configure(
   const rclcpp_lifecycle::LifecycleNode::WeakPtr & parent,
-  const std::string & name, std::shared_ptr<tf2_ros::Buffer> /* tf */)
+  const std::string & name, std::shared_ptr<tf2_ros::Buffer>/* tf */)
 {
   parent_ = parent;
   name_ = name;

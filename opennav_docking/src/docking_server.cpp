@@ -202,8 +202,7 @@ void DockingServer::dockRobot()
     dock_pose.header.frame_id = dock->frame;
 
     // Get initial detection of dock before proceeding to move
-    while (!dock->plugin->getRefinedPose(dock_pose))
-    {
+    while (!dock->plugin->getRefinedPose(dock_pose)) {
       // TODO(fergs): add timeout
     }
 
@@ -216,8 +215,7 @@ void DockingServer::dockRobot()
       }
 
       // Update perception
-      if (!dock->plugin->getRefinedPose(dock_pose))
-      {
+      if (!dock->plugin->getRefinedPose(dock_pose)) {
         // TODO(fergs): handle loss of perception
       }
 
@@ -226,20 +224,16 @@ void DockingServer::dockRobot()
 
       // Transform target_pose into base_link frame
       geometry_msgs::msg::PoseStamped target_in_base;
-      try
-      {
+      try {
         target_pose.header.stamp = rclcpp::Time(0);
         tf2_buffer_->transform(target_pose, target_in_base, "base_link");
-      }
-      catch (const tf2::TransformException& ex)
-      {
+      } catch (const tf2::TransformException & ex) {
         RCLCPP_ERROR(get_logger(), "Could not transform pose");
       }
 
       // Run controller
       geometry_msgs::msg::Twist command;
-      if (!controller_->computeVelocityCommand(target_in_base.pose, command))
-      {
+      if (!controller_->computeVelocityCommand(target_in_base.pose, command)) {
         // If controller has reached/failed goal but we are not yet charging, retry
         // TODO(fergs)
       }
@@ -328,10 +322,10 @@ void DockingServer::undockRobot()
     // (2) Check if path to undock is clear  TODO(fergs)
 
     // (3) TODO(fergs): Send robot to its staging pose, asked dock API (controller).
-      //                check max_duration.
-      // (2.0) Make sure docking relative pose in right frame
-      //       (docked pose -> staging pose, not dock itself pose)
-      // (2.1) In loop, check that we are no longer charging in state
+    //                  check max_duration.
+    // (2.0) Make sure docking relative pose in right frame
+    //       (docked pose -> staging pose, not dock itself pose)
+    // (2.1) In loop, check that we are no longer charging in state
 
     // (4) return charge level TODO(fergs)
   } catch (opennav_docking_core::DockNotValid & e) {
@@ -363,10 +357,10 @@ DockingServer::dynamicParametersCallback(std::vector<rclcpp::Parameter> paramete
   std::lock_guard<std::mutex> lock(dynamic_params_lock_);
   rcl_interfaces::msg::SetParametersResult result;
   // for (auto parameter : parameters) {
-    // const auto & type = parameter.get_type();
-    // const auto & name = parameter.get_name();
+  //   const auto & type = parameter.get_type();
+  //   const auto & name = parameter.get_name();
 
-    // TODO(XYZ): implement dynamic parameters for all applicable parameters
+  // TODO(XYZ): implement dynamic parameters for all applicable parameters
   // }
   (void)parameters;
 
