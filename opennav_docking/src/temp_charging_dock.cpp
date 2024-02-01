@@ -76,6 +76,9 @@ class TempChargingDock : public opennav_docking_core::ChargingDock
     dock_pose_.header.frame_id = frame;
     dock_pose_.pose = pose;
 
+    // Reset the target_pose
+    target_pose_.header.frame_id = "";
+
     // Compute the staging pose - robot pointed at dock, but backed up a bit (0.5m)
     const double offset = -0.5;
     const double yaw = tf2::getYaw(dock_pose_.pose.orientation);

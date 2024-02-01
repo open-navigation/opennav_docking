@@ -229,6 +229,13 @@ void DockingServer::dockRobot()
         break;
       }
 
+      // Also stop if cancelled/preempted
+      if (docking_action_server_->is_cancel_requested()) {
+        RCLCPP_INFO(get_logger(), "Goal was canceled. Canceling docking action.");
+        docking_action_server_->terminate_current(result);
+        return;
+      }
+
       // Update perception
       if (!dock->plugin->getRefinedPose(dock_pose)) {
         throw opennav_docking_core::FailedToDetectDock("Failed dock detection");
@@ -294,7 +301,7 @@ void DockingServer::dockRobot()
     delete dock;
   }
 
-  docking_action_server_->terminate_current(result);
+  docking_action_server_->succeeded_current(result);
 }
 
 void DockingServer::undockRobot()

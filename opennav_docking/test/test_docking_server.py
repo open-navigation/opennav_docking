@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from math import acos, cos, sin
+import time
 import unittest
 
 from geometry_msgs.msg import TransformStamped, Twist
@@ -26,6 +27,9 @@ import rclpy
 from rclpy.action import ActionClient, ActionServer
 from tf2_ros import TransformBroadcaster
 
+
+# This test can be run standalone with:
+# python3 -u -m pytest test_docking_server.py -s
 
 @pytest.mark.rostest
 def generate_test_description():
@@ -88,7 +92,6 @@ class TestDockingServer(unittest.TestCase):
         self.publish_tf()
 
     def publish_tf(self):
-        # Publish transform
         t = TransformStamped()
         t.header.stamp = self.node.get_clock().now().to_msg()
         t.header.frame_id = 'odom'
@@ -100,9 +103,9 @@ class TestDockingServer(unittest.TestCase):
         self.tf_broadcaster.sendTransform(t)
 
     def dock_robot_goal_callback(self, future):
-        goal_handle = future.result()
-        assert goal_handle.accepted
-        result_future = goal_handle.get_result_async()
+        self.goal_handle = future.result()
+        assert self.goal_handle.accepted
+        result_future = self.goal_handle.get_result_async()
         result_future.add_done_callback(self.dock_robot_result_callback)
 
     def dock_robot_result_callback(self, future):
@@ -157,6 +160,25 @@ class TestDockingServer(unittest.TestCase):
         goal = DockRobot.Goal()
         goal.use_dock_id = True
         goal.dock_id = 'test_dock'
+        future = self.dock_action_client.send_goal_async(goal)
+        future.add_done_callback(self.dock_robot_goal_callback)
+
+        # Run for 3 seconds
+        for i in range(30):
+            rclpy.spin_once(self.node, timeout_sec=0.1)
+            time.sleep(0.1)
+
+        # Then terminate the docking action
+        self.goal_handle.cancel_goal_async()
+        # Wait until we get the dock cancellation
+        while self.dock_result is None:
+            rclpy.spin_once(self.node, timeout_sec=0.1)
+            time.sleep(0.1)
+        self.node.get_logger().info('Goal cancelled')
+
+        # Resend the goal
+        self.dock_result = None
+        self.node.get_logger().info('Sending goal again')
         future = self.dock_action_client.send_goal_async(goal)
         future.add_done_callback(self.dock_robot_goal_callback)
 
