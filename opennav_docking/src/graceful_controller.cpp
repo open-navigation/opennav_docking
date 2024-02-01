@@ -33,7 +33,6 @@ void GracefulController::configure(
 
 void GracefulController::cleanup()
 {
-
 }
 
 void GracefulController::activate()
@@ -51,14 +50,13 @@ void GracefulController::activate()
 
 void GracefulController::deactivate()
 {
-
 }
 
 bool GracefulController::computeVelocityCommand(
   const geometry_msgs::msg::Pose & target,
   geometry_msgs::msg::Twist & command)
 {
-  // TODO: determine if we are going backwards
+  // TODO(fergs): determine if we are going backwards
   bool backward = false;
 
   // Convert the target to polar coordinates

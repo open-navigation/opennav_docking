@@ -44,7 +44,6 @@ class TempChargingDock : public opennav_docking_core::ChargingDock
    */
   virtual void cleanup()
   {
-
   }
 
   /**
@@ -52,7 +51,6 @@ class TempChargingDock : public opennav_docking_core::ChargingDock
    */
   virtual void activate()
   {
-
   }
 
   /**
@@ -60,7 +58,6 @@ class TempChargingDock : public opennav_docking_core::ChargingDock
    */
   virtual void deactivate()
   {
-
   }
 
   /**
@@ -129,7 +126,7 @@ class TempChargingDock : public opennav_docking_core::ChargingDock
    */
   virtual bool isCharging()
   {
-    // TODO: need to figure out where the robot is
+    // TODO(fergs): need to figure out where the robot is
     // If we are close enough, pretend we are charging
     return false;
   }

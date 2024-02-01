@@ -184,7 +184,7 @@ void DockingServer::dockRobot()
         get_logger(),
         "Attempting to dock robot at charger at position (%0.2f, %0.2f).",
         goal->dock_pose.pose.position.x, goal->dock_pose.pose.position.y);
-      
+
       dock = new Dock();
       dock->frame = goal->dock_pose.header.frame_id;
       dock->pose = goal->dock_pose.pose;
@@ -204,7 +204,7 @@ void DockingServer::dockRobot()
     // Get initial detection of dock before proceeding to move
     while (!dock->plugin->getRefinedPose(dock_pose))
     {
-      // TODO: add timeout
+      // TODO(fergs): add timeout
     }
 
     // Docking control loop: while not docked, run controller
@@ -218,7 +218,7 @@ void DockingServer::dockRobot()
       // Update perception
       if (!dock->plugin->getRefinedPose(dock_pose))
       {
-        // TODO: handle loss of perception
+        // TODO(fergs): handle loss of perception
       }
 
       // Use the dock pose to determine where to put the robot base
@@ -241,13 +241,12 @@ void DockingServer::dockRobot()
       if (!controller_->computeVelocityCommand(target_in_base.pose, command))
       {
         // If controller has reached/failed goal but we are not yet charging, retry
-        // TODO
+        // TODO(fergs)
       }
 
       // Publish command
       vel_publisher_->publish(command);
     }
-
   } catch (opennav_docking_core::DockNotInDB & e) {
     RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
     result->error_code = DockRobot::Result::DOCK_NOT_IN_DB;
@@ -257,13 +256,16 @@ void DockingServer::dockRobot()
   } catch (opennav_docking_core::FailedToStage & e) {
     RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
     result->error_code = DockRobot::Result::FAILED_TO_STAGE;
-  } catch (opennav_docking_core::FailedToDetectDock & e) {  // TODO fergs: use this for failure contextual exception
+  } catch (opennav_docking_core::FailedToDetectDock & e) {
+    // TODO(fergs): use this for failure contextual exception
     RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
     result->error_code = DockRobot::Result::FAILED_TO_DETECT_DOCK;
-  } catch (opennav_docking_core::FailedToControl & e) {  // TODO fergs: use this for failure contextual exception
+  } catch (opennav_docking_core::FailedToControl & e) {
+    // TODO(fergs): use this for failure contextual exception
     RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
     result->error_code = DockRobot::Result::FAILED_TO_CONTROL;
-  } catch (opennav_docking_core::FailedToCharge & e) {  // TODO fergs: use this for failure contextual exception
+  } catch (opennav_docking_core::FailedToCharge & e) {
+    // TODO(fergs): use this for failure contextual exception
     RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
     result->error_code = DockRobot::Result::FAILED_TO_CHARGE;
   } catch (opennav_docking_core::DockingException & e) {
@@ -323,25 +325,24 @@ void DockingServer::undockRobot()
       get_logger(),
       "Attempting to undock robot from charger of type %s.", dock->getName().c_str());
 
-    // (2) Check if path to undock is clear  TODO
+    // (2) Check if path to undock is clear  TODO(fergs)
 
+    // (3) TODO(fergs): Send robot to its staging pose, asked dock API (controller).
+      //                check max_duration.
+      // (2.0) Make sure docking relative pose in right frame
+      //       (docked pose -> staging pose, not dock itself pose)
+      // (2.1) In loop, check that we are no longer charging in state
 
-  
-    // (3) Fergs: Send robot to its staging pose, asked dock API (controller). check max_duration. TODO
-      // (2.0) Make sure docking relative pose in right frame (docked pose -> staging pose, not dock itself pose)
-      // (2.1) In loop, check that we are no longer charging in state TODO
-
-
-
-    // (4) return charge level TODO
-
+    // (4) return charge level TODO(fergs)
   } catch (opennav_docking_core::DockNotValid & e) {
     RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
     result->error_code = DockRobot::Result::DOCK_NOT_VALID;
-  } catch (opennav_docking_core::FailedToControl & e) {  // TODO fergs: use this for failure contextual exception
+  } catch (opennav_docking_core::FailedToControl & e) {
+    // TODO(fergs): use this for failure contextual exception
     RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
     result->error_code = DockRobot::Result::FAILED_TO_CONTROL;
-  } catch (opennav_docking_core::DockingException & e) {  // TODO fergs: use this for failure contextual exception
+  } catch (opennav_docking_core::DockingException & e) {
+    // TODO(fergs): use this for failure contextual exception
     RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
     result->error_code = DockRobot::Result::UNKNOWN;
   } catch (std::exception & e) {
