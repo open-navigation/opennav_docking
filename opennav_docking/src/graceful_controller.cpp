@@ -45,7 +45,7 @@ void GracefulController::activate()
   v_linear_min_ = 0.1;
   v_linear_max_ = 0.25;
   v_angular_max_ = 0.75;
-  slowdown_radius_ = 1.0;
+  slowdown_radius_ = 0.25;
 }
 
 void GracefulController::deactivate()
@@ -81,12 +81,12 @@ bool GracefulController::computeVelocityCommand(
   // slowdown the controller as it approaches its target
   double v = v_linear_max_ / (1.0 + beta_ * std::pow(fabs(curvature), lambda_));
 
+  // Slowdown when the robot is near the target to remove singularity
+  v = std::min(v_linear_max_ * (r / slowdown_radius_), v);
+
   // Set some small v_min when far away from origin to promote faster
   // turning motion when the curvature is very high
   v = std::clamp(v, v_linear_min_, v_linear_max_);
-
-  // Slowdown when the robot is near the target to remove singularity
-  v = std::min(v_linear_max_ * (r / slowdown_radius_), v);
 
   if (backward) {v = -v;}
 
