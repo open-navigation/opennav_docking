@@ -76,9 +76,6 @@ class TempChargingDock : public opennav_docking_core::ChargingDock
     dock_pose_.header.frame_id = frame;
     dock_pose_.pose = pose;
 
-    // Reset the target_pose
-    target_pose_.header.frame_id = "";
-
     // Compute the staging pose - robot pointed at dock, but backed up a bit (0.5m)
     const double offset = -0.5;
     const double yaw = tf2::getYaw(dock_pose_.pose.orientation);
@@ -103,22 +100,6 @@ class TempChargingDock : public opennav_docking_core::ChargingDock
   }
 
   /**
-   * @brief Method to obtain the target pose for the robot from a refined dock pose.
-   */
-  virtual geometry_msgs::msg::PoseStamped getTargetPose(
-    const geometry_msgs::msg::PoseStamped & dock_pose)
-  {
-    // Let's pretend our robot is 12" diameter - center should be about 15cm from dock
-    // Similar to staging pose, but a lot closer!
-    const double offset = -0.15;
-    const double yaw = tf2::getYaw(dock_pose_.pose.orientation);
-    target_pose_ = dock_pose;
-    target_pose_.pose.position.x += cos(yaw) * offset;
-    target_pose_.pose.position.y += sin(yaw) * offset;
-    return target_pose_;
-  }
-
-  /**
    * @brief Are we charging? If a charge dock requires any sort of negotiation
    * to begin charging, that should happen inside this function as this function
    * will be called repeatedly within the docking loop.
@@ -128,8 +109,8 @@ class TempChargingDock : public opennav_docking_core::ChargingDock
    */
   virtual bool isCharging()
   {
-    if (target_pose_.header.frame_id.empty()) {
-      // Target pose is not yet valid
+    if (dock_pose_.header.frame_id.empty()) {
+      // Dock pose is not yet valid
       return false;
     }
 
@@ -139,15 +120,15 @@ class TempChargingDock : public opennav_docking_core::ChargingDock
     base_pose.header.frame_id = "base_link";
     base_pose.pose.orientation.w = 1.0;
     try {
-      tf2_buffer_->transform(base_pose, base_pose, target_pose_.header.frame_id);
+      tf2_buffer_->transform(base_pose, base_pose, dock_pose_.header.frame_id);
     } catch (const tf2::TransformException & ex) {
       // TODO(fergs): some sort of error message?
     }
 
     // If we are close enough, pretend we are charging
     double d = std::hypot(
-      base_pose.pose.position.x - target_pose_.pose.position.x,
-      base_pose.pose.position.y - target_pose_.pose.position.y);
+      base_pose.pose.position.x - dock_pose_.pose.position.x,
+      base_pose.pose.position.y - dock_pose_.pose.position.y);
     return d < 0.02;
   }
 
@@ -163,7 +144,6 @@ class TempChargingDock : public opennav_docking_core::ChargingDock
 private:
   // For testing, have the dock pose be hard coded (maybe add a service to set it?)
   geometry_msgs::msg::PoseStamped dock_pose_;
-  geometry_msgs::msg::PoseStamped target_pose_;
 
   std::shared_ptr<tf2_ros::Buffer> tf2_buffer_;
 };

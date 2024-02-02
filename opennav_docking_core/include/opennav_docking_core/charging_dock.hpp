@@ -69,7 +69,7 @@ public:
    * @brief Method to obtain the dock's staging pose. This method should likely
    * be using TF and the dock's pose information to find the staging pose from
    * a static or parameterized staging pose relative to the docking pose
-   * @param pose Dock with pose
+   * @param pose Dock pose
    * @param frame Dock's frame of pose
    * @return PoseStamped of staging pose in the specified frame
    */
@@ -82,12 +82,6 @@ public:
    * @param frame The frame of the initial estimate.
    */
   virtual bool getRefinedPose(geometry_msgs::msg::PoseStamped & pose) = 0;
-
-  /**
-   * @brief Method to obtain the target pose for the robot from a refined dock pose.
-   */
-  virtual geometry_msgs::msg::PoseStamped getTargetPose(
-    const geometry_msgs::msg::PoseStamped & dock_pose) = 0;
 
   /**
    * @brief Are we charging? If a charge dock requires any sort of negotiation

@@ -124,6 +124,8 @@ protected:
 
   double controller_frequency_;
   double initial_perception_timeout_sec_;
+  double undock_tolerance_m_;
+  std::string base_frame_, fixed_frame_;
 
   rclcpp_lifecycle::LifecyclePublisher<geometry_msgs::msg::Twist>::SharedPtr vel_publisher_;
 

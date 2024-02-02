@@ -102,14 +102,14 @@ class TestDockingServer(unittest.TestCase):
         t.transform.rotation.w = cos(self.theta / 2.0)
         self.tf_broadcaster.sendTransform(t)
 
-    def dock_robot_goal_callback(self, future):
+    def action_goal_callback(self, future):
         self.goal_handle = future.result()
         assert self.goal_handle.accepted
         result_future = self.goal_handle.get_result_async()
-        result_future.add_done_callback(self.dock_robot_result_callback)
+        result_future.add_done_callback(self.action_result_callback)
 
-    def dock_robot_result_callback(self, future):
-        self.dock_result = future.result().status
+    def action_result_callback(self, future):
+        self.action_result = future.result().status
         print(future.result())
 
     def nav_execute_callback(self, goal_handle):
@@ -155,13 +155,13 @@ class TestDockingServer(unittest.TestCase):
         rclpy.spin_once(self.node, timeout_sec=0.1)
 
         # Test docking action
-        self.dock_result = None
+        self.action_result = None
         self.dock_action_client.wait_for_server(timeout_sec=5.0)
         goal = DockRobot.Goal()
         goal.use_dock_id = True
         goal.dock_id = 'test_dock'
         future = self.dock_action_client.send_goal_async(goal)
-        future.add_done_callback(self.dock_robot_goal_callback)
+        future.add_done_callback(self.action_goal_callback)
 
         # Run for 3 seconds
         for i in range(30):
@@ -171,18 +171,26 @@ class TestDockingServer(unittest.TestCase):
         # Then terminate the docking action
         self.goal_handle.cancel_goal_async()
         # Wait until we get the dock cancellation
-        while self.dock_result is None:
+        while self.action_result is None:
             rclpy.spin_once(self.node, timeout_sec=0.1)
             time.sleep(0.1)
         self.node.get_logger().info('Goal cancelled')
 
         # Resend the goal
-        self.dock_result = None
+        self.action_result = None
         self.node.get_logger().info('Sending goal again')
         future = self.dock_action_client.send_goal_async(goal)
-        future.add_done_callback(self.dock_robot_goal_callback)
+        future.add_done_callback(self.action_goal_callback)
 
-        while self.dock_result is None:
+        while self.action_result is None:
             rclpy.spin_once(self.node, timeout_sec=0.1)
 
         # Test undocking action
+        self.action_result = None
+        self.undock_action_client.wait_for_server(timeout_sec=5.0)
+        goal = UndockRobot.Goal()
+        future = self.undock_action_client.send_goal_async(goal)
+        future.add_done_callback(self.action_goal_callback)
+
+        while self.action_result is None:
+            rclpy.spin_once(self.node, timeout_sec=0.1)

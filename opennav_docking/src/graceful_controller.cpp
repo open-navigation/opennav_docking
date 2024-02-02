@@ -56,8 +56,8 @@ bool GracefulController::computeVelocityCommand(
   const geometry_msgs::msg::Pose & target,
   geometry_msgs::msg::Twist & command)
 {
-  // TODO(fergs): determine if we are going backwards
-  bool backward = false;
+  // If the target is behind the robot, we are going backwards
+  bool backward = target.position.x < 0;
 
   // Convert the target to polar coordinates
   double r, phi, delta;
@@ -87,6 +87,8 @@ bool GracefulController::computeVelocityCommand(
 
   // Slowdown when the robot is near the target to remove singularity
   v = std::min(v_linear_max_ * (r / slowdown_radius_), v);
+
+  if (backward) {v = -v;}
 
   // Compute the angular velocity
   double w = curvature * v;
