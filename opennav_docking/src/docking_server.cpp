@@ -496,8 +496,7 @@ void DockingServer::undockRobot()
 
       // Run controller to get command velocity
       if (!controller_->computeVelocityCommand(target_pose.pose, command)) {
-        // If controller has reached/failed goal but we are not yet charging, retry
-        // TODO(fergs)
+        throw opennav_docking_core::FailedToControl("Failed to get control");
       }
 
       // Publish command and sleep

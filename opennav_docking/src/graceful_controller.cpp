@@ -88,14 +88,14 @@ bool GracefulController::computeVelocityCommand(
   // turning motion when the curvature is very high
   v = std::clamp(v, v_linear_min_, v_linear_max_);
 
-  if (backward) {v = -v;}
-
   // Compute the angular velocity
   double w = curvature * v;
   // Bound angular velocity between [-max_angular_vel, max_angular_vel]
   double w_bound = std::clamp(w, -v_angular_max_, v_angular_max_);
   // And linear velocity to follow the curvature
   v = (curvature != 0.0) ? (w_bound / curvature) : v;
+
+  if (backward) {v = -v;}
 
   // Return the velocity command
   command.linear.x = v;
