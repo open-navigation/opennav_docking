@@ -276,6 +276,7 @@ void DockingServer::dockRobot()
           // Just made contact
           feedback->state = DockRobot::Feedback::WAIT_FOR_CHARGE;
           dock_contact_time = this->now();
+          RCLCPP_INFO(get_logger(), "Made contact with dock, waiting for charge to start");
         } else {
           auto timeout = rclcpp::Duration::from_seconds(wait_charge_timeout_sec_);
           if (this->now() - dock_contact_time > timeout) {
@@ -287,6 +288,7 @@ void DockingServer::dockRobot()
             // Reached goal, but not charging, retry
             feedback->state = DockRobot::Feedback::RETRY;
             feedback->num_retries++;
+            RCLCPP_WARN(get_logger(), "Charging did not start - retrying");
           }
         }
       } else {
@@ -308,6 +310,7 @@ void DockingServer::dockRobot()
             if (dist < undock_tolerance_m_) {
               // Retry backup is complete - try to approach dock again
               feedback->state = DockRobot::Feedback::CONTROLLING;
+              RCLCPP_INFO(get_logger(), "Returned to staging, attempting docking again");
             } else {
               // Control robot towards staging pose
               target_pose = staging_pose;
