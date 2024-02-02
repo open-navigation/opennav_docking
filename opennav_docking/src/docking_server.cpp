@@ -386,6 +386,12 @@ void DockingServer::undockRobot()
         throw opennav_docking_core::FailedToControl("Undocking timed out");
       }
 
+      // Don't control the robot until charging is disabled
+      if (!dock->disableCharging()) {
+        loop_rate.sleep();
+        continue;
+      }
+
       // Stop controlling when pose reached
       {
         geometry_msgs::msg::PoseStamped robot_pose;

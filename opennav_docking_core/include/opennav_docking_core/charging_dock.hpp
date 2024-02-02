@@ -94,6 +94,14 @@ public:
   virtual bool isCharging() = 0;
 
   /**
+   * @brief Undocking while current is still flowing can damage a charge dock
+   * so some charge docks provide the ability to disable charging before the
+   * robot physically disconnects. The undocking action will not command the
+   * robot to move until this returns true.
+   */
+  virtual bool disableCharging() = 0;
+
+  /**
    * @brief Similar to isCharging() but called when undocking.
    */
   virtual bool hasStoppedCharging() = 0;

@@ -133,6 +133,17 @@ class TempChargingDock : public opennav_docking_core::ChargingDock
   }
 
   /**
+   * @brief Undocking while current is still flowing can damage a charge dock
+   * so some charge docks provide the ability to disable charging before the
+   * robot physically disconnects. The undocking action will not command the
+   * robot to move until this returns true.
+   */
+  virtual bool disableCharging()
+  {
+    return true;
+  }
+
+  /**
    * @brief Similar to isCharging() but called when undocking.
    */
   virtual bool hasStoppedCharging()
