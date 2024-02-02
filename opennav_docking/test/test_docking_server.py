@@ -25,6 +25,7 @@ from opennav_docking_msgs.action import DockRobot, UndockRobot
 import pytest
 import rclpy
 from rclpy.action import ActionClient, ActionServer
+from sensor_msgs.msg import BatteryState
 from tf2_ros import TransformBroadcaster
 
 
@@ -39,11 +40,11 @@ def generate_test_description():
             package='opennav_docking',
             executable='opennav_docking',
             name='docking_server',
-            parameters=[{'dock_plugins': ['temp_dock_plugin'],
-                         'temp_dock_plugin': {'plugin': 'opennav_docking::TempChargingDock'},
+            parameters=[{'dock_plugins': ['test_dock_plugin'],
+                         'test_dock_plugin': {'plugin': 'opennav_docking::SimpleChargingDock'},
                          'docks': ['test_dock'],
                          'test_dock': {
-                            'type': 'temp_dock_plugin',
+                            'type': 'test_dock_plugin',
                             'frame': 'odom',
                             'pose': [1.0, 0.0, 0.0]
                          }}],
@@ -70,6 +71,8 @@ class TestDockingServer(unittest.TestCase):
         cls.x = 0.0
         cls.y = 0.0
         cls.theta = 0.0
+        # Track charge state
+        cls.is_charging = False
         # Latest command velocity
         cls.command = Twist()
         cls.node = rclpy.create_node('test_docking_server')
@@ -89,9 +92,11 @@ class TestDockingServer(unittest.TestCase):
         self.x += cos(self.theta) * self.command.linear.x * period
         self.y += sin(self.theta) * self.command.linear.x * period
         self.theta += self.command.angular.z * period
-        self.publish_tf()
+        # Need to publish updated TF
+        self.publish()
 
-    def publish_tf(self):
+    def publish(self):
+        # Publish base->odom transform
         t = TransformStamped()
         t.header.stamp = self.node.get_clock().now().to_msg()
         t.header.frame_id = 'odom'
@@ -101,6 +106,13 @@ class TestDockingServer(unittest.TestCase):
         t.transform.rotation.z = sin(self.theta / 2.0)
         t.transform.rotation.w = cos(self.theta / 2.0)
         self.tf_broadcaster.sendTransform(t)
+        # Publish battery state
+        b = BatteryState()
+        if self.is_charging:
+            b.current = 1.0
+        else:
+            b.current = -1.0
+        self.battery_state_pub.publish(b)
 
     def action_goal_callback(self, future):
         self.goal_handle = future.result()
@@ -112,6 +124,11 @@ class TestDockingServer(unittest.TestCase):
         self.action_result = future.result().status
         print(future.result())
 
+    def action_feedback_callback(self, msg):
+        if msg.feedback.num_retries > 0 and \
+                msg.feedback.state == msg.feedback.WAIT_FOR_CHARGE:
+            self.is_charging = True
+
     def nav_execute_callback(self, goal_handle):
         goal = goal_handle.request
         self.x = goal.pose.pose.position.x - 0.05
@@ -119,7 +136,7 @@ class TestDockingServer(unittest.TestCase):
         self.theta = 2.0 * acos(goal.pose.pose.orientation.w)
         self.node.get_logger().info('Navigating to %f %f %f' % (self.x, self.y, self.theta))
         goal_handle.succeed()
-        self.publish_tf()
+        self.publish()
 
         result = NavigateToPose.Result()
         result.error_code = 0
@@ -144,6 +161,13 @@ class TestDockingServer(unittest.TestCase):
             10
         )
 
+        # Create publisher for battery state message
+        self.battery_state_pub = self.node.create_publisher(
+            BatteryState,
+            'battery_state',
+            10
+        )
+
         # Mock out navigation server (just teleport the robot)
         self.action_server = ActionServer(
             self.node,
@@ -160,7 +184,8 @@ class TestDockingServer(unittest.TestCase):
         goal = DockRobot.Goal()
         goal.use_dock_id = True
         goal.dock_id = 'test_dock'
-        future = self.dock_action_client.send_goal_async(goal)
+        future = self.dock_action_client.send_goal_async(
+            goal, feedback_callback=self.action_feedback_callback)
         future.add_done_callback(self.action_goal_callback)
 
         # Run for 3 seconds
@@ -179,7 +204,8 @@ class TestDockingServer(unittest.TestCase):
         # Resend the goal
         self.action_result = None
         self.node.get_logger().info('Sending goal again')
-        future = self.dock_action_client.send_goal_async(goal)
+        future = self.dock_action_client.send_goal_async(
+            goal, feedback_callback=self.action_feedback_callback)
         future.add_done_callback(self.action_goal_callback)
 
         while self.action_result is None:

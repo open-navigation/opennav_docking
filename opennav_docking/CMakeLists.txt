@@ -8,6 +8,7 @@ find_package(rclcpp_action REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(nav2_util REQUIRED)
 find_package(nav2_msgs REQUIRED)
@@ -39,6 +40,7 @@ set(dependencies
   rclcpp_lifecycle
   rclcpp_components
   std_msgs
+  sensor_msgs
   visualization_msgs
   nav2_util
   nav2_msgs
@@ -76,16 +78,16 @@ ament_target_dependencies(${executable_name}
 
 rclcpp_components_register_nodes(${library_name} "opennav_docking::DockingServer")
 
-add_library(temp_charging_dock SHARED
-  src/temp_charging_dock.cpp
+add_library(simple_charging_dock SHARED
+  src/simple_charging_dock.cpp
 )
-ament_target_dependencies(temp_charging_dock
+ament_target_dependencies(simple_charging_dock
   ${dependencies}
 )
 
-pluginlib_export_plugin_description_file(opennav_docking_core temp_plugins.xml)
+pluginlib_export_plugin_description_file(opennav_docking_core plugins.xml)
 
-install(TARGETS ${library_name} temp_charging_dock
+install(TARGETS ${library_name} simple_charging_dock
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
@@ -102,10 +104,6 @@ install(DIRECTORY include/
 install(FILES test/test_dock_file.yaml
   DESTINATION share/${PROJECT_NAME}/
 )
-
-#install(FILES temp_plugins.xml
-#  DESTINATION share/${PROJECT_NAME}
-#)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)

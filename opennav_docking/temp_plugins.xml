@@ -1,7 +1,0 @@
-<class_libraries>
-  <library path="temp_charging_dock">
-    <class type="opennav_docking::TempChargingDock"  base_class_type="opennav_docking_core::ChargingDock">
-      <description>Temporary dock plugin.</description>
-    </class>
-  </library>
-</class_libraries>

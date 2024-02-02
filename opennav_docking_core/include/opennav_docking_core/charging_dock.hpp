@@ -84,6 +84,13 @@ public:
   virtual bool getRefinedPose(geometry_msgs::msg::PoseStamped & pose) = 0;
 
   /**
+   * @brief Have we made contact with dock? This can be implemented in a variety
+   * of ways: by establishing communications with the dock, by monitoring the
+   * the drive motor efforts, etc.
+   */
+  virtual bool isDocked() = 0;
+
+  /**
    * @brief Are we charging? If a charge dock requires any sort of negotiation
    * to begin charging, that should happen inside this function as this function
    * will be called repeatedly within the docking loop.

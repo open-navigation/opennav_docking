@@ -29,6 +29,13 @@ uint16 num_retries 0  # Number of retries attempted
 ---
 #feedback definition
 
+uint16 NONE=0
+uint16 NAV_TO_STAGING_POSE=1
+uint16 INITIAL_PERCEPTION=2
+uint16 CONTROLLING=3
+uint16 WAIT_FOR_CHARGE=4
+uint16 RETRY=5
+
 uint16 state  # Current docking state
 builtin_interfaces/Duration docking_time  # Docking time elapsed
 uint16 num_retries 0  # Number of retries attempted

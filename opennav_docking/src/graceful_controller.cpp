@@ -100,7 +100,7 @@ bool GracefulController::computeVelocityCommand(
   // Return the velocity command
   command.linear.x = v;
   command.angular.z = w_bound;
-  return false;
+  return true;
 }
 
 double GracefulController::calculateCurvature(double r, double phi, double delta)

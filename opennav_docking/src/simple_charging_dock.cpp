@@ -16,6 +16,7 @@
 #include <string>
 #include <memory>
 
+#include "sensor_msgs/msg/battery_state.hpp"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 #include "tf2/utils.h"
 
@@ -24,7 +25,7 @@
 namespace opennav_docking
 {
 
-class TempChargingDock : public opennav_docking_core::ChargingDock
+class SimpleChargingDock : public opennav_docking_core::ChargingDock
 {
   /**
    * @param  parent pointer to user's node
@@ -32,11 +33,26 @@ class TempChargingDock : public opennav_docking_core::ChargingDock
    * @param  tf A pointer to a TF buffer
    */
   virtual void configure(
-    const rclcpp_lifecycle::LifecycleNode::WeakPtr & /*parent*/,
+    const rclcpp_lifecycle::LifecycleNode::WeakPtr & parent,
     const std::string & name, std::shared_ptr<tf2_ros::Buffer> tf)
   {
     name_ = name;
     tf2_buffer_ = tf;
+
+    is_charging_ = false;
+
+    // TODO(fergs): make these parameters
+    charging_threshold_amps_ = 0.5;
+    docking_threshold_m_ = 0.02;
+
+    auto node = parent.lock();
+    if (!node) {
+      throw std::runtime_error{"Failed to lock node"};
+    }
+
+    battery_sub_ = node->create_subscription<sensor_msgs::msg::BatteryState>(
+      "battery_state", 1,
+      std::bind(&SimpleChargingDock::callback, this, std::placeholders::_1));
   }
 
   /**
@@ -100,14 +116,11 @@ class TempChargingDock : public opennav_docking_core::ChargingDock
   }
 
   /**
-   * @brief Are we charging? If a charge dock requires any sort of negotiation
-   * to begin charging, that should happen inside this function as this function
-   * will be called repeatedly within the docking loop.
-   *
-   * NOTE: this function is expected to return QUICKLY. Blocking here will block
-   * the docking controller loop.
+   * @brief Have we made contact with dock? This can be implemented in a variety
+   * of ways: by establishing communications with the dock, by monitoring the
+   * the drive motor efforts, etc.
    */
-  virtual bool isCharging()
+  virtual bool isDocked()
   {
     if (dock_pose_.header.frame_id.empty()) {
       // Dock pose is not yet valid
@@ -129,7 +142,20 @@ class TempChargingDock : public opennav_docking_core::ChargingDock
     double d = std::hypot(
       base_pose.pose.position.x - dock_pose_.pose.position.x,
       base_pose.pose.position.y - dock_pose_.pose.position.y);
-    return d < 0.02;
+    return d < docking_threshold_m_;
+  }
+
+  /**
+   * @brief Are we charging? If a charge dock requires any sort of negotiation
+   * to begin charging, that should happen inside this function as this function
+   * will be called repeatedly within the docking loop.
+   *
+   * NOTE: this function is expected to return QUICKLY. Blocking here will block
+   * the docking controller loop.
+   */
+  virtual bool isCharging()
+  {
+    return is_charging_;
   }
 
   /**
@@ -153,8 +179,18 @@ class TempChargingDock : public opennav_docking_core::ChargingDock
   }
 
 private:
+  void callback(const sensor_msgs::msg::BatteryState::SharedPtr state)
+  {
+    is_charging_ = state->current > charging_threshold_amps_;
+  }
+
   // For testing, have the dock pose be hard coded (maybe add a service to set it?)
   geometry_msgs::msg::PoseStamped dock_pose_;
+  rclcpp::Subscription<sensor_msgs::msg::BatteryState>::SharedPtr battery_sub_;
+  bool is_charging_;
+
+  double charging_threshold_amps_;
+  double docking_threshold_m_;
 
   std::shared_ptr<tf2_ros::Buffer> tf2_buffer_;
 };
@@ -162,4 +198,4 @@ private:
 }  // namespace opennav_docking
 
 #include "pluginlib/class_list_macros.hpp"
-PLUGINLIB_EXPORT_CLASS(opennav_docking::TempChargingDock, opennav_docking_core::ChargingDock)
+PLUGINLIB_EXPORT_CLASS(opennav_docking::SimpleChargingDock, opennav_docking_core::ChargingDock)
