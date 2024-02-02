@@ -126,6 +126,9 @@ class TestDockingServer(unittest.TestCase):
         print(future.result())
 
     def action_feedback_callback(self, msg):
+        # Force the docking action to run a full recovery loop and then
+        # make contact with the dock (based on pose of robot) before
+        # we report that the robot is charging
         if msg.feedback.num_retries > 0 and \
                 msg.feedback.state == msg.feedback.WAIT_FOR_CHARGE:
             self.is_charging = True
@@ -209,6 +212,9 @@ class TestDockingServer(unittest.TestCase):
             goal, feedback_callback=self.action_feedback_callback)
         future.add_done_callback(self.action_goal_callback)
 
+        # Wait for action to finish, this test publishes the
+        # battery state message and will force one recovery
+        # before it reports the robot is charging
         while self.action_result is None:
             rclpy.spin_once(self.node, timeout_sec=0.1)
 
