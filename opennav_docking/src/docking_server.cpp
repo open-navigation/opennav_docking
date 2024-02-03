@@ -336,7 +336,8 @@ bool DockingServer::approachDock(Dock * dock, geometry_msgs::msg::PoseStamped & 
     }
 
     // Stop if cancelled/preempted
-    if (docking_action_server_->is_cancel_requested()) {
+    if (docking_action_server_->is_cancel_requested() ||
+        docking_action_server_->is_preempt_requested()) {
       RCLCPP_WARN(get_logger(), "Goal was canceled. Canceling docking action.");
       // Publish zero velocity before breaking out of loop
       vel_publisher_->publish(command);
@@ -402,7 +403,8 @@ bool DockingServer::resetApproach(geometry_msgs::msg::PoseStamped staging_pose)
     geometry_msgs::msg::Twist command;
 
     // Stop if cancelled/preempted
-    if (docking_action_server_->is_cancel_requested()) {
+    if (docking_action_server_->is_cancel_requested() ||
+        docking_action_server_->is_preempt_requested()) {
       RCLCPP_WARN(get_logger(), "Goal was canceled. Canceling docking action.");
       // Publish zero velocity before breaking out of loop
       vel_publisher_->publish(command);
@@ -479,7 +481,8 @@ void DockingServer::undockRobot()
     return;
   }
 
-  if (undocking_action_server_->is_cancel_requested()) {
+  if (undocking_action_server_->is_cancel_requested() ||
+      undocking_action_server_->is_preempt_requested()) {
     RCLCPP_INFO(get_logger(), "Goal was canceled. Canceling undocking action.");
     undocking_action_server_->terminate_all();
     return;
@@ -533,7 +536,8 @@ void DockingServer::undockRobot()
       }
 
       // Stop if cancelled/preempted
-      if (undocking_action_server_->is_cancel_requested()) {
+      if (undocking_action_server_->is_cancel_requested() ||
+          undocking_action_server_->is_preempt_requested()) {
         RCLCPP_INFO(get_logger(), "Goal was canceled. Canceling docking action.");
         // Publish zero velocity before breaking out of loop
         vel_publisher_->publish(command);
