@@ -123,9 +123,9 @@ protected:
   std::mutex dynamic_params_lock_;
 
   double controller_frequency_;
-  double initial_perception_timeout_sec_;
-  double wait_charge_timeout_sec_;
-  double undock_tolerance_m_;
+  double initial_perception_timeout_;
+  double wait_charge_timeout_;
+  double undock_tolerance_;
   int max_retries_;
   std::string base_frame_, fixed_frame_;
 

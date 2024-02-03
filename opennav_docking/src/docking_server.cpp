@@ -29,9 +29,9 @@ DockingServer::DockingServer(const rclcpp::NodeOptions & options)
   RCLCPP_INFO(get_logger(), "Creating %s", get_name());
 
   declare_parameter("controller_frequency", 20.0);
-  declare_parameter("initial_perception_timeout_sec", 2.0);
-  declare_parameter("wait_charge_timeout_sec", 5.0);
-  declare_parameter("undock_tolerance_m", 0.1);
+  declare_parameter("initial_perception_timeout", 2.0);
+  declare_parameter("wait_charge_timeout", 5.0);
+  declare_parameter("undock_tolerance", 0.1);
   declare_parameter("max_retries", 3);
   declare_parameter("base_frame", "base_link");
   declare_parameter("fixed_frame", "odom");
@@ -44,9 +44,9 @@ DockingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
   auto node = shared_from_this();
 
   get_parameter("controller_frequency", controller_frequency_);
-  get_parameter("initial_perception_timeout_sec", initial_perception_timeout_sec_);
-  get_parameter("wait_charge_timeout_sec", wait_charge_timeout_sec_);
-  get_parameter("undock_tolerance_m", undock_tolerance_m_);
+  get_parameter("initial_perception_timeout", initial_perception_timeout_);
+  get_parameter("wait_charge_timeout", wait_charge_timeout_);
+  get_parameter("undock_tolerance", undock_tolerance_);
   get_parameter("max_retries", max_retries_);
   get_parameter("base_frame", base_frame_);
   get_parameter("fixed_frame", fixed_frame_);
@@ -228,7 +228,7 @@ void DockingServer::dockRobot()
     // Get initial detection of dock before proceeding to move
     rclcpp::Time loop_start = this->now();
     while (!dock->plugin->getRefinedPose(dock_pose)) {
-      auto timeout = rclcpp::Duration::from_seconds(initial_perception_timeout_sec_);
+      auto timeout = rclcpp::Duration::from_seconds(initial_perception_timeout_);
       if (this->now() - loop_start > timeout) {
         throw opennav_docking_core::FailedToDetectDock("Failed initial dock detection");
       }
@@ -278,7 +278,7 @@ void DockingServer::dockRobot()
           dock_contact_time = this->now();
           RCLCPP_INFO(get_logger(), "Made contact with dock, waiting for charge to start");
         } else {
-          auto timeout = rclcpp::Duration::from_seconds(wait_charge_timeout_sec_);
+          auto timeout = rclcpp::Duration::from_seconds(wait_charge_timeout_);
           if (this->now() - dock_contact_time > timeout) {
             if (feedback->num_retries >= max_retries_) {
               // Publish zero velocity before breaking out of loop
@@ -307,7 +307,7 @@ void DockingServer::dockRobot()
               robot_pose.pose.position.x - staging_pose.pose.position.x,
               robot_pose.pose.position.y - staging_pose.pose.position.y);
 
-            if (dist < undock_tolerance_m_) {
+            if (dist < undock_tolerance_) {
               // Retry backup is complete - try to approach dock again
               feedback->state = DockRobot::Feedback::CONTROLLING;
               RCLCPP_INFO(get_logger(), "Returned to staging, attempting docking again");
@@ -464,7 +464,7 @@ void DockingServer::undockRobot()
             robot_pose.pose.position.x - staging_pose.pose.position.x,
             robot_pose.pose.position.y - staging_pose.pose.position.y);
 
-          if (dist < undock_tolerance_m_ && dock->hasStoppedCharging()) {
+          if (dist < undock_tolerance_ && dock->hasStoppedCharging()) {
             RCLCPP_INFO(get_logger(), "Robot has undocked!");
             undocking_action_server_->succeeded_current(result);
             curr_dock_type_.clear();

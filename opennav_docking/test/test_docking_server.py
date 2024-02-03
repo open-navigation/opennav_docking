@@ -40,7 +40,7 @@ def generate_test_description():
             package='opennav_docking',
             executable='opennav_docking',
             name='docking_server',
-            parameters=[{'wait_charge_timeout_sec': 1.0,
+            parameters=[{'wait_charge_timeout': 1.0,
                          'dock_plugins': ['test_dock_plugin'],
                          'test_dock_plugin': {'plugin': 'opennav_docking::SimpleChargingDock'},
                          'docks': ['test_dock'],
