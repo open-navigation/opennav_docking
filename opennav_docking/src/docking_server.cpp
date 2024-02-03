@@ -169,13 +169,12 @@ void DockingServer::getPreemptedGoalIfRequested(
 void DockingServer::dockRobot()
 {
   std::lock_guard<std::mutex> lock(dynamic_params_lock_);
-  auto start_time = this->now();
+  action_start_time_ = this->now();
 
   rclcpp::Rate loop_rate(controller_frequency_);
 
   auto goal = docking_action_server_->get_current_goal();
   auto result = std::make_shared<DockRobot::Result>();
-  auto feedback = std::make_shared<DockRobot::Feedback>();
 
   if (!docking_action_server_ || !docking_action_server_->is_server_active()) {
     RCLCPP_DEBUG(get_logger(), "Action server unavailable or inactive. Stopping.");
@@ -191,6 +190,7 @@ void DockingServer::dockRobot()
   getPreemptedGoalIfRequested(goal, docking_action_server_);
   Dock * dock{nullptr};
   bool succeeded = false;
+  num_retries_ = 0;
 
   try {
     // Get dock (instance and plugin information) from request
@@ -213,9 +213,7 @@ void DockingServer::dockRobot()
     }
 
     // Send robot to its staging pose
-    feedback->state = DockRobot::Feedback::NAV_TO_STAGING_POSE;
-    feedback->docking_time = this->now() - start_time;
-    docking_action_server_->publish_feedback(feedback);
+    publishDockingFeedback(DockRobot::Feedback::NAV_TO_STAGING_POSE);
     navigator_->goToPose(
       dock->getStagingPose(), rclcpp::Duration::from_seconds(goal->max_staging_time));
     RCLCPP_INFO(get_logger(), "Successful navigation to staging pose");
@@ -226,118 +224,35 @@ void DockingServer::dockRobot()
     dock_pose.header.frame_id = dock->frame;
 
     // Get initial detection of dock before proceeding to move
-    rclcpp::Time loop_start = this->now();
-    while (!dock->plugin->getRefinedPose(dock_pose)) {
-      auto timeout = rclcpp::Duration::from_seconds(initial_perception_timeout_);
-      if (this->now() - loop_start > timeout) {
-        throw opennav_docking_core::FailedToDetectDock("Failed initial dock detection");
-      }
-      feedback->state = DockRobot::Feedback::INITIAL_PERCEPTION;
-      feedback->docking_time = this->now() - start_time;
-      docking_action_server_->publish_feedback(feedback);
-      loop_rate.sleep();
-    }
+    doInitialPerception(dock, dock_pose);
     RCLCPP_INFO(get_logger(), "Successful initial dock detection");
 
     // Docking control loop: while not docked, run controller
-    feedback->state = DockRobot::Feedback::CONTROLLING;
     rclcpp::Time dock_contact_time;
-    while (rclcpp::ok()) {
-      // Command to send to robot base
-      geometry_msgs::msg::Twist command;
+    while (rclcpp::ok() && (num_retries_ < max_retries_)) {
+      // Approach the dock using control law
+      if (!approachDock(dock, dock_pose)) {
+        // Failed to approach
+        break;
+      }
 
-      // Stop controlling when successfully charging
-      if (dock->plugin->isCharging()) {
+      // Wait for charging to begin
+      RCLCPP_INFO(get_logger(), "Made contact with dock, waiting for charge to start");
+      if (waitForCharge(dock)) {
         RCLCPP_INFO(get_logger(), "Robot is charging!");
         succeeded = true;
         docking_action_server_->succeeded_current(result);
-        // Publish zero velocity before breaking out of loop
-        vel_publisher_->publish(command);
         break;
       }
 
-      // Also stop if cancelled/preempted
-      if (docking_action_server_->is_cancel_requested()) {
-        RCLCPP_INFO(get_logger(), "Goal was canceled. Canceling docking action.");
-        // Publish zero velocity before breaking out of loop
-        vel_publisher_->publish(command);
+      // Reset to staging pose to try again
+      RCLCPP_WARN(get_logger(), "Charging did not start - retrying");
+      ++num_retries_;
+      if (!resetApproach(dock->getStagingPose())) {
+        // Failed to reset?
         break;
       }
-
-      // Update perception
-      if (!dock->plugin->getRefinedPose(dock_pose)) {
-        // Publish zero velocity before breaking out of loop
-        vel_publisher_->publish(command);
-        throw opennav_docking_core::FailedToDetectDock("Failed dock detection");
-      }
-
-      if (dock->plugin->isDocked() && feedback->state != DockRobot::Feedback::RETRY) {
-        if (feedback->state == DockRobot::Feedback::CONTROLLING) {
-          // Just made contact
-          feedback->state = DockRobot::Feedback::WAIT_FOR_CHARGE;
-          dock_contact_time = this->now();
-          RCLCPP_INFO(get_logger(), "Made contact with dock, waiting for charge to start");
-        } else {
-          auto timeout = rclcpp::Duration::from_seconds(wait_charge_timeout_);
-          if (this->now() - dock_contact_time > timeout) {
-            if (feedback->num_retries >= max_retries_) {
-              // Publish zero velocity before breaking out of loop
-              vel_publisher_->publish(command);
-              throw opennav_docking_core::FailedToCharge("Exceeded max retries");
-            }
-            // Reached goal, but not charging, retry
-            feedback->state = DockRobot::Feedback::RETRY;
-            feedback->num_retries++;
-            RCLCPP_WARN(get_logger(), "Charging did not start - retrying");
-          }
-        }
-      } else {
-        geometry_msgs::msg::PoseStamped target_pose = dock_pose;
-        if (feedback->state == DockRobot::Feedback::RETRY) {
-          // Determine if we have reached staging pose yet
-          auto staging_pose = dock->getStagingPose();
-
-          geometry_msgs::msg::PoseStamped robot_pose;
-          robot_pose.header.frame_id = base_frame_;
-          robot_pose.header.stamp = rclcpp::Time(0);
-          try {
-            tf2_buffer_->transform(robot_pose, robot_pose, staging_pose.header.frame_id);
-
-            double dist = std::hypot(
-              robot_pose.pose.position.x - staging_pose.pose.position.x,
-              robot_pose.pose.position.y - staging_pose.pose.position.y);
-
-            if (dist < undock_tolerance_) {
-              // Retry backup is complete - try to approach dock again
-              feedback->state = DockRobot::Feedback::CONTROLLING;
-              RCLCPP_INFO(get_logger(), "Returned to staging, attempting docking again");
-            } else {
-              // Control robot towards staging pose
-              target_pose = staging_pose;
-            }
-          } catch (const tf2::TransformException & ex) {
-            RCLCPP_ERROR(get_logger(), "Could not transform robot pose");
-            target_pose = staging_pose;
-          }
-        }
-        // Transform target_pose into base_link frame
-        try {
-          target_pose.header.stamp = rclcpp::Time(0);
-          tf2_buffer_->transform(target_pose, target_pose, base_frame_);
-        } catch (const tf2::TransformException & ex) {
-          RCLCPP_ERROR(get_logger(), "Could not transform pose");
-        }
-
-        if (!controller_->computeVelocityCommand(target_pose.pose, command)) {
-          throw opennav_docking_core::FailedToControl("Failed to get control");
-        }
-      }
-
-      // Publish command and feedback, then sleep
-      vel_publisher_->publish(command);
-      feedback->docking_time = this->now() - start_time;
-      docking_action_server_->publish_feedback(feedback);
-      loop_rate.sleep();
+      RCLCPP_INFO(get_logger(), "Returned to staging, attempting docking again");
     }
   } catch (opennav_docking_core::DockNotInDB & e) {
     RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
@@ -379,10 +294,175 @@ void DockingServer::dockRobot()
   }
 }
 
+void DockingServer::publishDockingFeedback(uint16_t state)
+{
+  auto feedback = std::make_shared<DockRobot::Feedback>();
+  feedback->state = state;
+  feedback->docking_time = this->now() - action_start_time_;
+  feedback->num_retries = num_retries_;
+  docking_action_server_->publish_feedback(feedback);
+}
+
+bool DockingServer::doInitialPerception(Dock * dock, geometry_msgs::msg::PoseStamped & dock_pose)
+{
+  rclcpp::Rate loop_rate(controller_frequency_);
+  auto start = this->now();
+  auto timeout = rclcpp::Duration::from_seconds(initial_perception_timeout_);
+  while (!dock->plugin->getRefinedPose(dock_pose)) {
+    if (this->now() - start > timeout) {
+      throw opennav_docking_core::FailedToDetectDock("Failed initial dock detection");
+    }
+    publishDockingFeedback(DockRobot::Feedback::INITIAL_PERCEPTION);
+    loop_rate.sleep();
+  }
+  return true;
+}
+
+bool DockingServer::approachDock(Dock * dock, geometry_msgs::msg::PoseStamped & dock_pose)
+{
+  rclcpp::Rate loop_rate(controller_frequency_);
+  while (rclcpp::ok()) {
+    // Allocate new zero velocity command
+    geometry_msgs::msg::Twist command;
+
+    // Stop and report success if connected to dock
+    if (dock->plugin->isDocked()) {
+      return true;
+    }
+
+    // Stop if cancelled/preempted
+    if (docking_action_server_->is_cancel_requested()) {
+      RCLCPP_WARN(get_logger(), "Goal was canceled. Canceling docking action.");
+      // Publish zero velocity before breaking out of loop
+      vel_publisher_->publish(command);
+      return false;
+    }
+
+    // Update perception
+    if (!dock->plugin->getRefinedPose(dock_pose)) {
+      // Publish zero velocity before breaking out of loop
+      vel_publisher_->publish(command);
+      throw opennav_docking_core::FailedToDetectDock("Failed dock detection");
+    }
+
+    // Transform target_pose into base_link frame
+    // TODO(fergs): this should be pushed into the controller
+    geometry_msgs::msg::PoseStamped target_pose = dock_pose;
+    try {
+      target_pose.header.stamp = rclcpp::Time(0);
+      tf2_buffer_->transform(target_pose, target_pose, base_frame_);
+    } catch (const tf2::TransformException & ex) {
+      RCLCPP_ERROR(get_logger(), "Could not transform pose");
+      // Publish zero velocity before breaking out of loop
+      vel_publisher_->publish(command);
+      return false;
+    }
+
+    if (!controller_->computeVelocityCommand(target_pose.pose, command)) {
+      throw opennav_docking_core::FailedToControl("Failed to get control");
+    }
+    vel_publisher_->publish(command);
+
+    publishDockingFeedback(DockRobot::Feedback::CONTROLLING);
+    loop_rate.sleep();
+  }
+  return false;
+}
+
+bool DockingServer::waitForCharge(Dock * dock)
+{
+  rclcpp::Rate loop_rate(controller_frequency_);
+  auto start = this->now();
+  auto timeout = rclcpp::Duration::from_seconds(wait_charge_timeout_);
+  while (rclcpp::ok()) {
+    if (dock->plugin->isCharging()) {
+      return true;
+    }
+
+    if (this->now() - start > timeout) {
+      return false;
+    }
+
+    publishDockingFeedback(DockRobot::Feedback::WAIT_FOR_CHARGE);
+    loop_rate.sleep();
+  }
+  return false;
+}
+
+bool DockingServer::resetApproach(geometry_msgs::msg::PoseStamped staging_pose)
+{
+  rclcpp::Rate loop_rate(controller_frequency_);
+  while (rclcpp::ok()) {
+    // Allocate new zero velocity command
+    geometry_msgs::msg::Twist command;
+
+    // Stop if cancelled/preempted
+    if (docking_action_server_->is_cancel_requested()) {
+      RCLCPP_WARN(get_logger(), "Goal was canceled. Canceling docking action.");
+      // Publish zero velocity before breaking out of loop
+      vel_publisher_->publish(command);
+      return false;
+    }
+
+    // Determine if we have reached staging_pose yet
+    geometry_msgs::msg::PoseStamped robot_pose;
+    if (!getRobotPoseInFrame(robot_pose, staging_pose.header.frame_id)) {
+      // Unable to approach pose due to TF error
+      vel_publisher_->publish(command);
+      return false;
+    }
+
+    double dist = std::hypot(
+      robot_pose.pose.position.x - staging_pose.pose.position.x,
+      robot_pose.pose.position.y - staging_pose.pose.position.y);
+    if (dist < undock_tolerance_) {
+      // Retry backup is complete - publish zero velocity and try to approach dock again
+      vel_publisher_->publish(command);
+      return true;
+    }
+
+    // Transform target_pose into base_link frame
+    // TODO(fergs): this should be pushed into the controller
+    geometry_msgs::msg::PoseStamped target_pose = staging_pose;
+    try {
+      target_pose.header.stamp = rclcpp::Time(0);
+      tf2_buffer_->transform(target_pose, target_pose, base_frame_);
+    } catch (const tf2::TransformException & ex) {
+      RCLCPP_ERROR(get_logger(), "Could not transform pose");
+      // Publish zero velocity before breaking out of loop
+      vel_publisher_->publish(command);
+      return false;
+    }
+
+    if (!controller_->computeVelocityCommand(target_pose.pose, command)) {
+      throw opennav_docking_core::FailedToControl("Failed to get control");
+    }
+
+    // Publish command and feedback, then sleep
+    vel_publisher_->publish(command);
+    publishDockingFeedback(DockRobot::Feedback::RETRY);
+    loop_rate.sleep();
+  }
+  return false;
+}
+
+bool DockingServer::getRobotPoseInFrame(
+  geometry_msgs::msg::PoseStamped & robot_pose, const std::string & frame)
+{
+  robot_pose.header.frame_id = base_frame_;
+  robot_pose.header.stamp = rclcpp::Time(0);
+  try {
+    tf2_buffer_->transform(robot_pose, robot_pose, frame);
+  } catch (const tf2::TransformException & ex) {
+    return false;
+  }
+  return true;
+}
+
 void DockingServer::undockRobot()
 {
   std::lock_guard<std::mutex> lock(dynamic_params_lock_);
-  auto start_time = this->now();
+  action_start_time_ = this->now();
 
   rclcpp::Rate loop_rate(controller_frequency_);
 
@@ -519,7 +599,6 @@ void DockingServer::undockRobot()
 
   undocking_action_server_->terminate_current(result);
 }
-
 
 rcl_interfaces::msg::SetParametersResult
 DockingServer::dynamicParametersCallback(std::vector<rclcpp::Parameter> parameters)
