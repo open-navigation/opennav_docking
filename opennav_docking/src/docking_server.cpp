@@ -251,7 +251,7 @@ void DockingServer::dockRobot()
       RCLCPP_WARN(get_logger(), "Charging did not start - retrying");
       ++num_retries_;
       if (!resetApproach(dock->getStagingPose())) {
-        // Failed to reset?
+        RCLCPP_ERROR(get_logger(), "Failed to reset for another approach!");
         break;
       }
       RCLCPP_INFO(get_logger(), "Returned to staging, attempting docking again");
@@ -409,38 +409,10 @@ bool DockingServer::resetApproach(geometry_msgs::msg::PoseStamped staging_pose)
       return false;
     }
 
-    // Determine if we have reached staging_pose yet
-    geometry_msgs::msg::PoseStamped robot_pose;
-    if (!getRobotPoseInFrame(robot_pose, staging_pose.header.frame_id)) {
-      // Unable to approach pose due to TF error
-      vel_publisher_->publish(command);
-      return false;
-    }
-
-    double dist = std::hypot(
-      robot_pose.pose.position.x - staging_pose.pose.position.x,
-      robot_pose.pose.position.y - staging_pose.pose.position.y);
-    if (dist < undock_tolerance_) {
-      // Retry backup is complete - publish zero velocity and try to approach dock again
+    if (getCommandToPose(command, staging_pose, undock_tolerance_)) {
+      // Have reached staging_pose
       vel_publisher_->publish(command);
       return true;
-    }
-
-    // Transform target_pose into base_link frame
-    // TODO(fergs): this should be pushed into the controller
-    geometry_msgs::msg::PoseStamped target_pose = staging_pose;
-    try {
-      target_pose.header.stamp = rclcpp::Time(0);
-      tf2_buffer_->transform(target_pose, target_pose, base_frame_);
-    } catch (const tf2::TransformException & ex) {
-      RCLCPP_ERROR(get_logger(), "Could not transform pose");
-      // Publish zero velocity before breaking out of loop
-      vel_publisher_->publish(command);
-      return false;
-    }
-
-    if (!controller_->computeVelocityCommand(target_pose.pose, command)) {
-      throw opennav_docking_core::FailedToControl("Failed to get control");
     }
 
     // Publish command and feedback, then sleep
@@ -451,17 +423,45 @@ bool DockingServer::resetApproach(geometry_msgs::msg::PoseStamped staging_pose)
   return false;
 }
 
-bool DockingServer::getRobotPoseInFrame(
-  geometry_msgs::msg::PoseStamped & robot_pose, const std::string & frame)
+bool DockingServer::getCommandToPose(
+  geometry_msgs::msg::Twist & cmd, geometry_msgs::msg::PoseStamped pose, double tolerance)
 {
+  // Reset command to zero velocity
+  cmd.linear.x = 0;
+  cmd.angular.z = 0;
+
+  // Determine if we have reached pose yet
+  geometry_msgs::msg::PoseStamped robot_pose = getRobotPoseInFrame(pose.header.frame_id);
+
+  double dist = std::hypot(
+    robot_pose.pose.position.x - pose.pose.position.x,
+    robot_pose.pose.position.y - pose.pose.position.y);
+  if (dist < tolerance) {
+    // Reached target - stop motion!
+    return true;
+  }
+
+  // Transform target_pose into base_link frame
+  // TODO(fergs): this should be pushed into the controller
+  geometry_msgs::msg::PoseStamped target_pose = pose;
+  target_pose.header.stamp = rclcpp::Time(0);
+  tf2_buffer_->transform(target_pose, target_pose, base_frame_);
+
+  if (!controller_->computeVelocityCommand(target_pose.pose, cmd)) {
+    throw opennav_docking_core::FailedToControl("Failed to get control");
+  }
+
+  // Command is valid
+  return false;
+}
+
+geometry_msgs::msg::PoseStamped DockingServer::getRobotPoseInFrame(const std::string & frame)
+{
+  geometry_msgs::msg::PoseStamped robot_pose;
   robot_pose.header.frame_id = base_frame_;
   robot_pose.header.stamp = rclcpp::Time(0);
-  try {
-    tf2_buffer_->transform(robot_pose, robot_pose, frame);
-  } catch (const tf2::TransformException & ex) {
-    return false;
-  }
-  return true;
+  tf2_buffer_->transform(robot_pose, robot_pose, frame);
+  return robot_pose;
 }
 
 void DockingServer::undockRobot()
@@ -504,23 +504,18 @@ void DockingServer::undockRobot()
       "Attempting to undock robot from charger of type %s.", dock->getName().c_str());
 
     // Get "dock pose" by finding the robot pose
-    geometry_msgs::msg::PoseStamped dock_pose;
-    dock_pose.header.frame_id = base_frame_;
-    dock_pose.header.stamp = rclcpp::Time(0);
-    try {
-      tf2_buffer_->transform(dock_pose, dock_pose, fixed_frame_);
-    } catch (const tf2::TransformException & ex) {
-      throw opennav_docking_core::DockNotValid("Could not transform dock pose!");
-    }
+    geometry_msgs::msg::PoseStamped dock_pose = getRobotPoseInFrame(fixed_frame_);
 
     // TODO(fergs): Check if path to undock is clear
 
-    // Control robot to staging pose
+    // Get staging pose (in fixed frame)
     geometry_msgs::msg::PoseStamped staging_pose =
       dock->getStagingPose(dock_pose.pose, dock_pose.header.frame_id);
+
+    // Control robot to staging pose
     rclcpp::Time loop_start = this->now();
     while (rclcpp::ok()) {
-      // Command to send to robot base
+      // Create new zero velocity command
       geometry_msgs::msg::Twist command;
 
       // Stop if we exceed max duration
@@ -537,32 +532,7 @@ void DockingServer::undockRobot()
         continue;
       }
 
-      // Stop controlling when pose reached
-      {
-        geometry_msgs::msg::PoseStamped robot_pose;
-        robot_pose.header.frame_id = base_frame_;
-        robot_pose.header.stamp = rclcpp::Time(0);
-        try {
-          tf2_buffer_->transform(robot_pose, robot_pose, fixed_frame_);
-
-          double dist = std::hypot(
-            robot_pose.pose.position.x - staging_pose.pose.position.x,
-            robot_pose.pose.position.y - staging_pose.pose.position.y);
-
-          if (dist < undock_tolerance_ && dock->hasStoppedCharging()) {
-            RCLCPP_INFO(get_logger(), "Robot has undocked!");
-            undocking_action_server_->succeeded_current(result);
-            curr_dock_type_.clear();
-            // Publish zero velocity before breaking out of loop
-            vel_publisher_->publish(command);
-            return;
-          }
-        } catch (const tf2::TransformException & ex) {
-          RCLCPP_ERROR(get_logger(), "Could not transform robot pose");
-        }
-      }
-
-      // Also stop if cancelled/preempted
+      // Stop if cancelled/preempted
       if (undocking_action_server_->is_cancel_requested()) {
         RCLCPP_INFO(get_logger(), "Goal was canceled. Canceling docking action.");
         // Publish zero velocity before breaking out of loop
@@ -570,24 +540,28 @@ void DockingServer::undockRobot()
         break;
       }
 
-      // Transform staging_pose into base_link frame
-      geometry_msgs::msg::PoseStamped target_pose;
-      try {
-        staging_pose.header.stamp = rclcpp::Time(0);
-        tf2_buffer_->transform(staging_pose, target_pose, base_frame_);
-      } catch (const tf2::TransformException & ex) {
-        RCLCPP_ERROR(get_logger(), "Could not transform pose");
-      }
-
-      // Run controller to get command velocity
-      if (!controller_->computeVelocityCommand(target_pose.pose, command)) {
-        throw opennav_docking_core::FailedToControl("Failed to get control");
+      // Get command to approach staging pose
+      if (getCommandToPose(command, staging_pose, undock_tolerance_)) {
+        // Have reached staging_pose
+        vel_publisher_->publish(command);
+        if (dock->hasStoppedCharging()) {
+          RCLCPP_INFO(get_logger(), "Robot has undocked!");
+          undocking_action_server_->succeeded_current(result);
+          curr_dock_type_.clear();
+          return;
+        }
+        // Haven't stopped charging?
+        // TODO(fergs): set appropriate error code
+        break;
       }
 
       // Publish command and sleep
       vel_publisher_->publish(command);
       loop_rate.sleep();
     }
+  } catch (const tf2::TransformException & e) {
+    RCLCPP_ERROR(get_logger(), "Transform error: %s", e.what());
+    result->error_code = DockRobot::Result::UNKNOWN;
   } catch (opennav_docking_core::DockNotValid & e) {
     RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
     result->error_code = DockRobot::Result::DOCK_NOT_VALID;

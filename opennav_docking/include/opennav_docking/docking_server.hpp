@@ -97,10 +97,21 @@ protected:
   bool resetApproach(geometry_msgs::msg::PoseStamped staging_pose);
 
   /**
-   * @brief Get the robot pose (aka base_frame pose) in another frame
+   * @brief Run a single iteration of the control loop to approach a pose.
+   * @param cmd The return command.
+   * @param pose The pose to command towards.
+   * @param tolerance If within this distance to pose, return zero velocity.
+   * @returns True if pose is reached.
    */
-  bool getRobotPoseInFrame(geometry_msgs::msg::PoseStamped & pose, const std::string & frame);
+  bool getCommandToPose(
+    geometry_msgs::msg::Twist & cmd, geometry_msgs::msg::PoseStamped pose, double tolerance);
 
+  /**
+   * @brief Get the robot pose (aka base_frame pose) in another frame.
+   * @param frame The frame_id to get the robot pose in.
+   * @returns Computed robot pose, throws TF2 error if failure.
+   */
+  geometry_msgs::msg::PoseStamped getRobotPoseInFrame(const std::string & frame);
 
   /**
    * @brief Main action callback method to complete undocking request
