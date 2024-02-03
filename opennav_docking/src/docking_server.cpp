@@ -218,10 +218,12 @@ void DockingServer::dockRobot()
       dock->getStagingPose(), rclcpp::Duration::from_seconds(goal->max_staging_time));
     RCLCPP_INFO(get_logger(), "Successful navigation to staging pose");
 
-    // Construct initial estimate of where the dock is located
+    // Construct initial estimate of where the dock is located in fixed_frame
     geometry_msgs::msg::PoseStamped dock_pose;
     dock_pose.pose = dock->pose;
     dock_pose.header.frame_id = dock->frame;
+    dock_pose.header.stamp = rclcpp::Time(0);
+    tf2_buffer_->transform(dock_pose, dock_pose, fixed_frame_);
 
     // Get initial detection of dock before proceeding to move
     doInitialPerception(dock, dock_pose);
@@ -254,6 +256,9 @@ void DockingServer::dockRobot()
       }
       RCLCPP_INFO(get_logger(), "Returned to staging, attempting docking again");
     }
+  } catch (const tf2::TransformException & e) {
+    RCLCPP_ERROR(get_logger(), "Transform error: %s", e.what());
+    result->error_code = DockRobot::Result::UNKNOWN;
   } catch (opennav_docking_core::DockNotInDB & e) {
     RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
     result->error_code = DockRobot::Result::DOCK_NOT_IN_DB;
