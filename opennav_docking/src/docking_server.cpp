@@ -166,6 +166,30 @@ void DockingServer::getPreemptedGoalIfRequested(
   }
 }
 
+template<typename ActionT>
+bool DockingServer::checkAndWarnIfCancelled(
+  std::unique_ptr<nav2_util::SimpleActionServer<ActionT>> & action_server,
+  const std::string & name)
+{
+  if (action_server->is_cancel_requested()) {
+    RCLCPP_WARN(get_logger(), "Goal was cancelled. Cancelling %s action", name.c_str());
+    return true;
+  }
+  return false;
+}
+
+template<typename ActionT>
+bool DockingServer::checkAndWarnIfPreempted(
+  std::unique_ptr<nav2_util::SimpleActionServer<ActionT>> & action_server,
+  const std::string & name)
+{
+  if (action_server->is_preempt_requested()) {
+    RCLCPP_WARN(get_logger(), "Goal was preempted. Cancelling %s action", name.c_str());
+    return true;
+  }
+  return false;
+}
+
 void DockingServer::dockRobot()
 {
   std::lock_guard<std::mutex> lock(dynamic_params_lock_);
@@ -175,14 +199,14 @@ void DockingServer::dockRobot()
 
   auto goal = docking_action_server_->get_current_goal();
   auto result = std::make_shared<DockRobot::Result>();
+  result->success = false;
 
   if (!docking_action_server_ || !docking_action_server_->is_server_active()) {
     RCLCPP_DEBUG(get_logger(), "Action server unavailable or inactive. Stopping.");
     return;
   }
 
-  if (docking_action_server_->is_cancel_requested()) {
-    RCLCPP_INFO(get_logger(), "Goal was canceled. Canceling docking action.");
+  if (checkAndWarnIfCancelled(docking_action_server_, "dock_robot")) {
     docking_action_server_->terminate_all();
     return;
   }
@@ -230,27 +254,42 @@ void DockingServer::dockRobot()
 
     // Docking control loop: while not docked, run controller
     rclcpp::Time dock_contact_time;
-    while (rclcpp::ok() && (num_retries_ < max_retries_)) {
-      // Approach the dock using control law
-      if (approachDock(dock, dock_pose)) {
-        // We are docked, wait for charging to begin
-        RCLCPP_INFO(get_logger(), "Made contact with dock, waiting for charge to start");
-        if (waitForCharge(dock)) {
-          RCLCPP_INFO(get_logger(), "Robot is charging!");
-          docking_action_server_->succeeded_current(result);
-          stashDockData(goal->use_dock_id, dock);
-          return;
+    while (rclcpp::ok()) {
+      try {
+        // Approach the dock using control law
+        if (approachDock(dock, dock_pose)) {
+          // We are docked, wait for charging to begin
+          RCLCPP_INFO(get_logger(), "Made contact with dock, waiting for charge to start");
+          if (waitForCharge(dock)) {
+            RCLCPP_INFO(get_logger(), "Robot is charging!");
+            result->success = true;
+            result->num_retries = num_retries_;
+            docking_action_server_->succeeded_current(result);
+            stashDockData(goal->use_dock_id, dock);
+            return;
+          }
         }
+        // Cancelled, preempted, or shutting down
+        // (any recoverable error would thrown a DockingException)
+        stashDockData(goal->use_dock_id, dock);
+        docking_action_server_->terminate_all(result);
+        return;
+      } catch (opennav_docking_core::DockingException & e) {
+        if (++num_retries_ > max_retries_) {
+          RCLCPP_ERROR(get_logger(), "Failed to dock, all retries have been used");
+          throw;
+        }
+        RCLCPP_WARN(get_logger(), "Docking failed, will retry: %s", e.what());
       }
 
       // Reset to staging pose to try again
-      RCLCPP_WARN(get_logger(), "Docking was unsuccessful - retrying");
-      ++num_retries_;
       if (!resetApproach(dock->getStagingPose())) {
-        RCLCPP_ERROR(get_logger(), "Failed to reset for another approach!");
-        break;
+        // Cancelled, preempted, or shutting down
+        stashDockData(goal->use_dock_id, dock);
+        docking_action_server_->terminate_all(result);
+        return;
       }
-      RCLCPP_INFO(get_logger(), "Returned to staging, attempting docking again");
+      RCLCPP_INFO(get_logger(), "Returned to staging pose, attempting docking again");
     }
   } catch (const tf2::TransformException & e) {
     RCLCPP_ERROR(get_logger(), "Transform error: %s", e.what());
@@ -283,6 +322,7 @@ void DockingServer::dockRobot()
 
   // Store dock state for later undocking and delete temp dock, if applicable
   stashDockData(goal->use_dock_id, dock);
+  result->num_retries = num_retries_;
   docking_action_server_->terminate_current(result);
 }
 
@@ -308,11 +348,11 @@ void DockingServer::publishDockingFeedback(uint16_t state)
 
 void DockingServer::doInitialPerception(Dock * dock, geometry_msgs::msg::PoseStamped & dock_pose)
 {
+  publishDockingFeedback(DockRobot::Feedback::INITIAL_PERCEPTION);
   rclcpp::Rate loop_rate(controller_frequency_);
   auto start = this->now();
   auto timeout = rclcpp::Duration::from_seconds(initial_perception_timeout_);
   while (!dock->plugin->getRefinedPose(dock_pose)) {
-    publishDockingFeedback(DockRobot::Feedback::INITIAL_PERCEPTION);
     if (this->now() - start > timeout) {
       throw opennav_docking_core::FailedToDetectDock("Failed initial dock detection");
     }
@@ -335,9 +375,9 @@ bool DockingServer::approachDock(Dock * dock, geometry_msgs::msg::PoseStamped & 
     }
 
     // Stop if cancelled/preempted
-    if (docking_action_server_->is_cancel_requested() ||
-        docking_action_server_->is_preempt_requested()) {
-      RCLCPP_WARN(get_logger(), "Goal was canceled. Canceling docking action.");
+    if (checkAndWarnIfCancelled(docking_action_server_, "dock_robot") ||
+      checkAndWarnIfPreempted(docking_action_server_, "dock_robot"))
+    {
       // Publish zero velocity before breaking out of loop
       vel_publisher_->publish(command);
       return false;
@@ -357,10 +397,9 @@ bool DockingServer::approachDock(Dock * dock, geometry_msgs::msg::PoseStamped & 
       target_pose.header.stamp = rclcpp::Time(0);
       tf2_buffer_->transform(target_pose, target_pose, base_frame_);
     } catch (const tf2::TransformException & ex) {
-      RCLCPP_ERROR(get_logger(), "Could not transform pose");
       // Publish zero velocity before breaking out of loop
       vel_publisher_->publish(command);
-      return false;
+      throw;
     }
 
     if (!controller_->computeVelocityCommand(target_pose.pose, command)) {
@@ -385,8 +424,14 @@ bool DockingServer::waitForCharge(Dock * dock)
       return true;
     }
 
-    if (this->now() - start > timeout) {
+    if (checkAndWarnIfCancelled(docking_action_server_, "dock_robot") ||
+      checkAndWarnIfPreempted(docking_action_server_, "dock_robot"))
+    {
       return false;
+    }
+
+    if (this->now() - start > timeout) {
+      throw opennav_docking_core::FailedToCharge("Timed out waiting for charge to start");
     }
 
     loop_rate.sleep();
@@ -404,9 +449,9 @@ bool DockingServer::resetApproach(const geometry_msgs::msg::PoseStamped & stagin
     geometry_msgs::msg::Twist command;
 
     // Stop if cancelled/preempted
-    if (docking_action_server_->is_cancel_requested() ||
-        docking_action_server_->is_preempt_requested()) {
-      RCLCPP_WARN(get_logger(), "Goal was canceled. Canceling docking action.");
+    if (checkAndWarnIfCancelled(docking_action_server_, "dock_robot") ||
+      checkAndWarnIfPreempted(docking_action_server_, "dock_robot"))
+    {
       // Publish zero velocity before breaking out of loop
       vel_publisher_->publish(command);
       return false;
@@ -475,16 +520,16 @@ void DockingServer::undockRobot()
 
   auto goal = undocking_action_server_->get_current_goal();
   auto result = std::make_shared<UndockRobot::Result>();
+  result->success = false;
 
   if (!undocking_action_server_ || !undocking_action_server_->is_server_active()) {
     RCLCPP_DEBUG(get_logger(), "Action server unavailable or inactive. Stopping.");
     return;
   }
 
-  if (undocking_action_server_->is_cancel_requested() ||
-      undocking_action_server_->is_preempt_requested()) {
-    RCLCPP_INFO(get_logger(), "Goal was canceled. Canceling undocking action.");
-    undocking_action_server_->terminate_all();
+  if (undocking_action_server_->is_cancel_requested()) {
+    RCLCPP_INFO(get_logger(), "Goal was canceled. Cancelling undocking action.");
+    undocking_action_server_->terminate_all(result);
     return;
   }
 
@@ -536,9 +581,9 @@ void DockingServer::undockRobot()
       }
 
       // Stop if cancelled/preempted
-      if (undocking_action_server_->is_cancel_requested() ||
-          undocking_action_server_->is_preempt_requested()) {
-        RCLCPP_INFO(get_logger(), "Goal was canceled. Canceling docking action.");
+      if (checkAndWarnIfCancelled(undocking_action_server_, "undock_robot") ||
+        checkAndWarnIfPreempted(undocking_action_server_, "undock_robot"))
+      {
         // Publish zero velocity before breaking out of loop
         vel_publisher_->publish(command);
         break;
@@ -550,6 +595,7 @@ void DockingServer::undockRobot()
         vel_publisher_->publish(command);
         if (dock->hasStoppedCharging()) {
           RCLCPP_INFO(get_logger(), "Robot has undocked!");
+          result->success = true;
           undocking_action_server_->succeeded_current(result);
           curr_dock_type_.clear();
           return;
