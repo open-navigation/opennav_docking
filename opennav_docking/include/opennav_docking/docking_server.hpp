@@ -61,6 +61,12 @@ protected:
   void dockRobot();
 
   /**
+   * @brief Called at the conclusion of docking actions. Saves relevant
+   *        docking data for later undocking action.
+   */
+  void stashDockData(bool use_dock_id, Dock * dock);
+
+  /**
    * @brief Publish feedback from a docking action.
    * @param state Current state - should be one of those defined in message.
    */

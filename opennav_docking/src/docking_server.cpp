@@ -189,7 +189,6 @@ void DockingServer::dockRobot()
 
   getPreemptedGoalIfRequested(goal, docking_action_server_);
   Dock * dock{nullptr};
-  bool succeeded = false;
   num_retries_ = 0;
 
   try {
@@ -233,22 +232,19 @@ void DockingServer::dockRobot()
     rclcpp::Time dock_contact_time;
     while (rclcpp::ok() && (num_retries_ < max_retries_)) {
       // Approach the dock using control law
-      if (!approachDock(dock, dock_pose)) {
-        // Failed to approach
-        break;
-      }
-
-      // Wait for charging to begin
-      RCLCPP_INFO(get_logger(), "Made contact with dock, waiting for charge to start");
-      if (waitForCharge(dock)) {
-        RCLCPP_INFO(get_logger(), "Robot is charging!");
-        succeeded = true;
-        docking_action_server_->succeeded_current(result);
-        break;
+      if (approachDock(dock, dock_pose)) {
+        // We are docked, wait for charging to begin
+        RCLCPP_INFO(get_logger(), "Made contact with dock, waiting for charge to start");
+        if (waitForCharge(dock)) {
+          RCLCPP_INFO(get_logger(), "Robot is charging!");
+          docking_action_server_->succeeded_current(result);
+          stashDockData(goal->use_dock_id, dock);
+          return;
+        }
       }
 
       // Reset to staging pose to try again
-      RCLCPP_WARN(get_logger(), "Charging did not start - retrying");
+      RCLCPP_WARN(get_logger(), "Docking was unsuccessful - retrying");
       ++num_retries_;
       if (!resetApproach(dock->getStagingPose())) {
         RCLCPP_ERROR(get_logger(), "Failed to reset for another approach!");
@@ -286,16 +282,18 @@ void DockingServer::dockRobot()
   }
 
   // Store dock state for later undocking and delete temp dock, if applicable
+  stashDockData(goal->use_dock_id, dock);
+  docking_action_server_->terminate_current(result);
+}
+
+void DockingServer::stashDockData(bool use_dock_id, Dock * dock)
+{
   if (dock) {
     curr_dock_type_ = dock->type;
   }
 
-  if (!goal->use_dock_id && dock) {
+  if (!use_dock_id && dock) {
     delete dock;
-  }
-
-  if (!succeeded) {
-    docking_action_server_->terminate_current(result);
   }
 }
 
