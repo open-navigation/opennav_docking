@@ -308,30 +308,31 @@ void DockingServer::publishDockingFeedback(uint16_t state)
   docking_action_server_->publish_feedback(feedback);
 }
 
-bool DockingServer::doInitialPerception(Dock * dock, geometry_msgs::msg::PoseStamped & dock_pose)
+void DockingServer::doInitialPerception(Dock * dock, geometry_msgs::msg::PoseStamped & dock_pose)
 {
   rclcpp::Rate loop_rate(controller_frequency_);
   auto start = this->now();
   auto timeout = rclcpp::Duration::from_seconds(initial_perception_timeout_);
   while (!dock->plugin->getRefinedPose(dock_pose)) {
+    publishDockingFeedback(DockRobot::Feedback::INITIAL_PERCEPTION);
     if (this->now() - start > timeout) {
       throw opennav_docking_core::FailedToDetectDock("Failed initial dock detection");
     }
-    publishDockingFeedback(DockRobot::Feedback::INITIAL_PERCEPTION);
     loop_rate.sleep();
   }
-  return true;
 }
 
 bool DockingServer::approachDock(Dock * dock, geometry_msgs::msg::PoseStamped & dock_pose)
 {
   rclcpp::Rate loop_rate(controller_frequency_);
   while (rclcpp::ok()) {
+    publishDockingFeedback(DockRobot::Feedback::CONTROLLING);
+
     // Allocate new zero velocity command
     geometry_msgs::msg::Twist command;
 
     // Stop and report success if connected to dock
-    if (dock->plugin->isDocked()) {
+    if (dock->plugin->isDocked() || dock->plugin->isCharging()) {
       return true;
     }
 
@@ -369,7 +370,6 @@ bool DockingServer::approachDock(Dock * dock, geometry_msgs::msg::PoseStamped & 
     }
     vel_publisher_->publish(command);
 
-    publishDockingFeedback(DockRobot::Feedback::CONTROLLING);
     loop_rate.sleep();
   }
   return false;
@@ -381,6 +381,8 @@ bool DockingServer::waitForCharge(Dock * dock)
   auto start = this->now();
   auto timeout = rclcpp::Duration::from_seconds(wait_charge_timeout_);
   while (rclcpp::ok()) {
+    publishDockingFeedback(DockRobot::Feedback::WAIT_FOR_CHARGE);
+
     if (dock->plugin->isCharging()) {
       return true;
     }
@@ -389,7 +391,6 @@ bool DockingServer::waitForCharge(Dock * dock)
       return false;
     }
 
-    publishDockingFeedback(DockRobot::Feedback::WAIT_FOR_CHARGE);
     loop_rate.sleep();
   }
   return false;
@@ -399,6 +400,8 @@ bool DockingServer::resetApproach(const geometry_msgs::msg::PoseStamped & stagin
 {
   rclcpp::Rate loop_rate(controller_frequency_);
   while (rclcpp::ok()) {
+    publishDockingFeedback(DockRobot::Feedback::INITIAL_PERCEPTION);
+
     // Allocate new zero velocity command
     geometry_msgs::msg::Twist command;
 
@@ -417,9 +420,8 @@ bool DockingServer::resetApproach(const geometry_msgs::msg::PoseStamped & stagin
       return true;
     }
 
-    // Publish command and feedback, then sleep
+    // Publish command, then sleep
     vel_publisher_->publish(command);
-    publishDockingFeedback(DockRobot::Feedback::RETRY);
     loop_rate.sleep();
   }
   return false;

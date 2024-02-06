@@ -70,9 +70,8 @@ protected:
    * @brief Do initial perception, up to a timeout.
    * @param dock Dock instance, gets queried for refined pose.
    * @param dock_pose Initial dock pose, will be refined by perception.
-   * @returns True if dock successfully approached.
    */
-  bool doInitialPerception(Dock * dock, geometry_msgs::msg::PoseStamped & dock_pose);
+  void doInitialPerception(Dock * dock, geometry_msgs::msg::PoseStamped & dock_pose);
 
   /**
    * @brief Use control law and dock perception to approach the charge dock.
