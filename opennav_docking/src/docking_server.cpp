@@ -146,6 +146,7 @@ DockingServer::on_cleanup(const rclcpp_lifecycle::State & /*state*/)
   navigator_.reset();
   curr_dock_type_.clear();
   vel_publisher_.reset();
+  controller_.reset();
   return nav2_util::CallbackReturn::SUCCESS;
 }
 
@@ -633,14 +634,24 @@ rcl_interfaces::msg::SetParametersResult
 DockingServer::dynamicParametersCallback(std::vector<rclcpp::Parameter> parameters)
 {
   std::lock_guard<std::mutex> lock(dynamic_params_lock_);
-  rcl_interfaces::msg::SetParametersResult result;
-  // for (auto parameter : parameters) {
-  //   const auto & type = parameter.get_type();
-  //   const auto & name = parameter.get_name();
 
-  // TODO(XYZ): implement dynamic parameters for all applicable parameters
-  // }
-  (void)parameters;
+  rcl_interfaces::msg::SetParametersResult result;
+  for (auto parameter : parameters) {
+    const auto & type = parameter.get_type();
+    const auto & name = parameter.get_name();
+
+    if (type == ParameterType::PARAMETER_DOUBLE) {
+      if (name == "controller_frequency") {
+        controller_frequency_ = parameter.as_double();
+      } else if (name == "initial_perception_timeout") {
+        initial_perception_timeout_ = parameter.as_double();
+      } else if (name == "wait_charge_timeout") {
+        wait_charge_timeout_ = parameter.as_double();
+      } else if (name == "undock_tolerance") {
+        undock_tolerance_ = parameter.as_double();
+      }
+    }
+  }
 
   result.successful = true;
   return result;
