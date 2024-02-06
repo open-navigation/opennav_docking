@@ -594,12 +594,6 @@ void DockingServer::undockRobot()
         throw opennav_docking_core::FailedToControl("Undocking timed out");
       }
 
-      // Don't control the robot until charging is disabled
-      if (!dock->disableCharging()) {
-        loop_rate.sleep();
-        continue;
-      }
-
       // Stop if cancelled/preempted
       if (checkAndWarnIfCancelled(undocking_action_server_, "undock_robot") ||
         checkAndWarnIfPreempted(undocking_action_server_, "undock_robot"))
@@ -607,6 +601,12 @@ void DockingServer::undockRobot()
         // Publish zero velocity before breaking out of loop
         vel_publisher_->publish(command);
         break;
+      }
+
+      // Don't control the robot until charging is disabled
+      if (!dock->disableCharging()) {
+        loop_rate.sleep();
+        continue;
       }
 
       // Get command to approach staging pose
