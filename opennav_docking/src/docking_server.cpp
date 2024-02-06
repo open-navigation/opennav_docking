@@ -395,7 +395,7 @@ bool DockingServer::waitForCharge(Dock * dock)
   return false;
 }
 
-bool DockingServer::resetApproach(geometry_msgs::msg::PoseStamped staging_pose)
+bool DockingServer::resetApproach(const geometry_msgs::msg::PoseStamped & staging_pose)
 {
   rclcpp::Rate loop_rate(controller_frequency_);
   while (rclcpp::ok()) {
@@ -426,7 +426,7 @@ bool DockingServer::resetApproach(geometry_msgs::msg::PoseStamped staging_pose)
 }
 
 bool DockingServer::getCommandToPose(
-  geometry_msgs::msg::Twist & cmd, geometry_msgs::msg::PoseStamped pose, double tolerance)
+  geometry_msgs::msg::Twist & cmd, const geometry_msgs::msg::PoseStamped & pose, double tolerance)
 {
   // Reset command to zero velocity
   cmd.linear.x = 0;

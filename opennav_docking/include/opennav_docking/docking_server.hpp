@@ -94,7 +94,7 @@ protected:
    * @param staging_pose The target pose that will reset for another approach.
    * @returns True if reset is successful.
    */
-  bool resetApproach(geometry_msgs::msg::PoseStamped staging_pose);
+  bool resetApproach(const geometry_msgs::msg::PoseStamped & staging_pose);
 
   /**
    * @brief Run a single iteration of the control loop to approach a pose.
@@ -104,7 +104,8 @@ protected:
    * @returns True if pose is reached.
    */
   bool getCommandToPose(
-    geometry_msgs::msg::Twist & cmd, geometry_msgs::msg::PoseStamped pose, double tolerance);
+    geometry_msgs::msg::Twist & cmd, const geometry_msgs::msg::PoseStamped & pose,
+    double tolerance);
 
   /**
    * @brief Get the robot pose (aka base_frame pose) in another frame.
