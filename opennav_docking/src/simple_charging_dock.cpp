@@ -163,6 +163,9 @@ class SimpleChargingDock : public opennav_docking_core::ChargingDock
    * so some charge docks provide the ability to disable charging before the
    * robot physically disconnects. The undocking action will not command the
    * robot to move until this returns true.
+   *
+   * NOTE: this function is expected to return QUICKLY. Blocking here will block
+   * the docking controller loop.
    */
   virtual bool disableCharging()
   {

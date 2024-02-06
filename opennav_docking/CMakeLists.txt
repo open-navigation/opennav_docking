@@ -10,8 +10,9 @@ find_package(rclcpp_components REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
-find_package(nav2_util REQUIRED)
+find_package(nav2_graceful_controller REQUIRED)
 find_package(nav2_msgs REQUIRED)
+find_package(nav2_util REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(builtin_interfaces REQUIRED)
@@ -42,6 +43,7 @@ set(dependencies
   std_msgs
   sensor_msgs
   visualization_msgs
+  nav2_graceful_controller
   nav2_util
   nav2_msgs
   nav_msgs
@@ -58,7 +60,6 @@ set(dependencies
 add_library(${library_name} SHARED
   src/docking_server.cpp
   src/dock_database.cpp
-  src/graceful_controller.cpp
   src/navigator.cpp
 )
 

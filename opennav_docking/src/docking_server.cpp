@@ -14,7 +14,6 @@
 
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 #include "opennav_docking/docking_server.hpp"
-#include "opennav_docking/graceful_controller.hpp"
 
 using namespace std::chrono_literals;
 using rcl_interfaces::msg::ParameterType;
@@ -35,6 +34,16 @@ DockingServer::DockingServer(const rclcpp::NodeOptions & options)
   declare_parameter("max_retries", 3);
   declare_parameter("base_frame", "base_link");
   declare_parameter("fixed_frame", "odom");
+
+  // Parameters for control law
+  declare_parameter("controller.k_phi", 2.0);
+  declare_parameter("controller.k_delta", 1.0);
+  declare_parameter("controller.beta", 0.4);
+  declare_parameter("controller.lambda", 2.0);
+  declare_parameter("controller.v_linear_min", 0.1);
+  declare_parameter("controller.v_linear_max", 0.25);
+  declare_parameter("controller.v_angular_max", 0.75);
+  declare_parameter("controller.slowdown_radius", 0.25);
 }
 
 nav2_util::CallbackReturn
@@ -65,8 +74,20 @@ DockingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
   }
 
   // Create a controller
-  controller_ = std::make_unique<GracefulController>();
-  controller_->activate();
+  {
+    double k_phi, k_delta, beta, lambda;
+    double slowdown_radius, v_linear_min, v_linear_max, v_angular_max;
+    get_parameter("controller.k_phi", k_phi);
+    get_parameter("controller.k_delta", k_delta);
+    get_parameter("controller.beta", beta);
+    get_parameter("controller.lambda", lambda);
+    get_parameter("controller.v_linear_min", v_linear_min);
+    get_parameter("controller.v_linear_max", v_linear_max);
+    get_parameter("controller.v_angular_max", v_angular_max);
+    get_parameter("controller.slowdown_radius", slowdown_radius);
+    controller_ = std::make_unique<nav2_graceful_controller::SmoothControlLaw>(
+      k_phi, k_delta, beta, lambda, slowdown_radius, v_linear_min, v_linear_max, v_angular_max);
+  }
 
   double action_server_result_timeout;
   nav2_util::declare_parameter_if_not_declared(
@@ -392,7 +413,6 @@ bool DockingServer::approachDock(Dock * dock, geometry_msgs::msg::PoseStamped & 
     }
 
     // Transform target_pose into base_link frame
-    // TODO(fergs): this should be pushed into the controller
     geometry_msgs::msg::PoseStamped target_pose = dock_pose;
     try {
       target_pose.header.stamp = rclcpp::Time(0);
@@ -403,9 +423,9 @@ bool DockingServer::approachDock(Dock * dock, geometry_msgs::msg::PoseStamped & 
       throw;
     }
 
-    if (!controller_->computeVelocityCommand(target_pose.pose, command)) {
-      throw opennav_docking_core::FailedToControl("Failed to get control");
-    }
+    // If the target is behind the robot, we are backwards
+    bool backward = target_pose.pose.position.x < 0;
+    command = controller_->calculateRegularVelocity(target_pose.pose, backward);
     vel_publisher_->publish(command);
 
     loop_rate.sleep();
@@ -490,16 +510,15 @@ bool DockingServer::getCommandToPose(
   }
 
   // Transform target_pose into base_link frame
-  // TODO(fergs): this should be pushed into the controller
   geometry_msgs::msg::PoseStamped target_pose = pose;
   target_pose.header.stamp = rclcpp::Time(0);
   tf2_buffer_->transform(target_pose, target_pose, base_frame_);
 
-  if (!controller_->computeVelocityCommand(target_pose.pose, cmd)) {
-    throw opennav_docking_core::FailedToControl("Failed to get control");
-  }
+  // If the target is behind the robot, we are backwards
+  bool backward = target_pose.pose.position.x < 0;
+  cmd = controller_->calculateRegularVelocity(target_pose.pose, backward);
 
-  // Command is valid
+  // Command is valid and target is not reached
   return false;
 }
 
@@ -592,6 +611,7 @@ void DockingServer::undockRobot()
 
       // Get command to approach staging pose
       if (getCommandToPose(command, staging_pose, undock_tolerance_)) {
+        RCLCPP_INFO(get_logger(), "Robot has reached staging pose");
         // Have reached staging_pose
         vel_publisher_->publish(command);
         if (dock->hasStoppedCharging()) {

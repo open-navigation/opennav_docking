@@ -20,10 +20,10 @@
 #include <string>
 
 #include "rclcpp/rclcpp.hpp"
+#include "nav2_graceful_controller/smooth_control_law.hpp"
 #include "nav2_util/lifecycle_node.hpp"
 #include "nav2_util/node_utils.hpp"
 #include "nav2_util/simple_action_server.hpp"
-#include "opennav_docking/controller.hpp"
 #include "opennav_docking/utils.hpp"
 #include "opennav_docking/types.hpp"
 #include "opennav_docking/dock_database.hpp"
@@ -230,7 +230,7 @@ protected:
 
   std::unique_ptr<DockDatabase> dock_db_;
   std::unique_ptr<Navigator> navigator_;
-  std::unique_ptr<Controller> controller_;
+  std::unique_ptr<nav2_graceful_controller::SmoothControlLaw> controller_;
   std::string curr_dock_type_;
 
   std::shared_ptr<tf2_ros::Buffer> tf2_buffer_;
