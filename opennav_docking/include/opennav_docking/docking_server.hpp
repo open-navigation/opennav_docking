@@ -61,6 +61,66 @@ protected:
   void dockRobot();
 
   /**
+   * @brief Called at the conclusion of docking actions. Saves relevant
+   *        docking data for later undocking action.
+   */
+  void stashDockData(bool use_dock_id, Dock * dock);
+
+  /**
+   * @brief Publish feedback from a docking action.
+   * @param state Current state - should be one of those defined in message.
+   */
+  void publishDockingFeedback(uint16_t state);
+
+  /**
+   * @brief Do initial perception, up to a timeout.
+   * @param dock Dock instance, gets queried for refined pose.
+   * @param dock_pose Initial dock pose, will be refined by perception.
+   */
+  void doInitialPerception(Dock * dock, geometry_msgs::msg::PoseStamped & dock_pose);
+
+  /**
+   * @brief Use control law and dock perception to approach the charge dock.
+   * @param dock Dock instance, gets queried for refined pose and docked state.
+   * @param dock_pose Initial dock pose, will be refined by perception.
+   * @returns True if dock successfully approached, False if cancelled. For
+   *          any internal error, will throw.
+   */
+  bool approachDock(Dock * dock, geometry_msgs::msg::PoseStamped & dock_pose);
+
+  /**
+   * @brief Wait for charging to begin.
+   * @param dock Dock instance, used to query isCharging().
+   * @returns True if charging successfully started within alloted time.
+   */
+  bool waitForCharge(Dock * dock);
+
+  /**
+   * @brief Reset the robot for another approach by controlling back to staging pose.
+   * @param staging_pose The target pose that will reset for another approach.
+   * @returns True if reset is successful.
+   */
+  bool resetApproach(const geometry_msgs::msg::PoseStamped & staging_pose);
+
+  /**
+   * @brief Run a single iteration of the control loop to approach a pose.
+   * @param cmd The return command.
+   * @param pose The pose to command towards.
+   * @param tolerance If within this distance to pose, return zero velocity.
+   * @returns True if pose is reached.
+   */
+  bool getCommandToPose(
+    geometry_msgs::msg::Twist & cmd, const geometry_msgs::msg::PoseStamped & pose,
+    double tolerance);
+
+  /**
+   * @brief Get the robot pose (aka base_frame pose) in another frame.
+   * @param frame The frame_id to get the robot pose in.
+   * @returns Computed robot pose, throws TF2 error if failure.
+   */
+  geometry_msgs::msg::PoseStamped getRobotPoseInFrame(const std::string & frame);
+
+  /**
    * @brief Main action callback method to complete undocking request
    */
   void undockRobot();
@@ -75,6 +135,28 @@ protected:
   void getPreemptedGoalIfRequested(
     typename std::shared_ptr<const typename ActionT::Goal> goal,
     const std::unique_ptr<nav2_util::SimpleActionServer<ActionT>> & action_server);
+
+  /**
+   * @brief Checks and logs warning if action canceled
+   * @param action_server Action server to check for cancellation on
+   * @param name Name of action to put in warning message
+   * @return True if action has been cancelled
+   */
+  template<typename ActionT>
+  bool checkAndWarnIfCancelled(
+    std::unique_ptr<nav2_util::SimpleActionServer<ActionT>> & action_server,
+    const std::string & name);
+
+  /**
+   * @brief Checks and logs warning if action preempted
+   * @param action_server Action server to check for preemption on
+   * @param name Name of action to put in warning message
+   * @return True if action has been preempted
+   */
+  template<typename ActionT>
+  bool checkAndWarnIfPreempted(
+    std::unique_ptr<nav2_util::SimpleActionServer<ActionT>> & action_server,
+    const std::string & name);
 
   /**
    * @brief Configure member variables
@@ -122,12 +204,24 @@ protected:
   rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr dyn_params_handler_;
   std::mutex dynamic_params_lock_;
 
+  // Frequency to run control loops
   double controller_frequency_;
+  // Timeout for initially detecting the charge dock
   double initial_perception_timeout_;
+  // Timeout after making contact with dock for charging to start
+  // If this is exceeded, the robot returns to the staging pose and retries
   double wait_charge_timeout_;
+  // When undocking, this is the tolerance for arriving at the staging pose
   double undock_tolerance_;
-  int max_retries_;
-  std::string base_frame_, fixed_frame_;
+  // Maximum number of times the robot will return to staging pose and retry docking
+  int max_retries_, num_retries_;
+  // This is the root frame of the robot - typically "base_link"
+  std::string base_frame_;
+  // This is our fixed frame for controlling - typically "odom"
+  std::string fixed_frame_;
+
+  // This is a class member so it can be accessed in publish feedback
+  rclcpp::Time action_start_time_;
 
   rclcpp_lifecycle::LifecyclePublisher<geometry_msgs::msg::Twist>::SharedPtr vel_publisher_;
 

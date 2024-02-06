@@ -122,7 +122,7 @@ class TestDockingServer(unittest.TestCase):
         result_future.add_done_callback(self.action_result_callback)
 
     def action_result_callback(self, future):
-        self.action_result = future.result().status
+        self.action_result.append(future.result())
         print(future.result())
 
     def action_feedback_callback(self, msg):
@@ -183,7 +183,7 @@ class TestDockingServer(unittest.TestCase):
         rclpy.spin_once(self.node, timeout_sec=0.1)
 
         # Test docking action
-        self.action_result = None
+        self.action_result = []
         self.dock_action_client.wait_for_server(timeout_sec=5.0)
         goal = DockRobot.Goal()
         goal.use_dock_id = True
@@ -192,21 +192,37 @@ class TestDockingServer(unittest.TestCase):
             goal, feedback_callback=self.action_feedback_callback)
         future.add_done_callback(self.action_goal_callback)
 
-        # Run for 3 seconds
-        for i in range(30):
+        # Run for 2 seconds
+        for i in range(20):
+            rclpy.spin_once(self.node, timeout_sec=0.1)
+            time.sleep(0.1)
+
+        # Send another goal to preempt the first
+        future = self.dock_action_client.send_goal_async(
+            goal, feedback_callback=self.action_feedback_callback)
+        future.add_done_callback(self.action_goal_callback)
+
+        # Wait until we get the dock preemption
+        while len(self.action_result) == 0:
+            rclpy.spin_once(self.node, timeout_sec=0.1)
+            time.sleep(0.1)
+        self.node.get_logger().info('Goal preempted')
+
+        # Run for 2 seconds
+        for i in range(20):
             rclpy.spin_once(self.node, timeout_sec=0.1)
             time.sleep(0.1)
 
         # Then terminate the docking action
         self.goal_handle.cancel_goal_async()
+
         # Wait until we get the dock cancellation
-        while self.action_result is None:
+        while len(self.action_result) < 2:
             rclpy.spin_once(self.node, timeout_sec=0.1)
             time.sleep(0.1)
         self.node.get_logger().info('Goal cancelled')
 
         # Resend the goal
-        self.action_result = None
         self.node.get_logger().info('Sending goal again')
         future = self.dock_action_client.send_goal_async(
             goal, feedback_callback=self.action_feedback_callback)
@@ -215,15 +231,14 @@ class TestDockingServer(unittest.TestCase):
         # Wait for action to finish, this test publishes the
         # battery state message and will force one recovery
         # before it reports the robot is charging
-        while self.action_result is None:
+        while len(self.action_result) < 3:
             rclpy.spin_once(self.node, timeout_sec=0.1)
 
         # Test undocking action
-        self.action_result = None
         self.undock_action_client.wait_for_server(timeout_sec=5.0)
         goal = UndockRobot.Goal()
         future = self.undock_action_client.send_goal_async(goal)
         future.add_done_callback(self.action_goal_callback)
 
-        while self.action_result is None:
+        while len(self.action_result) < 4:
             rclpy.spin_once(self.node, timeout_sec=0.1)
