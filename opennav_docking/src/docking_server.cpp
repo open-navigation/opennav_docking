@@ -600,7 +600,8 @@ void DockingServer::undockRobot()
       {
         // Publish zero velocity before breaking out of loop
         vel_publisher_->publish(command);
-        break;
+        undocking_action_server_->terminate_all(result);
+        return;
       }
 
       // Don't control the robot until charging is disabled
