@@ -6,6 +6,7 @@ find_package(nav2_common REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
 find_package(opennav_docking_msgs REQUIRED)
+find_package(nav2_util REQUIRED)
 
 nav2_package()
 
@@ -13,6 +14,7 @@ set(dependencies
   rclcpp
   rclcpp_lifecycle
   opennav_docking_msgs
+  nav2_util
 )
 
 install(DIRECTORY include/

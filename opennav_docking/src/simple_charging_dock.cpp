@@ -52,7 +52,7 @@ class SimpleChargingDock : public opennav_docking_core::ChargingDock
 
     battery_sub_ = node->create_subscription<sensor_msgs::msg::BatteryState>(
       "battery_state", 1,
-      std::bind(&SimpleChargingDock::callback, this, std::placeholders::_1));
+      std::bind(&SimpleChargingDock::batteryCallback, this, std::placeholders::_1));
   }
 
   /**
@@ -93,7 +93,7 @@ class SimpleChargingDock : public opennav_docking_core::ChargingDock
     dock_pose_.pose = pose;
 
     // Compute the staging pose - robot pointed at dock, but backed up a bit (0.5m)
-    const double offset = -0.5;
+    const double offset = -0.5;  // TODO(fergs): parameterize
     const double yaw = tf2::getYaw(dock_pose_.pose.orientation);
     geometry_msgs::msg::PoseStamped staging_pose;
     staging_pose = dock_pose_;
@@ -174,17 +174,16 @@ class SimpleChargingDock : public opennav_docking_core::ChargingDock
    */
   virtual bool hasStoppedCharging()
   {
-    // Nothing to do here - just pretend we've already disabled charging
-    return true;
+    return !isCharging();
   }
 
 private:
-  void callback(const sensor_msgs::msg::BatteryState::SharedPtr state)
+  void batteryCallback(const sensor_msgs::msg::BatteryState::SharedPtr state)
   {
     is_charging_ = state->current > charging_threshold_amps_;
   }
 
-  // For testing, have the dock pose be hard coded (maybe add a service to set it?)
+  // For testing, have the dock pose be hard coded (maybe add a service to set it? TODO(fergs))
   geometry_msgs::msg::PoseStamped dock_pose_;
   rclcpp::Subscription<sensor_msgs::msg::BatteryState>::SharedPtr battery_sub_;
   bool is_charging_;
