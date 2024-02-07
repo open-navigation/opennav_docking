@@ -16,62 +16,42 @@
 #define OPENNAV_DOCKING__CONTROLLER_HPP_
 
 #include <memory>
-#include <string>
 
-#include "rclcpp/rclcpp.hpp"
-#include "geometry_msgs/msg/twist.hpp"
 #include "geometry_msgs/msg/pose.hpp"
+#include "geometry_msgs/msg/twist.hpp"
+#include "nav2_graceful_controller/smooth_control_law.hpp"
 #include "nav2_util/lifecycle_node.hpp"
-#include "tf2_ros/buffer.h"
 
 namespace opennav_docking
 {
 /**
  * @class opennav_docking::Controller
- * @brief Control law for approaching a dock target
+ * @brief Default control law for approaching a dock target
  */
 class Controller
 {
 public:
-  using Ptr = std::shared_ptr<Controller>;
+  /**
+   * @brief Create a controller instance. Configure ROS 2 parameters.
+   */
+  explicit Controller(nav2_util::LifecycleNode * node);
 
   /**
-   * @param parent pointer to user's node
-   * @param name The name of this planner
-   * @param tf A pointer to a TF buffer
+   * @brief Update parameters from ROS 2.
    */
-  virtual void configure(
-    const rclcpp_lifecycle::LifecycleNode::WeakPtr & parent,
-    const std::string & name, std::shared_ptr<tf2_ros::Buffer> tf) = 0;
+  void configure(nav2_util::LifecycleNode * node);
 
   /**
-   * @brief A destructor for opennav_docking::Controller
+   * @brief Compute a velocity command using control law.
+   * @param pose Target pose, in robot centric coordinates.
+   * @param cmd Command velocity.
+   * @returns True if command is valid, false otherwise.
    */
-  ~Controller() = default;
+  bool computeVelocityCommand(
+    const geometry_msgs::msg::Pose & pose, geometry_msgs::msg::Twist & cmd);
 
-  /**
-   * @brief Method to cleanup resources used on shutdown.
-   */
-  virtual void cleanup() = 0;
-
-  /**
-   * @brief Method to active Behavior and any threads involved in execution.
-   */
-  virtual void activate() = 0;
-
-  /**
-   * @brief Method to deactive Behavior and any threads involved in execution.
-   */
-  virtual void deactivate() = 0;
-
-  /**
-   * @brief Compute control velocities.
-   * @param target Target pose, in robot-centric frame.
-   * @param command Computed command to execute for this update cycle.
-   */
-  virtual bool computeVelocityCommand(
-    const geometry_msgs::msg::Pose & target,
-    geometry_msgs::msg::Twist & command) = 0;
+protected:
+  std::unique_ptr<nav2_graceful_controller::SmoothControlLaw> control_law_;
 };
 
 }  // namespace opennav_docking

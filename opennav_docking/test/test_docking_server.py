@@ -16,6 +16,7 @@ from math import acos, cos, sin
 import time
 import unittest
 
+from action_msgs.msg import GoalStatus
 from geometry_msgs.msg import TransformStamped, Twist
 from launch import LaunchDescription
 from launch_ros.actions import Node
@@ -206,6 +207,10 @@ class TestDockingServer(unittest.TestCase):
         while len(self.action_result) == 0:
             rclpy.spin_once(self.node, timeout_sec=0.1)
             time.sleep(0.1)
+
+        assert self.action_result[0].status == GoalStatus.STATUS_ABORTED
+        assert not self.action_result[0].result.success
+
         self.node.get_logger().info('Goal preempted')
 
         # Run for 2 seconds
@@ -220,6 +225,10 @@ class TestDockingServer(unittest.TestCase):
         while len(self.action_result) < 2:
             rclpy.spin_once(self.node, timeout_sec=0.1)
             time.sleep(0.1)
+
+        assert self.action_result[1].status == GoalStatus.STATUS_ABORTED
+        assert not self.action_result[1].result.success
+
         self.node.get_logger().info('Goal cancelled')
 
         # Resend the goal
@@ -234,7 +243,12 @@ class TestDockingServer(unittest.TestCase):
         while len(self.action_result) < 3:
             rclpy.spin_once(self.node, timeout_sec=0.1)
 
+        assert self.action_result[2].status == GoalStatus.STATUS_SUCCEEDED
+        assert self.action_result[2].result.success
+        assert self.action_result[2].result.num_retries == 1
+
         # Test undocking action
+        self.is_charging = False
         self.undock_action_client.wait_for_server(timeout_sec=5.0)
         goal = UndockRobot.Goal()
         future = self.undock_action_client.send_goal_async(goal)
@@ -242,3 +256,6 @@ class TestDockingServer(unittest.TestCase):
 
         while len(self.action_result) < 4:
             rclpy.spin_once(self.node, timeout_sec=0.1)
+
+        assert self.action_result[3].status == GoalStatus.STATUS_SUCCEEDED
+        assert self.action_result[3].result.success

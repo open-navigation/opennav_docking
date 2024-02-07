@@ -14,7 +14,6 @@
 
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 #include "opennav_docking/docking_server.hpp"
-#include "opennav_docking/graceful_controller.hpp"
 
 using namespace std::chrono_literals;
 using rcl_interfaces::msg::ParameterType;
@@ -35,6 +34,9 @@ DockingServer::DockingServer(const rclcpp::NodeOptions & options)
   declare_parameter("max_retries", 3);
   declare_parameter("base_frame", "base_link");
   declare_parameter("fixed_frame", "odom");
+
+  // Create controller instance, which will declare parameters
+  controller_ = std::make_unique<Controller>(this);
 }
 
 nav2_util::CallbackReturn
@@ -64,9 +66,8 @@ DockingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
     return nav2_util::CallbackReturn::FAILURE;
   }
 
-  // Create a controller
-  controller_ = std::make_unique<GracefulController>();
-  controller_->activate();
+  // Configure controller parameters
+  controller_->configure(this);
 
   double action_server_result_timeout;
   nav2_util::declare_parameter_if_not_declared(
@@ -391,7 +392,6 @@ bool DockingServer::approachDock(Dock * dock, geometry_msgs::msg::PoseStamped & 
     }
 
     // Transform target_pose into base_link frame
-    // TODO(fergs): this should be pushed into the controller
     geometry_msgs::msg::PoseStamped target_pose = dock_pose;
     try {
       target_pose.header.stamp = rclcpp::Time(0);
@@ -489,7 +489,6 @@ bool DockingServer::getCommandToPose(
   }
 
   // Transform target_pose into base_link frame
-  // TODO(fergs): this should be pushed into the controller
   geometry_msgs::msg::PoseStamped target_pose = pose;
   target_pose.header.stamp = rclcpp::Time(0);
   tf2_buffer_->transform(target_pose, target_pose, base_frame_);
@@ -498,7 +497,7 @@ bool DockingServer::getCommandToPose(
     throw opennav_docking_core::FailedToControl("Failed to get control");
   }
 
-  // Command is valid
+  // Command is valid, but target is not reached
   return false;
 }
 
@@ -574,23 +573,25 @@ void DockingServer::undockRobot()
         throw opennav_docking_core::FailedToControl("Undocking timed out");
       }
 
-      // Don't control the robot until charging is disabled
-      if (!dock->disableCharging()) {
-        loop_rate.sleep();
-        continue;
-      }
-
       // Stop if cancelled/preempted
       if (checkAndWarnIfCancelled(undocking_action_server_, "undock_robot") ||
         checkAndWarnIfPreempted(undocking_action_server_, "undock_robot"))
       {
         // Publish zero velocity before breaking out of loop
         vel_publisher_->publish(command);
-        break;
+        undocking_action_server_->terminate_all(result);
+        return;
+      }
+
+      // Don't control the robot until charging is disabled
+      if (!dock->disableCharging()) {
+        loop_rate.sleep();
+        continue;
       }
 
       // Get command to approach staging pose
       if (getCommandToPose(command, staging_pose, undock_tolerance_)) {
+        RCLCPP_INFO(get_logger(), "Robot has reached staging pose");
         // Have reached staging_pose
         vel_publisher_->publish(command);
         if (dock->hasStoppedCharging()) {
@@ -633,14 +634,24 @@ rcl_interfaces::msg::SetParametersResult
 DockingServer::dynamicParametersCallback(std::vector<rclcpp::Parameter> parameters)
 {
   std::lock_guard<std::mutex> lock(dynamic_params_lock_);
-  rcl_interfaces::msg::SetParametersResult result;
-  // for (auto parameter : parameters) {
-  //   const auto & type = parameter.get_type();
-  //   const auto & name = parameter.get_name();
 
-  // TODO(XYZ): implement dynamic parameters for all applicable parameters
-  // }
-  (void)parameters;
+  rcl_interfaces::msg::SetParametersResult result;
+  for (auto parameter : parameters) {
+    const auto & type = parameter.get_type();
+    const auto & name = parameter.get_name();
+
+    if (type == ParameterType::PARAMETER_DOUBLE) {
+      if (name == "controller_frequency") {
+        controller_frequency_ = parameter.as_double();
+      } else if (name == "initial_perception_timeout") {
+        initial_perception_timeout_ = parameter.as_double();
+      } else if (name == "wait_charge_timeout") {
+        wait_charge_timeout_ = parameter.as_double();
+      } else if (name == "undock_tolerance") {
+        undock_tolerance_ = parameter.as_double();
+      }
+    }
+  }
 
   result.successful = true;
   return result;
