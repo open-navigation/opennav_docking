@@ -13,189 +13,124 @@
 // limitations under the License.
 
 #include <cmath>
-#include <string>
-#include <memory>
 
-#include "sensor_msgs/msg/battery_state.hpp"
-#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
-#include "tf2/utils.h"
-
-#include "opennav_docking_core/charging_dock.hpp"
+#include "nav2_util/node_utils.hpp"
+#include "opennav_docking/simple_charging_dock.hpp"
 
 namespace opennav_docking
 {
 
-class SimpleChargingDock : public opennav_docking_core::ChargingDock
+void SimpleChargingDock::configure(
+  const rclcpp_lifecycle::LifecycleNode::WeakPtr & parent,
+  const std::string & name, std::shared_ptr<tf2_ros::Buffer> tf)
 {
-  /**
-   * @param  parent pointer to user's node
-   * @param  name The name of this planner
-   * @param  tf A pointer to a TF buffer
-   */
-  virtual void configure(
-    const rclcpp_lifecycle::LifecycleNode::WeakPtr & parent,
-    const std::string & name, std::shared_ptr<tf2_ros::Buffer> tf)
-  {
-    name_ = name;
-    tf2_buffer_ = tf;
+  name_ = name;
+  tf2_buffer_ = tf;
 
-    is_charging_ = false;
+  is_charging_ = false;
 
-    // TODO(fergs): make these parameters
-    charging_threshold_amps_ = 0.5;
-    docking_threshold_m_ = 0.02;
-
-    auto node = parent.lock();
-    if (!node) {
-      throw std::runtime_error{"Failed to lock node"};
-    }
-
-    battery_sub_ = node->create_subscription<sensor_msgs::msg::BatteryState>(
-      "battery_state", 1,
-      std::bind(&SimpleChargingDock::batteryCallback, this, std::placeholders::_1));
+  auto node = parent.lock();
+  if (!node) {
+    throw std::runtime_error{"Failed to lock node"};
   }
 
-  /**
-   * @brief Method to cleanup resources used on shutdown.
-   */
-  virtual void cleanup()
-  {
+  nav2_util::declare_parameter_if_not_declared(
+    node, name + ".charging_threshold", rclcpp::ParameterValue(0.5));
+  nav2_util::declare_parameter_if_not_declared(
+    node, name + ".docking_threshold", rclcpp::ParameterValue(0.02));
+  nav2_util::declare_parameter_if_not_declared(
+    node, name + ".staging_x_offset", rclcpp::ParameterValue(-0.5));
+
+  node->get_parameter(name + ".charging_threshold", charging_threshold_);
+  node->get_parameter(name + ".docking_threshold", docking_threshold_);
+  node->get_parameter(name + ".staging_x_offset", staging_x_offset_);
+
+  battery_sub_ = node->create_subscription<sensor_msgs::msg::BatteryState>(
+    "battery_state", 1,
+    std::bind(&SimpleChargingDock::batteryCallback, this, std::placeholders::_1));
+}
+
+void SimpleChargingDock::cleanup()
+{
+}
+
+void SimpleChargingDock::activate()
+{
+}
+
+void SimpleChargingDock::deactivate()
+{
+}
+
+geometry_msgs::msg::PoseStamped SimpleChargingDock::getStagingPose(
+  const geometry_msgs::msg::Pose & pose, const std::string & frame)
+{
+  // This gets called at the start of docking
+  // Reset our internally tracked dock pose
+  dock_pose_.header.frame_id = frame;
+  dock_pose_.pose = pose;
+
+  // Compute the staging pose - robot pointed at dock, but backed up a bit
+  const double yaw = tf2::getYaw(dock_pose_.pose.orientation);
+  geometry_msgs::msg::PoseStamped staging_pose;
+  staging_pose = dock_pose_;
+  staging_pose.pose.position.x += cos(yaw) * staging_x_offset_;
+  staging_pose.pose.position.y += sin(yaw) * staging_x_offset_;
+
+  return staging_pose;
+}
+
+bool SimpleChargingDock::getRefinedPose(geometry_msgs::msg::PoseStamped & pose)
+{
+  // Just returned cached pose
+  pose = dock_pose_;
+  return true;
+}
+
+bool SimpleChargingDock::isDocked()
+{
+  if (dock_pose_.header.frame_id.empty()) {
+    // Dock pose is not yet valid
+    return false;
   }
 
-  /**
-   * @brief Method to active Behavior and any threads involved in execution.
-   */
-  virtual void activate()
-  {
+  // Find base pose in target frame
+  geometry_msgs::msg::PoseStamped base_pose;
+  base_pose.header.stamp = rclcpp::Time(0);
+  base_pose.header.frame_id = "base_link";
+  base_pose.pose.orientation.w = 1.0;
+  try {
+    tf2_buffer_->transform(base_pose, base_pose, dock_pose_.header.frame_id);
+  } catch (const tf2::TransformException & ex) {
+    // TODO(fergs): some sort of error message?
   }
 
-  /**
-   * @brief Method to deactive Behavior and any threads involved in execution.
-   */
-  virtual void deactivate()
-  {
-  }
+  // If we are close enough, pretend we are charging
+  double d = std::hypot(
+    base_pose.pose.position.x - dock_pose_.pose.position.x,
+    base_pose.pose.position.y - dock_pose_.pose.position.y);
+  return d < docking_threshold_;
+}
 
-  /**
-   * @brief Method to obtain the dock's staging pose. This method should likely
-   * be using TF and the dock's pose information to find the staging pose from
-   * a static or parameterized staging pose relative to the docking pose
-   * @param pose Dock with pose
-   * @param frame Dock's frame of pose
-   * @return PoseStamped of staging pose in the specified frame
-   */
-  virtual geometry_msgs::msg::PoseStamped getStagingPose(
-    const geometry_msgs::msg::Pose & pose, const std::string & frame)
-  {
-    // This gets called at the start of docking
-    // Reset our internally tracked dock pose
-    dock_pose_.header.frame_id = frame;
-    dock_pose_.pose = pose;
+bool SimpleChargingDock::isCharging()
+{
+  return is_charging_;
+}
 
-    // Compute the staging pose - robot pointed at dock, but backed up a bit (0.5m)
-    const double offset = -0.5;  // TODO(fergs): parameterize
-    const double yaw = tf2::getYaw(dock_pose_.pose.orientation);
-    geometry_msgs::msg::PoseStamped staging_pose;
-    staging_pose = dock_pose_;
-    staging_pose.pose.position.x += cos(yaw) * offset;
-    staging_pose.pose.position.y += sin(yaw) * offset;
+bool SimpleChargingDock::disableCharging()
+{
+  return true;
+}
 
-    return staging_pose;
-  }
+bool SimpleChargingDock::hasStoppedCharging()
+{
+  return !isCharging();
+}
 
-  /**
-   * @brief Method to obtain the refined pose of the dock, usually based on sensors
-   * @param pose The initial estimate of the dock pose.
-   * @param frame The frame of the initial estimate.
-   */
-  virtual bool getRefinedPose(geometry_msgs::msg::PoseStamped & pose)
-  {
-    // Just returned cached pose
-    pose = dock_pose_;
-    return true;
-  }
-
-  /**
-   * @brief Have we made contact with dock? This can be implemented in a variety
-   * of ways: by establishing communications with the dock, by monitoring the
-   * the drive motor efforts, etc.
-   */
-  virtual bool isDocked()
-  {
-    if (dock_pose_.header.frame_id.empty()) {
-      // Dock pose is not yet valid
-      return false;
-    }
-
-    // Find base pose in target frame
-    geometry_msgs::msg::PoseStamped base_pose;
-    base_pose.header.stamp = rclcpp::Time(0);
-    base_pose.header.frame_id = "base_link";
-    base_pose.pose.orientation.w = 1.0;
-    try {
-      tf2_buffer_->transform(base_pose, base_pose, dock_pose_.header.frame_id);
-    } catch (const tf2::TransformException & ex) {
-      // TODO(fergs): some sort of error message?
-    }
-
-    // If we are close enough, pretend we are charging
-    double d = std::hypot(
-      base_pose.pose.position.x - dock_pose_.pose.position.x,
-      base_pose.pose.position.y - dock_pose_.pose.position.y);
-    return d < docking_threshold_m_;
-  }
-
-  /**
-   * @brief Are we charging? If a charge dock requires any sort of negotiation
-   * to begin charging, that should happen inside this function as this function
-   * will be called repeatedly within the docking loop.
-   *
-   * NOTE: this function is expected to return QUICKLY. Blocking here will block
-   * the docking controller loop.
-   */
-  virtual bool isCharging()
-  {
-    return is_charging_;
-  }
-
-  /**
-   * @brief Undocking while current is still flowing can damage a charge dock
-   * so some charge docks provide the ability to disable charging before the
-   * robot physically disconnects. The undocking action will not command the
-   * robot to move until this returns true.
-   *
-   * NOTE: this function is expected to return QUICKLY. Blocking here will block
-   * the docking controller loop.
-   */
-  virtual bool disableCharging()
-  {
-    return true;
-  }
-
-  /**
-   * @brief Similar to isCharging() but called when undocking.
-   */
-  virtual bool hasStoppedCharging()
-  {
-    return !isCharging();
-  }
-
-private:
-  void batteryCallback(const sensor_msgs::msg::BatteryState::SharedPtr state)
-  {
-    is_charging_ = state->current > charging_threshold_amps_;
-  }
-
-  // For testing, have the dock pose be hard coded (maybe add a service to set it? TODO(fergs))
-  geometry_msgs::msg::PoseStamped dock_pose_;
-  rclcpp::Subscription<sensor_msgs::msg::BatteryState>::SharedPtr battery_sub_;
-  bool is_charging_;
-
-  double charging_threshold_amps_;
-  double docking_threshold_m_;
-
-  std::shared_ptr<tf2_ros::Buffer> tf2_buffer_;
-};
+void SimpleChargingDock::batteryCallback(const sensor_msgs::msg::BatteryState::SharedPtr state)
+{
+  is_charging_ = state->current > charging_threshold_;
+}
 
 }  // namespace opennav_docking
 

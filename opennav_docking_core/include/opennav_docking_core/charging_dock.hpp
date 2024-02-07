@@ -97,6 +97,9 @@ public:
    * @brief Are we charging? If a charge dock requires any sort of negotiation
    * to begin charging, that should happen inside this function as this function
    * will be called repeatedly after the docking loop to check if successful.
+   *
+   * NOTE: this function is expected to return QUICKLY. Blocking here will block
+   * the docking controller loop.
    */
   virtual bool isCharging() = 0;
 
@@ -105,6 +108,9 @@ public:
    * so some charge docks provide the ability to disable charging before the
    * robot physically disconnects. The undocking action will not command the
    * robot to move until this returns true.
+   *
+   * NOTE: this function is expected to return QUICKLY. Blocking here will block
+   * the docking controller loop.
    */
   virtual bool disableCharging() = 0;
 
