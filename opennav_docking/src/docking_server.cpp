@@ -405,8 +405,8 @@ bool DockingServer::approachDock(Dock * dock, geometry_msgs::msg::PoseStamped & 
     if (!controller_->computeVelocityCommand(target_pose.pose, command)) {
       throw opennav_docking_core::FailedToControl("Failed to get control");
     }
-
     vel_publisher_->publish(command);
+
     loop_rate.sleep();
   }
   return false;
