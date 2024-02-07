@@ -94,7 +94,6 @@ class TestDockingServer(unittest.TestCase):
         self.x += cos(self.theta) * self.command.linear.x * period
         self.y += sin(self.theta) * self.command.linear.x * period
         self.theta += self.command.angular.z * period
-        print(self.x, self.y, self.theta)
         # Need to publish updated TF
         self.publish()
 

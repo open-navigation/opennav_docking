@@ -58,6 +58,7 @@ set(dependencies
 )
 
 add_library(${library_name} SHARED
+  src/controller.cpp
   src/docking_server.cpp
   src/dock_database.cpp
   src/navigator.cpp
