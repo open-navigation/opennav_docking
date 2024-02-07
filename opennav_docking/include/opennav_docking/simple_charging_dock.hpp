@@ -18,6 +18,7 @@
 #include <string>
 #include <memory>
 
+#include "geometry_msgs/msg/pose_stamped.hpp"
 #include "sensor_msgs/msg/battery_state.hpp"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 #include "tf2/utils.h"
@@ -93,16 +94,37 @@ class SimpleChargingDock : public opennav_docking_core::ChargingDock
 
 private:
   void batteryCallback(const sensor_msgs::msg::BatteryState::SharedPtr state);
+  void dockPoseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr pose);
+  rclcpp::Time now();
 
-  // For testing, have the dock pose be hard coded (maybe add a service to set it? TODO(fergs))
-  geometry_msgs::msg::PoseStamped dock_pose_;
+  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr staging_pose_pub_;
+
+  // Optionally subscribe to a detected dock pose topic
+  rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr dock_pose_sub_;
+  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr dock_pose_pub_;
+  std::string fixed_frame_;
+  geometry_msgs::msg::PoseStamped dock_pose_, detected_dock_pose_;
+
+  // Subscribe to battery message, used to determine if charging
   rclcpp::Subscription<sensor_msgs::msg::BatteryState>::SharedPtr battery_sub_;
   bool is_charging_;
 
-  double charging_threshold_;
-  double docking_threshold_;
-  double staging_x_offset_;
+  // An external reference (such as image_proc::TrackMarkerNode) can be used to detect dock
+  bool use_external_detection_pose_;
+  double external_detection_timeout_;
+  tf2::Quaternion external_detection_rotation_;
+  double external_detection_translation_x_;
+  double external_detection_translation_y_;
 
+  // Threshold that battery current must exceed to be "charging" (in Amperes)
+  double charging_threshold_;
+  // If not using an external pose reference, this is the distance threshold
+  double docking_threshold_;
+  // Offset for staging pose relative to dock pose
+  double staging_x_offset_;
+  double staging_yaw_offset_;
+
+  rclcpp_lifecycle::LifecycleNode::WeakPtr parent_;
   std::shared_ptr<tf2_ros::Buffer> tf2_buffer_;
 };
 
