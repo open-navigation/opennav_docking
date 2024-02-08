@@ -20,7 +20,7 @@
 namespace opennav_docking
 {
 
-Controller::Controller(nav2_util::LifecycleNode * node)
+Controller::Controller(const rclcpp_lifecycle::LifecycleNode::SharedPtr & node)
 {
   node->declare_parameter("controller.k_phi", 2.0);
   node->declare_parameter("controller.k_delta", 1.0);
@@ -30,10 +30,7 @@ Controller::Controller(nav2_util::LifecycleNode * node)
   node->declare_parameter("controller.v_linear_max", 0.25);
   node->declare_parameter("controller.v_angular_max", 0.75);
   node->declare_parameter("controller.slowdown_radius", 0.25);
-}
 
-void Controller::configure(nav2_util::LifecycleNode * node)
-{
   double k_phi, k_delta, beta, lambda;
   double slowdown_radius, v_linear_min, v_linear_max, v_angular_max;
   node->get_parameter("controller.k_phi", k_phi);

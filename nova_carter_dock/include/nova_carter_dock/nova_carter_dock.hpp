@@ -107,7 +107,7 @@ private:
   bool is_charging_{false};
 
   double charging_threshold_;
-  double staging_pose_offset_;
+  double staging_x_offset_;
 
   std::shared_ptr<tf2_ros::Buffer> tf2_buffer_;
 };

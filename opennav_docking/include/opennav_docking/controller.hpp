@@ -34,12 +34,7 @@ public:
   /**
    * @brief Create a controller instance. Configure ROS 2 parameters.
    */
-  explicit Controller(nav2_util::LifecycleNode * node);
-
-  /**
-   * @brief Update parameters from ROS 2.
-   */
-  void configure(nav2_util::LifecycleNode * node);
+  explicit Controller(const rclcpp_lifecycle::LifecycleNode::SharedPtr & node);
 
   /**
    * @brief Compute a velocity command using control law.

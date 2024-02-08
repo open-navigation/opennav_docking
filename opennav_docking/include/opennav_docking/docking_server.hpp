@@ -73,6 +73,13 @@ protected:
   void publishDockingFeedback(uint16_t state);
 
   /**
+   * @brief Generate a dock from action goal
+   * @param goal Action goal
+   * @return Raw dock pointer to manage;
+   */
+  Dock * generateGoalDock(std::shared_ptr<const DockRobot::Goal> goal);
+
+  /**
    * @brief Do initial perception, up to a timeout.
    * @param dock Dock instance, gets queried for refined pose.
    * @param dock_pose Initial dock pose, will be refined by perception.
@@ -192,6 +199,11 @@ protected:
    * @return SUCCESS or FAILURE
    */
   nav2_util::CallbackReturn on_shutdown(const rclcpp_lifecycle::State & state) override;
+
+  /**
+   * @brief Publish zero velocity at terminal condition
+   */
+  void publishZeroVelocity();
 
   /**
    * @brief Callback executed when a parameter change is detected

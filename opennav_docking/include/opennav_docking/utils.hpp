@@ -139,6 +139,22 @@ inline bool parseDockParams(
   return true;
 }
 
+/**
+* @brief Convert dock into a pose stamped message
+* @param dock Dock to convert
+* @param t Time for stamping
+* @return PoseStamped of dock pose at time t
+*/
+inline geometry_msgs::msg::PoseStamped getDockPoseStamped(
+  const Dock * dock, const rclcpp::Time & t)
+{
+  geometry_msgs::msg::PoseStamped pose;
+  pose.pose = dock->pose;
+  pose.header.frame_id = dock->frame;
+  pose.header.stamp = t;
+  return pose;
+}
+
 }  // namespace utils
 
 #endif  // OPENNAV_DOCKING__UTILS_HPP_
