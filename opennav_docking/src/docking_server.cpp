@@ -12,8 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
+#include "angles/angles.h"
 #include "opennav_docking/docking_server.hpp"
+#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
+#include "tf2/utils.h"
 
 using namespace std::chrono_literals;
 using rcl_interfaces::msg::ParameterType;
@@ -30,7 +32,8 @@ DockingServer::DockingServer(const rclcpp::NodeOptions & options)
   declare_parameter("controller_frequency", 20.0);
   declare_parameter("initial_perception_timeout", 5.0);
   declare_parameter("wait_charge_timeout", 5.0);
-  declare_parameter("undock_tolerance", 0.1);
+  declare_parameter("undock_linear_tolerance", 0.1);
+  declare_parameter("undock_angular_tolerance", 0.1);
   declare_parameter("max_retries", 3);
   declare_parameter("base_frame", "base_link");
   declare_parameter("fixed_frame", "odom");
@@ -46,7 +49,8 @@ DockingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
   get_parameter("controller_frequency", controller_frequency_);
   get_parameter("initial_perception_timeout", initial_perception_timeout_);
   get_parameter("wait_charge_timeout", wait_charge_timeout_);
-  get_parameter("undock_tolerance", undock_tolerance_);
+  get_parameter("undock_linear_tolerance", undock_linear_tolerance_);
+  get_parameter("undock_angular_tolerance", undock_angular_tolerance_);
   get_parameter("max_retries", max_retries_);
   get_parameter("base_frame", base_frame_);
   get_parameter("fixed_frame", fixed_frame_);
@@ -436,7 +440,10 @@ bool DockingServer::resetApproach(const geometry_msgs::msg::PoseStamped & stagin
 
     // Compute and publish command
     geometry_msgs::msg::Twist command;
-    if (getCommandToPose(command, staging_pose, undock_tolerance_, !dock_backwards_)) {
+    if (getCommandToPose(
+        command, staging_pose, undock_linear_tolerance_, undock_angular_tolerance_,
+        !dock_backwards_))
+    {
       return true;
     }
     vel_publisher_->publish(command);
@@ -448,7 +455,7 @@ bool DockingServer::resetApproach(const geometry_msgs::msg::PoseStamped & stagin
 
 bool DockingServer::getCommandToPose(
   geometry_msgs::msg::Twist & cmd, const geometry_msgs::msg::PoseStamped & pose,
-  double tolerance, bool backward)
+  double linear_tolerance, double angular_tolerance, bool backward)
 {
   // Reset command to zero velocity
   cmd.linear.x = 0;
@@ -456,10 +463,12 @@ bool DockingServer::getCommandToPose(
 
   // Determine if we have reached pose yet & stop
   geometry_msgs::msg::PoseStamped robot_pose = getRobotPoseInFrame(pose.header.frame_id);
-  double dist = std::hypot(
+  const double dist = std::hypot(
     robot_pose.pose.position.x - pose.pose.position.x,
     robot_pose.pose.position.y - pose.pose.position.y);
-  if (dist < tolerance) {
+  const double yaw = angles::shortest_angular_distance(
+    tf2::getYaw(robot_pose.pose.orientation), tf2::getYaw(pose.pose.orientation));
+  if (dist < linear_tolerance && abs(yaw) < angular_tolerance) {
     return true;
   }
 
@@ -550,7 +559,10 @@ void DockingServer::undockRobot()
 
       // Get command to approach staging pose
       geometry_msgs::msg::Twist command;
-      if (getCommandToPose(command, staging_pose, undock_tolerance_, !dock_backwards_)) {
+      if (getCommandToPose(
+          command, staging_pose, undock_linear_tolerance_, undock_angular_tolerance_,
+          !dock_backwards_))
+      {
         RCLCPP_INFO(get_logger(), "Robot has reached staging pose");
         // Have reached staging_pose
         vel_publisher_->publish(command);
@@ -632,8 +644,10 @@ DockingServer::dynamicParametersCallback(std::vector<rclcpp::Parameter> paramete
         initial_perception_timeout_ = parameter.as_double();
       } else if (name == "wait_charge_timeout") {
         wait_charge_timeout_ = parameter.as_double();
-      } else if (name == "undock_tolerance") {
-        undock_tolerance_ = parameter.as_double();
+      } else if (name == "undock_linear_tolerance") {
+        undock_linear_tolerance_ = parameter.as_double();
+      } else if (name == "undock_angular_tolerance") {
+        undock_angular_tolerance_ = parameter.as_double();
       }
     } else if (type == ParameterType::PARAMETER_STRING) {
       if (name == "base_frame") {
