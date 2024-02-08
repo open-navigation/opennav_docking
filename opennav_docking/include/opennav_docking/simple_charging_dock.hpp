@@ -109,7 +109,14 @@ protected:
   // Optionally subscribe to a detected dock pose topic
   rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr dock_pose_sub_;
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr dock_pose_pub_;
-  geometry_msgs::msg::PoseStamped dock_pose_, detected_dock_pose_;
+  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr filtered_dock_pose_pub_;
+  // If subscribed to a detected pose topic, will contain latest message
+  geometry_msgs::msg::PoseStamped detected_pose_;
+  // This is the detected pose, transformed to fixed_frame and filtered
+  geometry_msgs::msg::PoseStamped filtered_detected_pose_;
+  // This is the actual dock pose once it has the specified translation/rotation applied
+  // If not subscribed to a topic, this is simply the database dock pose
+  geometry_msgs::msg::PoseStamped dock_pose_;
 
   // Subscribe to battery message, used to determine if charging
   rclcpp::Subscription<sensor_msgs::msg::BatteryState>::SharedPtr battery_sub_;
@@ -121,6 +128,9 @@ protected:
   tf2::Quaternion external_detection_rotation_;
   double external_detection_translation_x_;
   double external_detection_translation_y_;
+
+  // Filtering of detected poses [0, 1), higher = faster convergence but less stable
+  double filter_coef_;
 
   // Threshold that battery current must exceed to be "charging" (in Amperes)
   double charging_threshold_;
