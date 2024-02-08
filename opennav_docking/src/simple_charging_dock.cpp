@@ -84,10 +84,9 @@ void SimpleChargingDock::configure(
     dock_pose_sub_ = node_->create_subscription<geometry_msgs::msg::PoseStamped>(
       "detected_dock_pose", 1,
       std::bind(&SimpleChargingDock::dockPoseCallback, this, std::placeholders::_1));
-
-    dock_pose_pub_ = node_->create_publisher<geometry_msgs::msg::PoseStamped>("dock_pose", 1);
   }
 
+  dock_pose_pub_ = node_->create_publisher<geometry_msgs::msg::PoseStamped>("dock_pose", 1);
   staging_pose_pub_ = node_->create_publisher<geometry_msgs::msg::PoseStamped>("staging_pose", 1);
 }
 
