@@ -28,7 +28,7 @@ DockingServer::DockingServer(const rclcpp::NodeOptions & options)
   RCLCPP_INFO(get_logger(), "Creating %s", get_name());
 
   declare_parameter("controller_frequency", 20.0);
-  declare_parameter("initial_perception_timeout", 2.0);
+  declare_parameter("initial_perception_timeout", 5.0);
   declare_parameter("wait_charge_timeout", 5.0);
   declare_parameter("undock_tolerance", 0.1);
   declare_parameter("max_retries", 3);
@@ -524,7 +524,6 @@ void DockingServer::undockRobot()
     // Control robot to staging pose
     rclcpp::Time loop_start = this->now();
     while (rclcpp::ok()) {
-
       // Stop if we exceed max duration
       auto timeout = rclcpp::Duration::from_seconds(goal->max_undocking_time);
       if (this->now() - loop_start > timeout) {
