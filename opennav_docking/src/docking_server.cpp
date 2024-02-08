@@ -34,6 +34,7 @@ DockingServer::DockingServer(const rclcpp::NodeOptions & options)
   declare_parameter("max_retries", 3);
   declare_parameter("base_frame", "base_link");
   declare_parameter("fixed_frame", "odom");
+  declare_parameter("dock_backwards", false);
 }
 
 nav2_util::CallbackReturn
@@ -49,6 +50,7 @@ DockingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
   get_parameter("max_retries", max_retries_);
   get_parameter("base_frame", base_frame_);
   get_parameter("fixed_frame", fixed_frame_);
+  get_parameter("dock_backwards", dock_backwards_);
   RCLCPP_INFO(get_logger(), "Controller frequency set to %.4fHz", controller_frequency_);
 
   vel_publisher_ = create_publisher<geometry_msgs::msg::Twist>("cmd_vel", 1);
@@ -382,7 +384,7 @@ bool DockingServer::approachDock(Dock * dock, geometry_msgs::msg::PoseStamped & 
 
     // Compute and publish controls
     geometry_msgs::msg::Twist command;
-    if (!controller_->computeVelocityCommand(target_pose.pose, command)) {
+    if (!controller_->computeVelocityCommand(target_pose.pose, command, dock_backwards_)) {
       throw opennav_docking_core::FailedToControl("Failed to get control");
     }
     vel_publisher_->publish(command);
@@ -434,7 +436,7 @@ bool DockingServer::resetApproach(const geometry_msgs::msg::PoseStamped & stagin
 
     // Compute and publish command
     geometry_msgs::msg::Twist command;
-    if (getCommandToPose(command, staging_pose, undock_tolerance_)) {
+    if (getCommandToPose(command, staging_pose, undock_tolerance_, !dock_backwards_)) {
       return true;
     }
     vel_publisher_->publish(command);
@@ -445,7 +447,8 @@ bool DockingServer::resetApproach(const geometry_msgs::msg::PoseStamped & stagin
 }
 
 bool DockingServer::getCommandToPose(
-  geometry_msgs::msg::Twist & cmd, const geometry_msgs::msg::PoseStamped & pose, double tolerance)
+  geometry_msgs::msg::Twist & cmd, const geometry_msgs::msg::PoseStamped & pose,
+  double tolerance, bool backward)
 {
   // Reset command to zero velocity
   cmd.linear.x = 0;
@@ -466,7 +469,7 @@ bool DockingServer::getCommandToPose(
   tf2_buffer_->transform(target_pose, target_pose, base_frame_);
 
   // Compute velocity command
-  if (!controller_->computeVelocityCommand(target_pose.pose, cmd)) {
+  if (!controller_->computeVelocityCommand(target_pose.pose, cmd, backward)) {
     throw opennav_docking_core::FailedToControl("Failed to get control");
   }
 
@@ -547,7 +550,7 @@ void DockingServer::undockRobot()
 
       // Get command to approach staging pose
       geometry_msgs::msg::Twist command;
-      if (getCommandToPose(command, staging_pose, undock_tolerance_)) {
+      if (getCommandToPose(command, staging_pose, undock_tolerance_, !dock_backwards_)) {
         RCLCPP_INFO(get_logger(), "Robot has reached staging pose");
         // Have reached staging_pose
         vel_publisher_->publish(command);

@@ -108,11 +108,12 @@ public:
    * @param cmd The return command.
    * @param pose The pose to command towards.
    * @param tolerance If within this distance to pose, return zero velocity.
+   * @param backward If true, the robot will drive backwards.
    * @returns True if pose is reached.
    */
   bool getCommandToPose(
     geometry_msgs::msg::Twist & cmd, const geometry_msgs::msg::PoseStamped & pose,
-    double tolerance);
+    double tolerance, bool backward);
 
   /**
    * @brief Get the robot pose (aka base_frame pose) in another frame.
@@ -231,6 +232,8 @@ protected:
   std::string base_frame_;
   // This is our fixed frame for controlling - typically "odom"
   std::string fixed_frame_;
+  // Does the robot drive backwards onto the dock? Default is forwards
+  bool dock_backwards_;
 
   // This is a class member so it can be accessed in publish feedback
   rclcpp::Time action_start_time_;
