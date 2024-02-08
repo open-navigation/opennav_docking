@@ -632,6 +632,16 @@ DockingServer::dynamicParametersCallback(std::vector<rclcpp::Parameter> paramete
       } else if (name == "undock_tolerance") {
         undock_tolerance_ = parameter.as_double();
       }
+    } else if (type == ParameterType::PARAMETER_STRING) {
+      if (name == "base_frame") {
+        base_frame_ = parameter.as_string();
+      } else if (name == "fixed_frame") {
+        fixed_frame_ = parameter.as_string();
+      }
+    } else if (type == ParameterType::PARAMETER_INTEGER) {
+      if (name == "max_retries") {
+        max_retries_ = parameter.as_int();
+      }
     }
   }
 

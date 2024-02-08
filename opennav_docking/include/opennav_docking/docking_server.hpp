@@ -54,12 +54,6 @@ public:
    */
   ~DockingServer() = default;
 
-protected:
-  /**
-   * @brief Main action callback method to complete docking request
-   */
-  void dockRobot();
-
   /**
    * @brief Called at the conclusion of docking actions. Saves relevant
    *        docking data for later undocking action.
@@ -126,11 +120,6 @@ protected:
    * @returns Computed robot pose, throws TF2 error if failure.
    */
   geometry_msgs::msg::PoseStamped getRobotPoseInFrame(const std::string & frame);
-
-  /**
-   * @brief Main action callback method to complete undocking request
-   */
-  void undockRobot();
 
   /**
    * @brief Gets a preempted goal if immediately requested
@@ -204,6 +193,17 @@ protected:
    * @brief Publish zero velocity at terminal condition
    */
   void publishZeroVelocity();
+
+protected:
+  /**
+   * @brief Main action callback method to complete docking request
+   */
+  void dockRobot();
+
+  /**
+   * @brief Main action callback method to complete undocking request
+   */
+  void undockRobot();
 
   /**
    * @brief Callback executed when a parameter change is detected

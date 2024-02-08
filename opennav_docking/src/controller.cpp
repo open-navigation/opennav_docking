@@ -59,11 +59,8 @@ bool Controller::computeVelocityCommand(
 {
   // If the target is behind the robot, we are backwards
   bool backward = pose.position.x < 0;
-  if (control_law_) {
-    cmd = control_law_->calculateRegularVelocity(pose, backward);
-    return true;
-  }
-  return false;
+  cmd = control_law_->calculateRegularVelocity(pose, backward);
+  return true;
 }
 
 }  // namespace opennav_docking

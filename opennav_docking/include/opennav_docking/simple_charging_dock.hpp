@@ -30,6 +30,14 @@ namespace opennav_docking
 
 class SimpleChargingDock : public opennav_docking_core::ChargingDock
 {
+public:
+  /**
+   * @brief Constructor
+   */
+  SimpleChargingDock()
+  : ChargingDock()
+  {}
+
   /**
    * @param  parent pointer to user's node
    * @param  name The name of this planner
@@ -92,7 +100,7 @@ class SimpleChargingDock : public opennav_docking_core::ChargingDock
    */
   virtual bool hasStoppedCharging();
 
-private:
+protected:
   void batteryCallback(const sensor_msgs::msg::BatteryState::SharedPtr state);
   void dockPoseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr pose);
 

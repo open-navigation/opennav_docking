@@ -110,4 +110,15 @@ TEST(UtilsTests, parseDockFile)
   EXPECT_NE(db["dock2"].pose.orientation.w, 1.0);
 }
 
+TEST(UtilsTests, testgetDockPoseStamped)
+{
+  Dock d;
+  d.frame = "dock_f";
+  d.pose.position.x = 0.1;
+  rclcpp::Time t(10, 10);
+  auto pose = utils::getDockPoseStamped(&d, t);
+  EXPECT_EQ(pose.header.frame_id, "dock_f");
+  EXPECT_EQ(pose.pose.position.x, 0.1);
+}
+
 }  // namespace opennav_docking

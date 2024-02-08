@@ -31,5 +31,38 @@ target_link_libraries(test_navigator
   ${library_name}
 )
 
-# Test docking server
+# Test Controller
+ament_add_gtest(test_controller
+  test_controller.cpp
+)
+ament_target_dependencies(test_controller
+  ${dependencies}
+)
+target_link_libraries(test_controller
+  ${library_name}
+)
+
+# Test Simple Dock
+ament_add_gtest(test_simple_charging_dock
+  test_simple_charging_dock.cpp
+)
+ament_target_dependencies(test_simple_charging_dock
+  ${dependencies}
+)
+target_link_libraries(test_simple_charging_dock
+  ${library_name} simple_charging_dock
+)
+
+# Test docking server (unit)
+ament_add_gtest(test_docking_server_unit
+  test_docking_server_unit.cpp
+)
+ament_target_dependencies(test_docking_server_unit
+  ${dependencies}
+)
+target_link_libraries(test_docking_server_unit
+  ${library_name}
+)
+
+# Test docking server (smoke)
 ament_add_pytest_test("test_docking_server" test_docking_server.py)
