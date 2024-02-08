@@ -95,7 +95,6 @@ class SimpleChargingDock : public opennav_docking_core::ChargingDock
 private:
   void batteryCallback(const sensor_msgs::msg::BatteryState::SharedPtr state);
   void dockPoseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr pose);
-  rclcpp::Time now();
 
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr staging_pose_pub_;
 
@@ -124,7 +123,7 @@ private:
   double staging_x_offset_;
   double staging_yaw_offset_;
 
-  rclcpp_lifecycle::LifecycleNode::WeakPtr parent_;
+  rclcpp_lifecycle::LifecycleNode::SharedPtr node_;
   std::shared_ptr<tf2_ros::Buffer> tf2_buffer_;
 };
 

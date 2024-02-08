@@ -24,71 +24,71 @@ void SimpleChargingDock::configure(
   const rclcpp_lifecycle::LifecycleNode::WeakPtr & parent,
   const std::string & name, std::shared_ptr<tf2_ros::Buffer> tf)
 {
-  parent_ = parent;
   name_ = name;
   tf2_buffer_ = tf;
 
   is_charging_ = false;
 
-  auto node = parent.lock();
-  if (!node) {
+  node_ = parent.lock();
+  if (!node_) {
     throw std::runtime_error{"Failed to lock node"};
   }
 
   nav2_util::declare_parameter_if_not_declared(
-    node, name + ".use_external_detection_pose", rclcpp::ParameterValue(false));
+    node_, name + ".use_external_detection_pose", rclcpp::ParameterValue(false));
   nav2_util::declare_parameter_if_not_declared(
-    node, name + ".external_detection_timeout", rclcpp::ParameterValue(0.5));
+    node_, name + ".external_detection_timeout", rclcpp::ParameterValue(0.5));
   nav2_util::declare_parameter_if_not_declared(
-    node, name + ".external_detection_translation_x", rclcpp::ParameterValue(0.0));
+    node_, name + ".external_detection_translation_x", rclcpp::ParameterValue(0.0));
   nav2_util::declare_parameter_if_not_declared(
-    node, name + ".external_detection_translation_y", rclcpp::ParameterValue(0.0));
+    node_, name + ".external_detection_translation_y", rclcpp::ParameterValue(0.0));
   nav2_util::declare_parameter_if_not_declared(
-    node, name + ".external_detection_rotation_yaw", rclcpp::ParameterValue(0.0));
+    node_, name + ".external_detection_rotation_yaw", rclcpp::ParameterValue(0.0));
   nav2_util::declare_parameter_if_not_declared(
-    node, name + ".external_detection_rotation_pitch", rclcpp::ParameterValue(0.0));
+    node_, name + ".external_detection_rotation_pitch", rclcpp::ParameterValue(0.0));
   nav2_util::declare_parameter_if_not_declared(
-    node, name + ".external_detection_rotation_roll", rclcpp::ParameterValue(0.0));
+    node_, name + ".external_detection_rotation_roll", rclcpp::ParameterValue(0.0));
   nav2_util::declare_parameter_if_not_declared(
-    node, name + ".charging_threshold", rclcpp::ParameterValue(0.5));
+    node_, name + ".charging_threshold", rclcpp::ParameterValue(0.5));
   nav2_util::declare_parameter_if_not_declared(
-    node, name + ".docking_threshold", rclcpp::ParameterValue(0.02));
+    node_, name + ".docking_threshold", rclcpp::ParameterValue(0.02));
   nav2_util::declare_parameter_if_not_declared(
-    node, name + ".staging_x_offset", rclcpp::ParameterValue(-0.5));
+    node_, name + ".staging_x_offset", rclcpp::ParameterValue(-0.5));
   nav2_util::declare_parameter_if_not_declared(
-    node, name + ".staging_yaw_offset", rclcpp::ParameterValue(0.0));
+    node_, name + ".staging_yaw_offset", rclcpp::ParameterValue(0.0));
   nav2_util::declare_parameter_if_not_declared(
-    node, "fixed_frame", rclcpp::ParameterValue("odom"));
+    node_, "fixed_frame", rclcpp::ParameterValue("odom"));
 
-  node->get_parameter(name + ".use_external_detection_pose", use_external_detection_pose_);
-  node->get_parameter(name + ".external_detection_timeout", external_detection_timeout_);
-  node->get_parameter(name + ".external_detection_translation_x", external_detection_translation_x_);
-  node->get_parameter(name + ".external_detection_translation_y", external_detection_translation_y_);
+  node_->get_parameter(name + ".use_external_detection_pose", use_external_detection_pose_);
+  node_->get_parameter(name + ".external_detection_timeout", external_detection_timeout_);
+  node_->get_parameter(
+    name + ".external_detection_translation_x", external_detection_translation_x_);
+  node_->get_parameter(
+    name + ".external_detection_translation_y", external_detection_translation_y_);
   double yaw, pitch, roll;
-  node->get_parameter(name + ".external_detection_rotation_yaw", yaw);
-  node->get_parameter(name + ".external_detection_rotation_pitch", pitch);
-  node->get_parameter(name + ".external_detection_rotation_roll", roll);
+  node_->get_parameter(name + ".external_detection_rotation_yaw", yaw);
+  node_->get_parameter(name + ".external_detection_rotation_pitch", pitch);
+  node_->get_parameter(name + ".external_detection_rotation_roll", roll);
   external_detection_rotation_.setEuler(yaw, pitch, roll);
-  node->get_parameter(name + ".charging_threshold", charging_threshold_);
-  node->get_parameter(name + ".docking_threshold", docking_threshold_);
-  node->get_parameter(name + ".staging_x_offset", staging_x_offset_);
-  node->get_parameter(name + ".staging_yaw_offset", staging_yaw_offset_);
-  node->get_parameter("fixed_frame", fixed_frame_);
+  node_->get_parameter(name + ".charging_threshold", charging_threshold_);
+  node_->get_parameter(name + ".docking_threshold", docking_threshold_);
+  node_->get_parameter(name + ".staging_x_offset", staging_x_offset_);
+  node_->get_parameter(name + ".staging_yaw_offset", staging_yaw_offset_);
+  node_->get_parameter("fixed_frame", fixed_frame_);
 
-  battery_sub_ = node->create_subscription<sensor_msgs::msg::BatteryState>(
+  battery_sub_ = node_->create_subscription<sensor_msgs::msg::BatteryState>(
     "battery_state", 1,
     std::bind(&SimpleChargingDock::batteryCallback, this, std::placeholders::_1));
 
-  if (use_external_detection_pose_)
-  {
-    dock_pose_sub_ = node->create_subscription<geometry_msgs::msg::PoseStamped>(
+  if (use_external_detection_pose_) {
+    dock_pose_sub_ = node_->create_subscription<geometry_msgs::msg::PoseStamped>(
       "detected_dock_pose", 1,
       std::bind(&SimpleChargingDock::dockPoseCallback, this, std::placeholders::_1));
 
-    dock_pose_pub_ = node->create_publisher<geometry_msgs::msg::PoseStamped>("dock_pose", 1);
+    dock_pose_pub_ = node_->create_publisher<geometry_msgs::msg::PoseStamped>("dock_pose", 1);
   }
 
-  staging_pose_pub_ = node->create_publisher<geometry_msgs::msg::PoseStamped>("staging_pose", 1);
+  staging_pose_pub_ = node_->create_publisher<geometry_msgs::msg::PoseStamped>("staging_pose", 1);
 }
 
 void SimpleChargingDock::cleanup()
@@ -106,8 +106,7 @@ void SimpleChargingDock::deactivate()
 geometry_msgs::msg::PoseStamped SimpleChargingDock::getStagingPose(
   const geometry_msgs::msg::Pose & pose, const std::string & frame)
 {
-  if (!use_external_detection_pose_)
-  {
+  if (!use_external_detection_pose_) {
     // This gets called at the start of docking
     // Reset our internally tracked dock pose
     dock_pose_.header.frame_id = frame;
@@ -118,7 +117,7 @@ geometry_msgs::msg::PoseStamped SimpleChargingDock::getStagingPose(
   const double yaw = tf2::getYaw(pose.orientation);
   geometry_msgs::msg::PoseStamped staging_pose;
   staging_pose.header.frame_id = frame;
-  staging_pose.header.stamp = now();
+  staging_pose.header.stamp = node_->now();
   staging_pose.pose = pose;
   staging_pose.pose.position.x += cos(yaw) * staging_x_offset_;
   staging_pose.pose.position.y += sin(yaw) * staging_x_offset_;
@@ -133,25 +132,21 @@ geometry_msgs::msg::PoseStamped SimpleChargingDock::getStagingPose(
 bool SimpleChargingDock::getRefinedPose(geometry_msgs::msg::PoseStamped & pose)
 {
   // Validate that external pose is new enough
-  if (use_external_detection_pose_)
-  {
+  if (use_external_detection_pose_) {
     auto timeout = rclcpp::Duration::from_seconds(external_detection_timeout_);
-    if (now() - detected_dock_pose_.header.stamp > timeout)
-    {
+    if (node_->now() - detected_dock_pose_.header.stamp > timeout) {
       return false;
     }
 
-    if (dock_pose_.header.stamp != detected_dock_pose_.header.stamp)
-    {
+    if (dock_pose_.header.stamp != detected_dock_pose_.header.stamp) {
       dock_pose_ = detected_dock_pose_;
       // New detected_pose to process
-      if (dock_pose_.header.frame_id != pose.header.frame_id)
-      {
+      if (dock_pose_.header.frame_id != pose.header.frame_id) {
         try {
           dock_pose_.header.stamp = rclcpp::Time(0);
           tf2_buffer_->transform(dock_pose_, dock_pose_, pose.header.frame_id);
         } catch (const tf2::TransformException & ex) {
-          // TODO: logging?
+          RCLCPP_WARN(node_->get_logger(), "Failed to transform detected dock pose");
           return false;
         }
       }
@@ -167,8 +162,10 @@ bool SimpleChargingDock::getRefinedPose(geometry_msgs::msg::PoseStamped & pose)
       dock_pose_.header.stamp = detected_dock_pose_.header.stamp;
       dock_pose_.pose.orientation = just_orientation.pose.orientation;
       const double yaw = tf2::getYaw(dock_pose_.pose.orientation);
-      dock_pose_.pose.position.x += cos(yaw) * external_detection_translation_x_ - sin(yaw) * external_detection_translation_y_;
-      dock_pose_.pose.position.y += sin(yaw) * external_detection_translation_x_ + cos(yaw) * external_detection_translation_y_;
+      dock_pose_.pose.position.x += cos(yaw) * external_detection_translation_x_ -
+        sin(yaw) * external_detection_translation_y_;
+      dock_pose_.pose.position.y += sin(yaw) * external_detection_translation_x_ +
+        cos(yaw) * external_detection_translation_y_;
       dock_pose_.pose.position.z = 0.0;
     }
   }
@@ -229,15 +226,6 @@ void SimpleChargingDock::batteryCallback(const sensor_msgs::msg::BatteryState::S
 void SimpleChargingDock::dockPoseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr pose)
 {
   detected_dock_pose_ = *pose;
-}
-
-rclcpp::Time SimpleChargingDock::now()
-{
-  auto node = parent_.lock();
-  if (!node) {
-    throw std::runtime_error{"Failed to lock node"};
-  }
-  return node->now();
 }
 
 }  // namespace opennav_docking

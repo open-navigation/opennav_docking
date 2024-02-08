@@ -524,7 +524,6 @@ void DockingServer::undockRobot()
     // Control robot to staging pose
     rclcpp::Time loop_start = this->now();
     while (rclcpp::ok()) {
-
       // Stop if we exceed max duration
       auto timeout = rclcpp::Duration::from_seconds(goal->max_undocking_time);
       if (this->now() - loop_start > timeout) {
