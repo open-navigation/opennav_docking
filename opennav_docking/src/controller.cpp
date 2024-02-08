@@ -16,20 +16,29 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "opennav_docking/controller.hpp"
+#include "nav2_util/node_utils.hpp"
 
 namespace opennav_docking
 {
 
 Controller::Controller(const rclcpp_lifecycle::LifecycleNode::SharedPtr & node)
 {
-  node->declare_parameter("controller.k_phi", 2.0);
-  node->declare_parameter("controller.k_delta", 1.0);
-  node->declare_parameter("controller.beta", 0.4);
-  node->declare_parameter("controller.lambda", 2.0);
-  node->declare_parameter("controller.v_linear_min", 0.1);
-  node->declare_parameter("controller.v_linear_max", 0.25);
-  node->declare_parameter("controller.v_angular_max", 0.75);
-  node->declare_parameter("controller.slowdown_radius", 0.25);
+  nav2_util::declare_parameter_if_not_declared(
+    node, "controller.k_phi", rclcpp::ParameterValue(2.0));
+  nav2_util::declare_parameter_if_not_declared(
+    node, "controller.k_delta", rclcpp::ParameterValue(1.0));
+  nav2_util::declare_parameter_if_not_declared(
+    node, "controller.beta", rclcpp::ParameterValue(0.4));
+  nav2_util::declare_parameter_if_not_declared(
+    node, "controller.lambda", rclcpp::ParameterValue(2.0));
+  nav2_util::declare_parameter_if_not_declared(
+    node, "controller.v_linear_min", rclcpp::ParameterValue(0.1));
+  nav2_util::declare_parameter_if_not_declared(
+    node, "controller.v_linear_max", rclcpp::ParameterValue(0.25));
+  nav2_util::declare_parameter_if_not_declared(
+    node, "controller.v_angular_max", rclcpp::ParameterValue(0.75));
+  nav2_util::declare_parameter_if_not_declared(
+    node, "controller.slowdown_radius", rclcpp::ParameterValue(0.25));
 
   double k_phi, k_delta, beta, lambda;
   double slowdown_radius, v_linear_min, v_linear_max, v_angular_max;

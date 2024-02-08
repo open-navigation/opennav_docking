@@ -357,7 +357,6 @@ bool DockingServer::approachDock(Dock * dock, geometry_msgs::msg::PoseStamped & 
   rclcpp::Rate loop_rate(controller_frequency_);
   while (rclcpp::ok()) {
     publishDockingFeedback(DockRobot::Feedback::CONTROLLING);
-    geometry_msgs::msg::Twist command;
 
     // Stop and report success if connected to dock
     if (dock->plugin->isDocked() || dock->plugin->isCharging()) {
@@ -382,6 +381,7 @@ bool DockingServer::approachDock(Dock * dock, geometry_msgs::msg::PoseStamped & 
     tf2_buffer_->transform(target_pose, target_pose, base_frame_);
 
     // Compute and publish controls
+    geometry_msgs::msg::Twist command;
     if (!controller_->computeVelocityCommand(target_pose.pose, command)) {
       throw opennav_docking_core::FailedToControl("Failed to get control");
     }
@@ -424,7 +424,6 @@ bool DockingServer::resetApproach(const geometry_msgs::msg::PoseStamped & stagin
   rclcpp::Rate loop_rate(controller_frequency_);
   while (rclcpp::ok()) {
     publishDockingFeedback(DockRobot::Feedback::INITIAL_PERCEPTION);
-    geometry_msgs::msg::Twist command;
 
     // Stop if cancelled/preempted
     if (checkAndWarnIfCancelled(docking_action_server_, "dock_robot") ||
@@ -434,6 +433,7 @@ bool DockingServer::resetApproach(const geometry_msgs::msg::PoseStamped & stagin
     }
 
     // Compute and publish command
+    geometry_msgs::msg::Twist command;
     if (getCommandToPose(command, staging_pose, undock_tolerance_)) {
       return true;
     }
@@ -524,7 +524,6 @@ void DockingServer::undockRobot()
     // Control robot to staging pose
     rclcpp::Time loop_start = this->now();
     while (rclcpp::ok()) {
-      geometry_msgs::msg::Twist command;
 
       // Stop if we exceed max duration
       auto timeout = rclcpp::Duration::from_seconds(goal->max_undocking_time);
@@ -548,6 +547,7 @@ void DockingServer::undockRobot()
       }
 
       // Get command to approach staging pose
+      geometry_msgs::msg::Twist command;
       if (getCommandToPose(command, staging_pose, undock_tolerance_)) {
         RCLCPP_INFO(get_logger(), "Robot has reached staging pose");
         // Have reached staging_pose
