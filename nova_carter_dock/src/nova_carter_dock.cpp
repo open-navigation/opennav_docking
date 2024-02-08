@@ -32,9 +32,9 @@ void NovaCarterChargingDock::configure(
   }
 
   node->declare_parameter("charging_threshold", 0.1);
-  node->declare_parameter("staging_pose_offset", 0.5);
+  node->declare_parameter("staging_x_offset", -0.5);
   node->get_parameter("charging_threshold", charging_threshold_);
-  node->get_parameter("staging_pose_offset", staging_pose_offset_);
+  node->get_parameter("staging_x_offset", staging_x_offset_);
 
   battery_sub_ = node->create_subscription<sensor_msgs::msg::BatteryState>(
     "battery_state", 1,
@@ -63,12 +63,11 @@ geometry_msgs::msg::PoseStamped NovaCarterChargingDock::getStagingPose(
   dock_pose_.pose = pose;
 
   // Compute the staging pose - robot pointed at dock, but backed up a bit
-  const double offset = -staging_pose_offset_;
   const double yaw = tf2::getYaw(dock_pose_.pose.orientation);
   geometry_msgs::msg::PoseStamped staging_pose;
   staging_pose = dock_pose_;
-  staging_pose.pose.position.x += cos(yaw) * offset;
-  staging_pose.pose.position.y += sin(yaw) * offset;
+  staging_pose.pose.position.x += cos(yaw) * staging_x_offset_;
+  staging_pose.pose.position.y += sin(yaw) * staging_x_offset_;
 
   return staging_pose;
 }
