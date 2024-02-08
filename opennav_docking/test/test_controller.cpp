@@ -35,15 +35,14 @@ namespace opennav_docking
 
 TEST(ControllerTests, ObjectLifecycle)
 {
-  // auto node = std::make_shared<rclcpp_lifecycle::LifecycleNode>("test");
-  // auto controller = std::make_unique<opennav_docking::Controller>(
-  //   node, "my_dock", nullptr);
+  auto node = std::make_shared<rclcpp_lifecycle::LifecycleNode>("test");
+  auto controller = std::make_unique<opennav_docking::Controller>(node);
 
-  // geometry_msgs::msg::Pose pose;
-  // geometry_msgs::msg::Twist cmd_out, cmd_init;
-  // EXPECT_TRUE(controller->computeVelocityCommand(pose, cmd_out));
-  // EXPECT_NE(cmd_init, cmd_out);
-  // controller.reset();
+  geometry_msgs::msg::Pose pose;
+  geometry_msgs::msg::Twist cmd_out, cmd_init;
+  EXPECT_TRUE(controller->computeVelocityCommand(pose, cmd_out));
+  EXPECT_NE(cmd_init, cmd_out);
+  controller.reset();
 }
 
 }  // namespace opennav_docking
