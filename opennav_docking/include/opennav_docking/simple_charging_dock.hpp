@@ -109,7 +109,6 @@ protected:
   // Optionally subscribe to a detected dock pose topic
   rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr dock_pose_sub_;
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr dock_pose_pub_;
-  std::string fixed_frame_;
   geometry_msgs::msg::PoseStamped dock_pose_, detected_dock_pose_;
 
   // Subscribe to battery message, used to determine if charging

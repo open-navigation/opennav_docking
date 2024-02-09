@@ -56,8 +56,6 @@ void SimpleChargingDock::configure(
     node_, name + ".staging_x_offset", rclcpp::ParameterValue(-0.5));
   nav2_util::declare_parameter_if_not_declared(
     node_, name + ".staging_yaw_offset", rclcpp::ParameterValue(0.0));
-  nav2_util::declare_parameter_if_not_declared(
-    node_, "fixed_frame", rclcpp::ParameterValue("odom"));
 
   node_->get_parameter(name + ".use_external_detection_pose", use_external_detection_pose_);
   node_->get_parameter(name + ".external_detection_timeout", external_detection_timeout_);
@@ -74,7 +72,6 @@ void SimpleChargingDock::configure(
   node_->get_parameter(name + ".docking_threshold", docking_threshold_);
   node_->get_parameter(name + ".staging_x_offset", staging_x_offset_);
   node_->get_parameter(name + ".staging_yaw_offset", staging_yaw_offset_);
-  node_->get_parameter("fixed_frame", fixed_frame_);
 
   battery_sub_ = node_->create_subscription<sensor_msgs::msg::BatteryState>(
     "battery_state", 1,
