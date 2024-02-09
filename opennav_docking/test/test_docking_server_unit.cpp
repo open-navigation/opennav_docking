@@ -59,7 +59,8 @@ TEST(DockingServerTests, testDynamicParams)
     {rclcpp::Parameter("controller_frequency", 0.2),
       rclcpp::Parameter("initial_perception_timeout", 1.0),
       rclcpp::Parameter("wait_charge_timeout", 1.2),
-      rclcpp::Parameter("undock_tolerance", 0.25),
+      rclcpp::Parameter("undock_linear_tolerance", 0.25),
+      rclcpp::Parameter("undock_angular_tolerance", 0.125),
       rclcpp::Parameter("base_frame", std::string("hi")),
       rclcpp::Parameter("fixed_frame", std::string("hi")),
       rclcpp::Parameter("max_retries", 7)});
@@ -71,7 +72,8 @@ TEST(DockingServerTests, testDynamicParams)
   EXPECT_EQ(node->get_parameter("controller_frequency").as_double(), 0.2);
   EXPECT_EQ(node->get_parameter("initial_perception_timeout").as_double(), 1.0);
   EXPECT_EQ(node->get_parameter("wait_charge_timeout").as_double(), 1.2);
-  EXPECT_EQ(node->get_parameter("undock_tolerance").as_double(), 0.25);
+  EXPECT_EQ(node->get_parameter("undock_linear_tolerance").as_double(), 0.25);
+  EXPECT_EQ(node->get_parameter("undock_angular_tolerance").as_double(), 0.125);
   EXPECT_EQ(node->get_parameter("base_frame").as_string(), std::string("hi"));
   EXPECT_EQ(node->get_parameter("fixed_frame").as_string(), std::string("hi"));
   EXPECT_EQ(node->get_parameter("max_retries").as_int(), 7);

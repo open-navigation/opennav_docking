@@ -107,12 +107,14 @@ public:
    * @brief Run a single iteration of the control loop to approach a pose.
    * @param cmd The return command.
    * @param pose The pose to command towards.
-   * @param tolerance If within this distance to pose, return zero velocity.
+   * @param linear_tolerance Pose is reached when linear distance is within this tolerance.
+   * @param angular_tolerance Pose is reached when angular distance is within this tolerance.
+   * @param backward If true, the robot will drive backwards.
    * @returns True if pose is reached.
    */
   bool getCommandToPose(
     geometry_msgs::msg::Twist & cmd, const geometry_msgs::msg::PoseStamped & pose,
-    double tolerance);
+    double linear_tolerance, double angular_tolerance, bool backward);
 
   /**
    * @brief Get the robot pose (aka base_frame pose) in another frame.
@@ -223,14 +225,16 @@ protected:
   // Timeout after making contact with dock for charging to start
   // If this is exceeded, the robot returns to the staging pose and retries
   double wait_charge_timeout_;
-  // When undocking, this is the tolerance for arriving at the staging pose
-  double undock_tolerance_;
+  // When undocking, these are the tolerances for arriving at the staging pose
+  double undock_linear_tolerance_, undock_angular_tolerance_;
   // Maximum number of times the robot will return to staging pose and retry docking
   int max_retries_, num_retries_;
   // This is the root frame of the robot - typically "base_link"
   std::string base_frame_;
   // This is our fixed frame for controlling - typically "odom"
   std::string fixed_frame_;
+  // Does the robot drive backwards onto the dock? Default is forwards
+  bool dock_backwards_;
 
   // This is a class member so it can be accessed in publish feedback
   rclcpp::Time action_start_time_;

@@ -55,10 +55,8 @@ Controller::Controller(const rclcpp_lifecycle::LifecycleNode::SharedPtr & node)
 }
 
 bool Controller::computeVelocityCommand(
-  const geometry_msgs::msg::Pose & pose, geometry_msgs::msg::Twist & cmd)
+  const geometry_msgs::msg::Pose & pose, geometry_msgs::msg::Twist & cmd, bool backward)
 {
-  // If the target is behind the robot, we are backwards
-  bool backward = pose.position.x < 0;
   cmd = control_law_->calculateRegularVelocity(pose, backward);
   return true;
 }

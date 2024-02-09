@@ -40,10 +40,12 @@ public:
    * @brief Compute a velocity command using control law.
    * @param pose Target pose, in robot centric coordinates.
    * @param cmd Command velocity.
+   * @param backward If true, robot will drive backwards to goal.
    * @returns True if command is valid, false otherwise.
    */
   bool computeVelocityCommand(
-    const geometry_msgs::msg::Pose & pose, geometry_msgs::msg::Twist & cmd);
+    const geometry_msgs::msg::Pose & pose, geometry_msgs::msg::Twist & cmd,
+    bool backward = false);
 
 protected:
   std::unique_ptr<nav2_graceful_controller::SmoothControlLaw> control_law_;
