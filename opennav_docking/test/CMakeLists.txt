@@ -53,6 +53,18 @@ target_link_libraries(test_simple_charging_dock
   ${library_name} simple_charging_dock
 )
 
+# Test Pose Filter (unit)
+ament_add_gtest(test_pose_filter
+  test_pose_filter.cpp
+)
+ament_target_dependencies(test_pose_filter
+  ${dependencies}
+)
+target_link_libraries(test_pose_filter
+  ${library_name}
+  pose_filter
+)
+
 # Test docking server (unit)
 ament_add_gtest(test_docking_server_unit
   test_docking_server_unit.cpp
