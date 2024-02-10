@@ -49,6 +49,8 @@ void SimpleChargingDock::configure(
   nav2_util::declare_parameter_if_not_declared(
     node_, name + ".external_detection_rotation_roll", rclcpp::ParameterValue(0.0));
   nav2_util::declare_parameter_if_not_declared(
+    node_, name + ".filter_coef", rclcpp::ParameterValue(0.1));
+  nav2_util::declare_parameter_if_not_declared(
     node_, name + ".charging_threshold", rclcpp::ParameterValue(0.5));
   nav2_util::declare_parameter_if_not_declared(
     node_, name + ".docking_threshold", rclcpp::ParameterValue(0.02));
@@ -67,23 +69,31 @@ void SimpleChargingDock::configure(
   node_->get_parameter(name + ".external_detection_rotation_yaw", yaw);
   node_->get_parameter(name + ".external_detection_rotation_pitch", pitch);
   node_->get_parameter(name + ".external_detection_rotation_roll", roll);
-  external_detection_rotation_.setEuler(yaw, pitch, roll);
+  external_detection_rotation_.setEuler(pitch, roll, yaw);
   node_->get_parameter(name + ".charging_threshold", charging_threshold_);
   node_->get_parameter(name + ".docking_threshold", docking_threshold_);
   node_->get_parameter(name + ".staging_x_offset", staging_x_offset_);
   node_->get_parameter(name + ".staging_yaw_offset", staging_yaw_offset_);
+
+  // Setup filter
+  double filter_coef;
+  node_->get_parameter(name + ".filter_coef", filter_coef);
+  filter_ = std::make_unique<PoseFilter>(filter_coef, external_detection_timeout_);
 
   battery_sub_ = node_->create_subscription<sensor_msgs::msg::BatteryState>(
     "battery_state", 1,
     std::bind(&SimpleChargingDock::batteryCallback, this, std::placeholders::_1));
 
   if (use_external_detection_pose_) {
+    dock_pose_.header.stamp = rclcpp::Time(0);
     dock_pose_sub_ = node_->create_subscription<geometry_msgs::msg::PoseStamped>(
       "detected_dock_pose", 1,
       std::bind(&SimpleChargingDock::dockPoseCallback, this, std::placeholders::_1));
   }
 
   dock_pose_pub_ = node_->create_publisher<geometry_msgs::msg::PoseStamped>("dock_pose", 1);
+  filtered_dock_pose_pub_ = node_->create_publisher<geometry_msgs::msg::PoseStamped>(
+    "filtered_dock_pose", 1);
   staging_pose_pub_ = node_->create_publisher<geometry_msgs::msg::PoseStamped>("staging_pose", 1);
 }
 
@@ -127,43 +137,52 @@ geometry_msgs::msg::PoseStamped SimpleChargingDock::getStagingPose(
 
 bool SimpleChargingDock::getRefinedPose(geometry_msgs::msg::PoseStamped & pose)
 {
-  // Validate that external pose is new enough
   if (use_external_detection_pose_) {
+    geometry_msgs::msg::PoseStamped detected = detected_dock_pose_;
+
+    // Validate that external pose is new enough
     auto timeout = rclcpp::Duration::from_seconds(external_detection_timeout_);
-    if (node_->now() - detected_dock_pose_.header.stamp > timeout) {
+    if (node_->now() - detected.header.stamp > timeout) {
+      RCLCPP_WARN(node_->get_logger(), "Lost detection: timeout exceeded");
       return false;
     }
 
-    if (dock_pose_.header.stamp != detected_dock_pose_.header.stamp) {
-      dock_pose_ = detected_dock_pose_;
-      // New detected_pose to process
-      if (dock_pose_.header.frame_id != pose.header.frame_id) {
-        try {
-          dock_pose_.header.stamp = rclcpp::Time(0);
-          tf2_buffer_->transform(dock_pose_, dock_pose_, pose.header.frame_id);
-        } catch (const tf2::TransformException & ex) {
+    // Transform detected pose into fixed frame
+    if (detected.header.frame_id != pose.header.frame_id) {
+      try {
+        if (!tf2_buffer_->canTransform(
+            pose.header.frame_id, detected.header.frame_id,
+            detected.header.stamp, rclcpp::Duration::from_seconds(0.2)))
+        {
           RCLCPP_WARN(node_->get_logger(), "Failed to transform detected dock pose");
           return false;
         }
+        tf2_buffer_->transform(detected, detected, pose.header.frame_id);
+      } catch (const tf2::TransformException & ex) {
+        RCLCPP_WARN(node_->get_logger(), "Failed to transform detected dock pose");
+        return false;
       }
-
-      // Rotate the just the orientation
-      geometry_msgs::msg::PoseStamped just_orientation;
-      just_orientation.pose.orientation = tf2::toMsg(external_detection_rotation_);
-      geometry_msgs::msg::TransformStamped transform;
-      transform.transform.rotation = dock_pose_.pose.orientation;
-      tf2::doTransform(just_orientation, just_orientation, transform);
-
-      // Construct dock pose
-      dock_pose_.header.stamp = detected_dock_pose_.header.stamp;
-      dock_pose_.pose.orientation = just_orientation.pose.orientation;
-      const double yaw = tf2::getYaw(dock_pose_.pose.orientation);
-      dock_pose_.pose.position.x += cos(yaw) * external_detection_translation_x_ -
-        sin(yaw) * external_detection_translation_y_;
-      dock_pose_.pose.position.y += sin(yaw) * external_detection_translation_x_ +
-        cos(yaw) * external_detection_translation_y_;
-      dock_pose_.pose.position.z = 0.0;
     }
+
+    // Filter the detected pose
+    detected = filter_->update(detected);
+    filtered_dock_pose_pub_->publish(detected);
+
+    // Rotate the just the orientation
+    geometry_msgs::msg::PoseStamped just_orientation;
+    just_orientation.pose.orientation = tf2::toMsg(external_detection_rotation_);
+    geometry_msgs::msg::TransformStamped transform;
+    transform.transform.rotation = detected.pose.orientation;
+    tf2::doTransform(just_orientation, just_orientation, transform);
+
+    // Construct dock_pose_ by applying translation/rotation
+    dock_pose_.pose.orientation = just_orientation.pose.orientation;
+    const double yaw = tf2::getYaw(dock_pose_.pose.orientation);
+    dock_pose_.pose.position.x += cos(yaw) * external_detection_translation_x_ -
+      sin(yaw) * external_detection_translation_y_;
+    dock_pose_.pose.position.y += sin(yaw) * external_detection_translation_x_ +
+      cos(yaw) * external_detection_translation_y_;
+    dock_pose_.pose.position.z = 0.0;
   }
 
   // Publish dock pose for debugging purposes
@@ -189,7 +208,7 @@ bool SimpleChargingDock::isDocked()
   try {
     tf2_buffer_->transform(base_pose, base_pose, dock_pose_.header.frame_id);
   } catch (const tf2::TransformException & ex) {
-    // TODO(fergs): some sort of error message?
+    return false;
   }
 
   // If we are close enough, pretend we are charging
