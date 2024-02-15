@@ -18,6 +18,8 @@
 #include "sensor_msgs/msg/battery_state.hpp"
 #include "opennav_docking/simple_charging_dock.hpp"
 #include "ament_index_cpp/get_package_share_directory.hpp"
+#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
+#include "tf2/utils.h"
 
 // Testing the simple charging dock plugin
 
@@ -104,6 +106,7 @@ TEST(SimpleChargingDockTests, StagingPose)
   auto staging_pose = dock->getStagingPose(pose, frame);
   EXPECT_NEAR(staging_pose.pose.position.x, -0.5, 0.01);
   EXPECT_NEAR(staging_pose.pose.position.y, 0.0, 0.01);
+  EXPECT_NEAR(tf2::getYaw(staging_pose.pose.orientation), 0.0, 0.01);
   EXPECT_EQ(staging_pose.header.frame_id, frame);
 
   dock->deactivate();
@@ -111,6 +114,35 @@ TEST(SimpleChargingDockTests, StagingPose)
   dock.reset();
 }
 
+TEST(SimpleChargingDockTests, StagingPoseWithYawOffset)
+{
+  // Override the parameter default
+  rclcpp::NodeOptions options;
+  options.parameter_overrides(
+    {
+      {"my_dock.staging_yaw_offset", 3.14},
+    }
+  );
+
+  auto node = std::make_shared<rclcpp_lifecycle::LifecycleNode>("test", options);
+  auto dock = std::make_unique<opennav_docking::SimpleChargingDock>();
+
+  dock->configure(node, "my_dock", nullptr);
+  dock->activate();
+
+  geometry_msgs::msg::Pose pose;
+  std::string frame = "my_frame";
+  auto staging_pose = dock->getStagingPose(pose, frame);
+  // Pose should be the same as default, but pointing in opposite direction
+  EXPECT_NEAR(staging_pose.pose.position.x, -0.5, 0.01);
+  EXPECT_NEAR(staging_pose.pose.position.y, 0.0, 0.01);
+  EXPECT_NEAR(tf2::getYaw(staging_pose.pose.orientation), 3.14, 0.01);
+  EXPECT_EQ(staging_pose.header.frame_id, frame);
+
+  dock->deactivate();
+  dock->cleanup();
+  dock.reset();
+}
 
 TEST(SimpleChargingDockTests, RefinedPoseTest)
 {
