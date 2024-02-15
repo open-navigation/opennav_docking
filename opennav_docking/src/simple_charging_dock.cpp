@@ -127,7 +127,11 @@ geometry_msgs::msg::PoseStamped SimpleChargingDock::getStagingPose(
   staging_pose.pose = pose;
   staging_pose.pose.position.x += cos(yaw) * staging_x_offset_;
   staging_pose.pose.position.y += sin(yaw) * staging_x_offset_;
-  // TODO(fergs): add staging_yaw_offset_ to orientation;
+  {
+    tf2::Quaternion orientation;
+    orientation.setEuler(0.0, 0.0, yaw + staging_yaw_offset_);
+    staging_pose.pose.orientation = tf2::toMsg(orientation);
+  }
 
   // Publish staging pose for debugging purposes
   staging_pose_pub_->publish(staging_pose);
