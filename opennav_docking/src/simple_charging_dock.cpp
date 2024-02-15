@@ -45,9 +45,9 @@ void SimpleChargingDock::configure(
   nav2_util::declare_parameter_if_not_declared(
     node_, name + ".external_detection_rotation_yaw", rclcpp::ParameterValue(0.0));
   nav2_util::declare_parameter_if_not_declared(
-    node_, name + ".external_detection_rotation_pitch", rclcpp::ParameterValue(0.0));
+    node_, name + ".external_detection_rotation_pitch", rclcpp::ParameterValue(1.57));
   nav2_util::declare_parameter_if_not_declared(
-    node_, name + ".external_detection_rotation_roll", rclcpp::ParameterValue(0.0));
+    node_, name + ".external_detection_rotation_roll", rclcpp::ParameterValue(-1.57));
   nav2_util::declare_parameter_if_not_declared(
     node_, name + ".filter_coef", rclcpp::ParameterValue(0.1));
   nav2_util::declare_parameter_if_not_declared(
