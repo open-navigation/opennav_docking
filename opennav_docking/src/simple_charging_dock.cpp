@@ -34,6 +34,7 @@ void SimpleChargingDock::configure(
     throw std::runtime_error{"Failed to lock node"};
   }
 
+  // Parameters for optional external detection of dock pose
   nav2_util::declare_parameter_if_not_declared(
     node_, name + ".use_external_detection_pose", rclcpp::ParameterValue(false));
   nav2_util::declare_parameter_if_not_declared(
@@ -50,10 +51,26 @@ void SimpleChargingDock::configure(
     node_, name + ".external_detection_rotation_roll", rclcpp::ParameterValue(-1.57));
   nav2_util::declare_parameter_if_not_declared(
     node_, name + ".filter_coef", rclcpp::ParameterValue(0.1));
+
+  // Charging threshold from BatteryState message
   nav2_util::declare_parameter_if_not_declared(
     node_, name + ".charging_threshold", rclcpp::ParameterValue(0.5));
+
+  // Optionally determine if docked via stall detection using joint_states
+  nav2_util::declare_parameter_if_not_declared(
+    node_, name + ".use_stall_detection", rclcpp::ParameterValue(false));
+  nav2_util::declare_parameter_if_not_declared(
+    node_, name + ".stall_joint_names", rclcpp::ParameterValue(std::vector<std::string>()));
+  nav2_util::declare_parameter_if_not_declared(
+    node_, name + ".stall_velocity_threshold", rclcpp::ParameterValue(1.0));
+  nav2_util::declare_parameter_if_not_declared(
+    node_, name + ".stall_effort_threshold", rclcpp::ParameterValue(1.0));
+
+  // If not using stall detection, this is how close robot should get to pose
   nav2_util::declare_parameter_if_not_declared(
     node_, name + ".docking_threshold", rclcpp::ParameterValue(0.02));
+
+  // Staging pose configuration
   nav2_util::declare_parameter_if_not_declared(
     node_, name + ".staging_x_offset", rclcpp::ParameterValue(-0.5));
   nav2_util::declare_parameter_if_not_declared(
@@ -71,6 +88,9 @@ void SimpleChargingDock::configure(
   node_->get_parameter(name + ".external_detection_rotation_roll", roll);
   external_detection_rotation_.setEuler(pitch, roll, yaw);
   node_->get_parameter(name + ".charging_threshold", charging_threshold_);
+  node_->get_parameter(name + ".stall_velocity_threshold", stall_velocity_threshold_);
+  node_->get_parameter(name + ".stall_effort_threshold", stall_effort_threshold_);
+  node_->get_parameter(name + ".stall_joint_names", stall_joint_names_);
   node_->get_parameter(name + ".docking_threshold", docking_threshold_);
   node_->get_parameter(name + ".staging_x_offset", staging_x_offset_);
   node_->get_parameter(name + ".staging_yaw_offset", staging_yaw_offset_);
@@ -89,6 +109,20 @@ void SimpleChargingDock::configure(
     dock_pose_sub_ = node_->create_subscription<geometry_msgs::msg::PoseStamped>(
       "detected_dock_pose", 1,
       std::bind(&SimpleChargingDock::dockPoseCallback, this, std::placeholders::_1));
+  }
+
+  bool use_stall_detection;
+  node_->get_parameter(name + ".use_stall_detection", use_stall_detection);
+  if (use_stall_detection) {
+    is_stalled_ = false;
+
+    if (stall_joint_names_.empty()) {
+      RCLCPP_ERROR(node_->get_logger(), "stall_joint_names cannot be empty!");
+    } else {
+      joint_state_sub_ = node_->create_subscription<sensor_msgs::msg::JointState>(
+        "joint_states", 1,
+        std::bind(&SimpleChargingDock::jointStateCallback, this, std::placeholders::_1));
+    }
   }
 
   dock_pose_pub_ = node_->create_publisher<geometry_msgs::msg::PoseStamped>("dock_pose", 1);
@@ -201,6 +235,11 @@ bool SimpleChargingDock::getRefinedPose(geometry_msgs::msg::PoseStamped & pose)
 
 bool SimpleChargingDock::isDocked()
 {
+  if (joint_state_sub_) {
+    // Using stall detection
+    return is_stalled_;
+  }
+
   if (dock_pose_.header.frame_id.empty()) {
     // Dock pose is not yet valid
     return false;
@@ -242,6 +281,27 @@ bool SimpleChargingDock::hasStoppedCharging()
 void SimpleChargingDock::batteryCallback(const sensor_msgs::msg::BatteryState::SharedPtr state)
 {
   is_charging_ = state->current > charging_threshold_;
+}
+
+void SimpleChargingDock::jointStateCallback(const sensor_msgs::msg::JointState::SharedPtr state)
+{
+  double velocity = 0.0;
+  double effort = 0.0;
+  for (size_t i = 0; i < state->name.size(); ++i) {
+    for (auto & name : stall_joint_names_) {
+      if (state->name[i] == name) {
+        // Tracking this joint
+        velocity += abs(state->velocity[i]);
+        effort += abs(state->effort[i]);
+      }
+    }
+  }
+
+  // Take average
+  effort /= stall_joint_names_.size();
+  velocity /= stall_joint_names_.size();
+
+  is_stalled_ = (velocity < stall_velocity_threshold_) && (effort > stall_effort_threshold_);
 }
 
 void SimpleChargingDock::dockPoseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr pose)
