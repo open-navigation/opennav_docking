@@ -105,7 +105,7 @@ void SimpleChargingDock::configure(
   if (use_battery_status_) {
     battery_sub_ = node_->create_subscription<sensor_msgs::msg::BatteryState>(
       "battery_state", 1,
-      [this] (const sensor_msgs::msg::BatteryState::SharedPtr state) {
+      [this](const sensor_msgs::msg::BatteryState::SharedPtr state) {
         is_charging_ = state->current > charging_threshold_;
       });
   }
@@ -114,7 +114,7 @@ void SimpleChargingDock::configure(
     dock_pose_.header.stamp = rclcpp::Time(0);
     dock_pose_sub_ = node_->create_subscription<geometry_msgs::msg::PoseStamped>(
       "detected_dock_pose", 1,
-      [this] (const geometry_msgs::msg::PoseStamped::SharedPtr pose) {
+      [this](const geometry_msgs::msg::PoseStamped::SharedPtr pose) {
         detected_dock_pose_ = *pose;
       });
   }

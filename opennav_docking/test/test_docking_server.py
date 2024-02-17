@@ -43,7 +43,9 @@ def generate_test_description():
             name='docking_server',
             parameters=[{'wait_charge_timeout': 1.0,
                          'dock_plugins': ['test_dock_plugin'],
-                         'test_dock_plugin': {'plugin': 'opennav_docking::SimpleChargingDock'},
+                         'test_dock_plugin': {
+                            'plugin': 'opennav_docking::SimpleChargingDock',
+                            'use_battery_status': True},
                          'docks': ['test_dock'],
                          'test_dock': {
                             'type': 'test_dock_plugin',
