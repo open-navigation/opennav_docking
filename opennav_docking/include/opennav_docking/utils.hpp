@@ -22,7 +22,9 @@
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "nav2_util/geometry_utils.hpp"
+#include "angles/angles.h"
 #include "opennav_docking/types.hpp"
+#include "tf2/utils.h"
 
 namespace utils
 {
@@ -153,6 +155,17 @@ inline geometry_msgs::msg::PoseStamped getDockPoseStamped(
   pose.header.frame_id = dock->frame;
   pose.header.stamp = t;
   return pose;
+}
+
+inline double l2Norm(const geometry_msgs::msg::Pose & a, const geometry_msgs::msg::Pose & b)
+{
+  double angle_a = tf2::getYaw(a.orientation);
+  double angle_b = tf2::getYaw(b.orientation);
+  double delta_angle = angles::shortest_angular_distance(angle_a, angle_b);
+  return sqrt(
+    (a.position.x - b.position.x) * (a.position.x - b.position.x) +
+    (a.position.y - b.position.y) * (a.position.y - b.position.y) +
+    delta_angle * delta_angle);
 }
 
 }  // namespace utils

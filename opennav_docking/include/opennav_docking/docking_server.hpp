@@ -235,6 +235,8 @@ protected:
   std::string fixed_frame_;
   // Does the robot drive backwards onto the dock? Default is forwards
   bool dock_backwards_;
+  // The tolerance to the dock's staging pose not requiring navigation
+  double dock_prestaging_tolerance_;
 
   // This is a class member so it can be accessed in publish feedback
   rclcpp::Time action_start_time_;

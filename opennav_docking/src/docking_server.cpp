@@ -38,6 +38,7 @@ DockingServer::DockingServer(const rclcpp::NodeOptions & options)
   declare_parameter("base_frame", "base_link");
   declare_parameter("fixed_frame", "odom");
   declare_parameter("dock_backwards", false);
+  declare_parameter("dock_prestaging_tolerance", 0.5);
 }
 
 nav2_util::CallbackReturn
@@ -55,6 +56,7 @@ DockingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
   get_parameter("base_frame", base_frame_);
   get_parameter("fixed_frame", fixed_frame_);
   get_parameter("dock_backwards", dock_backwards_);
+  get_parameter("dock_prestaging_tolerance", dock_prestaging_tolerance_);
   RCLCPP_INFO(get_logger(), "Controller frequency set to %.4fHz", controller_frequency_);
 
   vel_publisher_ = create_publisher<geometry_msgs::msg::Twist>("cmd_vel", 1);
@@ -232,9 +234,18 @@ void DockingServer::dockRobot()
 
     // Send robot to its staging pose
     publishDockingFeedback(DockRobot::Feedback::NAV_TO_STAGING_POSE);
-    navigator_->goToPose(
-      dock->getStagingPose(), rclcpp::Duration::from_seconds(goal->max_staging_time));
-    RCLCPP_INFO(get_logger(), "Successful navigation to staging pose");
+    const auto initial_staging_pose = dock->getStagingPose();
+    const auto robot_pose = getRobotPoseInFrame(
+      initial_staging_pose.header.frame_id);
+    if (!goal->navigate_to_staging_pose ||
+      utils::l2Norm(robot_pose.pose, initial_staging_pose.pose) < dock_prestaging_tolerance_)
+    {
+      RCLCPP_INFO(get_logger(), "Robot already within pre-staging pose tolerance for dock");
+    } else {
+      navigator_->goToPose(
+        initial_staging_pose, rclcpp::Duration::from_seconds(goal->max_staging_time));
+      RCLCPP_INFO(get_logger(), "Successful navigation to staging pose");
+    }
 
     // Construct initial estimate of where the dock is located in fixed_frame
     auto dock_pose = utils::getDockPoseStamped(dock, rclcpp::Time(0));

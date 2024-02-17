@@ -121,4 +121,19 @@ TEST(UtilsTests, testgetDockPoseStamped)
   EXPECT_EQ(pose.pose.position.x, 0.1);
 }
 
+TEST(UtilsTests, testl2Norm)
+{
+  geometry_msgs::msg::Pose a, b;
+  a.position.x = 1.0;
+  EXPECT_NEAR(utils::l2Norm(a, b), 1.0, 1e-3);
+  b.position.x = 0.5;
+  EXPECT_NEAR(utils::l2Norm(a, b), 0.5, 1e-3);
+  b.position.y = 0.5;
+  EXPECT_NEAR(utils::l2Norm(a, b), 0.7071, 1e-3);
+  a.orientation = nav2_util::geometry_utils::orientationAroundZAxis(0.5);
+  EXPECT_NEAR(utils::l2Norm(a, b), 0.8660, 1e-3);
+  b.orientation = nav2_util::geometry_utils::orientationAroundZAxis(0.7);
+  EXPECT_NEAR(utils::l2Norm(a, b), 0.734, 1e-3);
+}
+
 }  // namespace opennav_docking
