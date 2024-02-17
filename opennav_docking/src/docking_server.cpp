@@ -32,6 +32,7 @@ DockingServer::DockingServer(const rclcpp::NodeOptions & options)
   declare_parameter("controller_frequency", 20.0);
   declare_parameter("initial_perception_timeout", 5.0);
   declare_parameter("wait_charge_timeout", 5.0);
+  declare_parameter("dock_approach_timeout", 30.0);
   declare_parameter("undock_linear_tolerance", 0.1);
   declare_parameter("undock_angular_tolerance", 0.1);
   declare_parameter("max_retries", 3);
@@ -50,6 +51,7 @@ DockingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
   get_parameter("controller_frequency", controller_frequency_);
   get_parameter("initial_perception_timeout", initial_perception_timeout_);
   get_parameter("wait_charge_timeout", wait_charge_timeout_);
+  get_parameter("dock_approach_timeout", dock_approach_timeout_);
   get_parameter("undock_linear_tolerance", undock_linear_tolerance_);
   get_parameter("undock_angular_tolerance", undock_angular_tolerance_);
   get_parameter("max_retries", max_retries_);
@@ -267,7 +269,7 @@ void DockingServer::dockRobot()
             RCLCPP_INFO(get_logger(), "Robot is charging!");
             result->success = true;
             result->num_retries = num_retries_;
-            stashDockData(goal->use_dock_id, dock);
+            stashDockData(goal->use_dock_id, dock, true);
             publishZeroVelocity();
             docking_action_server_->succeeded_current(result);
             return;
@@ -275,7 +277,7 @@ void DockingServer::dockRobot()
         }
 
         // Cancelled, preempted, or shutting down (recoverable errors throw DockingException)
-        stashDockData(goal->use_dock_id, dock);
+        stashDockData(goal->use_dock_id, dock, false);
         publishZeroVelocity();
         docking_action_server_->terminate_all(result);
         return;
@@ -290,7 +292,7 @@ void DockingServer::dockRobot()
       // Reset to staging pose to try again
       if (!resetApproach(dock->getStagingPose())) {
         // Cancelled, preempted, or shutting down
-        stashDockData(goal->use_dock_id, dock);
+        stashDockData(goal->use_dock_id, dock, false);
         publishZeroVelocity();
         docking_action_server_->terminate_all(result);
         return;
@@ -327,15 +329,15 @@ void DockingServer::dockRobot()
   }
 
   // Store dock state for later undocking and delete temp dock, if applicable
-  stashDockData(goal->use_dock_id, dock);
+  stashDockData(goal->use_dock_id, dock, false);
   result->num_retries = num_retries_;
   publishZeroVelocity();
   docking_action_server_->terminate_current(result);
 }
 
-void DockingServer::stashDockData(bool use_dock_id, Dock * dock)
+void DockingServer::stashDockData(bool use_dock_id, Dock * dock, bool successful)
 {
-  if (dock) {
+  if (dock && successful) {
     curr_dock_type_ = dock->type;
   }
 
@@ -372,6 +374,8 @@ void DockingServer::doInitialPerception(Dock * dock, geometry_msgs::msg::PoseSta
 bool DockingServer::approachDock(Dock * dock, geometry_msgs::msg::PoseStamped & dock_pose)
 {
   rclcpp::Rate loop_rate(controller_frequency_);
+  auto start = this->now();
+  auto timeout = rclcpp::Duration::from_seconds(dock_approach_timeout_);
   while (rclcpp::ok()) {
     publishDockingFeedback(DockRobot::Feedback::CONTROLLING);
 
@@ -403,6 +407,11 @@ bool DockingServer::approachDock(Dock * dock, geometry_msgs::msg::PoseStamped & 
       throw opennav_docking_core::FailedToControl("Failed to get control");
     }
     vel_publisher_->publish(command);
+
+    if (this->now() - start > timeout) {
+      throw opennav_docking_core::FailedToControl(
+              "Timed out approaching dock; dock nor charging detected");
+    }
 
     loop_rate.sleep();
   }
@@ -439,6 +448,8 @@ bool DockingServer::waitForCharge(Dock * dock)
 bool DockingServer::resetApproach(const geometry_msgs::msg::PoseStamped & staging_pose)
 {
   rclcpp::Rate loop_rate(controller_frequency_);
+  auto start = this->now();
+  auto timeout = rclcpp::Duration::from_seconds(dock_approach_timeout_);
   while (rclcpp::ok()) {
     publishDockingFeedback(DockRobot::Feedback::INITIAL_PERCEPTION);
 
@@ -458,6 +469,10 @@ bool DockingServer::resetApproach(const geometry_msgs::msg::PoseStamped & stagin
       return true;
     }
     vel_publisher_->publish(command);
+
+    if (this->now() - start > timeout) {
+      throw opennav_docking_core::FailedToControl("Timed out resetting dock approach");
+    }
 
     loop_rate.sleep();
   }
@@ -538,8 +553,6 @@ void DockingServer::undockRobot()
     // Get "dock pose" by finding the robot pose
     geometry_msgs::msg::PoseStamped dock_pose = getRobotPoseInFrame(fixed_frame_);
 
-    // TODO(fergs): Check if path to undock is clear
-
     // Get staging pose (in fixed frame)
     geometry_msgs::msg::PoseStamped staging_pose =
       dock->getStagingPose(dock_pose.pose, dock_pose.header.frame_id);
@@ -586,8 +599,7 @@ void DockingServer::undockRobot()
           return;
         }
         // Haven't stopped charging?
-        // TODO(fergs): set appropriate error code
-        break;
+        throw opennav_docking_core::FailedToControl("Failed to control off dock, still charging");
       }
 
       // Publish command and sleep

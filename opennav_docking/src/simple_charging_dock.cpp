@@ -26,13 +26,15 @@ void SimpleChargingDock::configure(
 {
   name_ = name;
   tf2_buffer_ = tf;
-
   is_charging_ = false;
-
   node_ = parent.lock();
   if (!node_) {
     throw std::runtime_error{"Failed to lock node"};
   }
+
+  // Optionally use battery info to check when charging, else say charging if docked
+  nav2_util::declare_parameter_if_not_declared(
+    node_, name + ".use_battery_status", rclcpp::ParameterValue(false));
 
   // Parameters for optional external detection of dock pose
   nav2_util::declare_parameter_if_not_declared(
@@ -76,6 +78,7 @@ void SimpleChargingDock::configure(
   nav2_util::declare_parameter_if_not_declared(
     node_, name + ".staging_yaw_offset", rclcpp::ParameterValue(0.0));
 
+  node_->get_parameter(name + ".use_battery_status", use_battery_status_);
   node_->get_parameter(name + ".use_external_detection_pose", use_external_detection_pose_);
   node_->get_parameter(name + ".external_detection_timeout", external_detection_timeout_);
   node_->get_parameter(
@@ -99,15 +102,21 @@ void SimpleChargingDock::configure(
   node_->get_parameter(name + ".filter_coef", filter_coef);
   filter_ = std::make_unique<PoseFilter>(filter_coef, external_detection_timeout_);
 
-  battery_sub_ = node_->create_subscription<sensor_msgs::msg::BatteryState>(
-    "battery_state", 1,
-    std::bind(&SimpleChargingDock::batteryCallback, this, std::placeholders::_1));
+  if (use_battery_status_) {
+    battery_sub_ = node_->create_subscription<sensor_msgs::msg::BatteryState>(
+      "battery_state", 1,
+      [this] (const sensor_msgs::msg::BatteryState::SharedPtr state) {
+        is_charging_ = state->current > charging_threshold_;
+      });
+  }
 
   if (use_external_detection_pose_) {
     dock_pose_.header.stamp = rclcpp::Time(0);
     dock_pose_sub_ = node_->create_subscription<geometry_msgs::msg::PoseStamped>(
       "detected_dock_pose", 1,
-      std::bind(&SimpleChargingDock::dockPoseCallback, this, std::placeholders::_1));
+      [this] (const geometry_msgs::msg::PoseStamped::SharedPtr pose) {
+        detected_dock_pose_ = *pose;
+      });
   }
 
   bool use_stall_detection;
@@ -118,7 +127,6 @@ void SimpleChargingDock::configure(
     if (stall_joint_names_.size() < 1) {
       RCLCPP_ERROR(node_->get_logger(), "stall_joint_names cannot be empty!");
     }
-
     joint_state_sub_ = node_->create_subscription<sensor_msgs::msg::JointState>(
       "joint_states", 1,
       std::bind(&SimpleChargingDock::jointStateCallback, this, std::placeholders::_1));
@@ -130,21 +138,10 @@ void SimpleChargingDock::configure(
   staging_pose_pub_ = node_->create_publisher<geometry_msgs::msg::PoseStamped>("staging_pose", 1);
 }
 
-void SimpleChargingDock::cleanup()
-{
-}
-
-void SimpleChargingDock::activate()
-{
-}
-
-void SimpleChargingDock::deactivate()
-{
-}
-
 geometry_msgs::msg::PoseStamped SimpleChargingDock::getStagingPose(
   const geometry_msgs::msg::Pose & pose, const std::string & frame)
 {
+  // If not using detection, set the dock pose as the given dock pose estimate
   if (!use_external_detection_pose_) {
     // This gets called at the start of docking
     // Reset our internally tracked dock pose
@@ -152,7 +149,7 @@ geometry_msgs::msg::PoseStamped SimpleChargingDock::getStagingPose(
     dock_pose_.pose = pose;
   }
 
-  // Compute the staging pose
+  // Compute the staging pose with given offsets
   const double yaw = tf2::getYaw(pose.orientation);
   geometry_msgs::msg::PoseStamped staging_pose;
   staging_pose.header.frame_id = frame;
@@ -160,20 +157,18 @@ geometry_msgs::msg::PoseStamped SimpleChargingDock::getStagingPose(
   staging_pose.pose = pose;
   staging_pose.pose.position.x += cos(yaw) * staging_x_offset_;
   staging_pose.pose.position.y += sin(yaw) * staging_x_offset_;
-  {
-    tf2::Quaternion orientation;
-    orientation.setEuler(0.0, 0.0, yaw + staging_yaw_offset_);
-    staging_pose.pose.orientation = tf2::toMsg(orientation);
-  }
+  tf2::Quaternion orientation;
+  orientation.setEuler(0.0, 0.0, yaw + staging_yaw_offset_);
+  staging_pose.pose.orientation = tf2::toMsg(orientation);
 
   // Publish staging pose for debugging purposes
   staging_pose_pub_->publish(staging_pose);
-
   return staging_pose;
 }
 
 bool SimpleChargingDock::getRefinedPose(geometry_msgs::msg::PoseStamped & pose)
 {
+  // If using detection, get current detections, transform to frame, and apply offsets
   if (use_external_detection_pose_) {
     geometry_msgs::msg::PoseStamped detected = detected_dock_pose_;
 
@@ -184,7 +179,9 @@ bool SimpleChargingDock::getRefinedPose(geometry_msgs::msg::PoseStamped & pose)
       return false;
     }
 
-    // Transform detected pose into fixed frame
+    // Transform detected pose into fixed frame. Note that the argument pose
+    // is the output of detection, but also acts as the initial estimate
+    // and contains the frame_id of docking
     if (detected.header.frame_id != pose.header.frame_id) {
       try {
         if (!tf2_buffer_->canTransform(
@@ -224,10 +221,8 @@ bool SimpleChargingDock::getRefinedPose(geometry_msgs::msg::PoseStamped & pose)
     dock_pose_.pose.position.z = 0.0;
   }
 
-  // Publish dock pose for debugging purposes
+  // Publish & return dock pose for debugging purposes
   dock_pose_pub_->publish(dock_pose_);
-
-  // Return dock pose
   pose = dock_pose_;
   return true;
 }
@@ -264,7 +259,7 @@ bool SimpleChargingDock::isDocked()
 
 bool SimpleChargingDock::isCharging()
 {
-  return is_charging_;
+  return use_battery_status_ ? is_charging_ : isDocked();
 }
 
 bool SimpleChargingDock::disableCharging()
@@ -275,11 +270,6 @@ bool SimpleChargingDock::disableCharging()
 bool SimpleChargingDock::hasStoppedCharging()
 {
   return !isCharging();
-}
-
-void SimpleChargingDock::batteryCallback(const sensor_msgs::msg::BatteryState::SharedPtr state)
-{
-  is_charging_ = state->current > charging_threshold_;
 }
 
 void SimpleChargingDock::jointStateCallback(const sensor_msgs::msg::JointState::SharedPtr state)
@@ -301,11 +291,6 @@ void SimpleChargingDock::jointStateCallback(const sensor_msgs::msg::JointState::
   velocity /= stall_joint_names_.size();
 
   is_stalled_ = (velocity < stall_velocity_threshold_) && (effort > stall_effort_threshold_);
-}
-
-void SimpleChargingDock::dockPoseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr pose)
-{
-  detected_dock_pose_ = *pose;
 }
 
 }  // namespace opennav_docking

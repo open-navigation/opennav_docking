@@ -53,17 +53,17 @@ public:
   /**
    * @brief Method to cleanup resources used on shutdown.
    */
-  virtual void cleanup();
+  virtual void cleanup() {};
 
   /**
    * @brief Method to active Behavior and any threads involved in execution.
    */
-  virtual void activate();
+  virtual void activate() {};
 
   /**
    * @brief Method to deactive Behavior and any threads involved in execution.
    */
-  virtual void deactivate();
+  virtual void deactivate() {};
 
   /**
    * @brief Method to obtain the dock's staging pose. This method should likely
@@ -104,16 +104,13 @@ public:
   virtual bool hasStoppedCharging();
 
 protected:
-  void batteryCallback(const sensor_msgs::msg::BatteryState::SharedPtr state);
   void jointStateCallback(const sensor_msgs::msg::JointState::SharedPtr state);
-  void dockPoseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr pose);
-
-  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr staging_pose_pub_;
 
   // Optionally subscribe to a detected dock pose topic
   rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr dock_pose_sub_;
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr dock_pose_pub_;
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr filtered_dock_pose_pub_;
+  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr staging_pose_pub_;
   // If subscribed to a detected pose topic, will contain latest message
   geometry_msgs::msg::PoseStamped detected_dock_pose_;
   // This is the actual dock pose once it has the specified translation/rotation applied
@@ -123,6 +120,7 @@ protected:
   // Subscribe to battery message, used to determine if charging
   rclcpp::Subscription<sensor_msgs::msg::BatteryState>::SharedPtr battery_sub_;
   bool is_charging_;
+  bool use_battery_status_;
 
   // Optionally subscribe to joint state message, used to determine if stalled
   rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr joint_state_sub_;

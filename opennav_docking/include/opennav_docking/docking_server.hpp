@@ -58,7 +58,7 @@ public:
    * @brief Called at the conclusion of docking actions. Saves relevant
    *        docking data for later undocking action.
    */
-  void stashDockData(bool use_dock_id, Dock * dock);
+  void stashDockData(bool use_dock_id, Dock * dock, bool successful);
 
   /**
    * @brief Publish feedback from a docking action.
@@ -225,6 +225,8 @@ protected:
   // Timeout after making contact with dock for charging to start
   // If this is exceeded, the robot returns to the staging pose and retries
   double wait_charge_timeout_;
+  // Timeout to approach into the dock and reset its approach is retrying
+  double dock_approach_timeout_;
   // When undocking, these are the tolerances for arriving at the staging pose
   double undock_linear_tolerance_, undock_angular_tolerance_;
   // Maximum number of times the robot will return to staging pose and retry docking
