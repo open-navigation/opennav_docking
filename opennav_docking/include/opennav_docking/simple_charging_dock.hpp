@@ -17,9 +17,11 @@
 
 #include <string>
 #include <memory>
+#include <vector>
 
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "sensor_msgs/msg/battery_state.hpp"
+#include "sensor_msgs/msg/joint_state.hpp"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 #include "tf2/utils.h"
 
@@ -103,6 +105,7 @@ public:
 
 protected:
   void batteryCallback(const sensor_msgs::msg::BatteryState::SharedPtr state);
+  void jointStateCallback(const sensor_msgs::msg::JointState::SharedPtr state);
   void dockPoseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr pose);
 
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr staging_pose_pub_;
@@ -120,6 +123,12 @@ protected:
   // Subscribe to battery message, used to determine if charging
   rclcpp::Subscription<sensor_msgs::msg::BatteryState>::SharedPtr battery_sub_;
   bool is_charging_;
+
+  // Optionally subscribe to joint state message, used to determine if stalled
+  rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr joint_state_sub_;
+  std::vector<std::string> stall_joint_names_;
+  double stall_velocity_threshold_, stall_effort_threshold_;
+  bool is_stalled_;
 
   // An external reference (such as image_proc::TrackMarkerNode) can be used to detect dock
   bool use_external_detection_pose_;
