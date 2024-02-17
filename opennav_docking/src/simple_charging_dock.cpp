@@ -60,7 +60,7 @@ void SimpleChargingDock::configure(
   nav2_util::declare_parameter_if_not_declared(
     node_, name + ".use_stall_detection", rclcpp::ParameterValue(false));
   nav2_util::declare_parameter_if_not_declared(
-    node_, name + ".stall_joint_names", rclcpp::ParameterValue(std::vector<std::string>()));
+    node_, name + ".stall_joint_names", rclcpp::PARAMETER_STRING_ARRAY);
   nav2_util::declare_parameter_if_not_declared(
     node_, name + ".stall_velocity_threshold", rclcpp::ParameterValue(1.0));
   nav2_util::declare_parameter_if_not_declared(
@@ -90,7 +90,6 @@ void SimpleChargingDock::configure(
   node_->get_parameter(name + ".charging_threshold", charging_threshold_);
   node_->get_parameter(name + ".stall_velocity_threshold", stall_velocity_threshold_);
   node_->get_parameter(name + ".stall_effort_threshold", stall_effort_threshold_);
-  node_->get_parameter(name + ".stall_joint_names", stall_joint_names_);
   node_->get_parameter(name + ".docking_threshold", docking_threshold_);
   node_->get_parameter(name + ".staging_x_offset", staging_x_offset_);
   node_->get_parameter(name + ".staging_yaw_offset", staging_yaw_offset_);
@@ -115,14 +114,14 @@ void SimpleChargingDock::configure(
   node_->get_parameter(name + ".use_stall_detection", use_stall_detection);
   if (use_stall_detection) {
     is_stalled_ = false;
-
-    if (stall_joint_names_.empty()) {
+    node_->get_parameter(name + ".stall_joint_names", stall_joint_names_);
+    if (stall_joint_names_.size() < 1) {
       RCLCPP_ERROR(node_->get_logger(), "stall_joint_names cannot be empty!");
-    } else {
-      joint_state_sub_ = node_->create_subscription<sensor_msgs::msg::JointState>(
-        "joint_states", 1,
-        std::bind(&SimpleChargingDock::jointStateCallback, this, std::placeholders::_1));
     }
+
+    joint_state_sub_ = node_->create_subscription<sensor_msgs::msg::JointState>(
+      "joint_states", 1,
+      std::bind(&SimpleChargingDock::jointStateCallback, this, std::placeholders::_1));
   }
 
   dock_pose_pub_ = node_->create_publisher<geometry_msgs::msg::PoseStamped>("dock_pose", 1);
