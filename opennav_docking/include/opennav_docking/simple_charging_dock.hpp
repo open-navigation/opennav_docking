@@ -53,17 +53,17 @@ public:
   /**
    * @brief Method to cleanup resources used on shutdown.
    */
-  virtual void cleanup() {};
+  virtual void cleanup() {}
 
   /**
    * @brief Method to active Behavior and any threads involved in execution.
    */
-  virtual void activate() {};
+  virtual void activate() {}
 
   /**
    * @brief Method to deactive Behavior and any threads involved in execution.
    */
-  virtual void deactivate() {};
+  virtual void deactivate() {}
 
   /**
    * @brief Method to obtain the dock's staging pose. This method should likely
