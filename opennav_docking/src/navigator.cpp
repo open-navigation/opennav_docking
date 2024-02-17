@@ -70,7 +70,7 @@ void Navigator::goToPose(
         future_result, timeout) == rclcpp::FutureReturnCode::SUCCESS)
     {
       auto result = future_result.get();
-      if (result.code == rclcpp_action::ResultCode::SUCCEEDED && result.result->error_code == 0) {
+      if (result.code == rclcpp_action::ResultCode::SUCCEEDED) {
         return;  // Success!
       }
     }
