@@ -44,7 +44,7 @@ def generate_launch_description():
     )
 
     dock_pose_publisher = Node(
-        package='nova_caster_dock',
+        package='nova_carter_dock',
         executable='dock_pose_publisher',
         name='dock_pose_publisher',
         parameters=[{'use_first_detection': False}],
