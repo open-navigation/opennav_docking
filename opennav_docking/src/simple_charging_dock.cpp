@@ -34,7 +34,7 @@ void SimpleChargingDock::configure(
 
   // Optionally use battery info to check when charging, else say charging if docked
   nav2_util::declare_parameter_if_not_declared(
-    node_, name + ".use_battery_status", rclcpp::ParameterValue(false));
+    node_, name + ".use_battery_status", rclcpp::ParameterValue(true));
 
   // Parameters for optional external detection of dock pose
   nav2_util::declare_parameter_if_not_declared(
