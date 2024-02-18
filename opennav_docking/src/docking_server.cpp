@@ -610,13 +610,13 @@ void DockingServer::undockRobot()
     RCLCPP_ERROR(get_logger(), "Transform error: %s", e.what());
     result->error_code = DockRobot::Result::UNKNOWN;
   } catch (opennav_docking_core::DockNotValid & e) {
-    RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
+    RCLCPP_ERROR(get_logger(), "%s", e.what());
     result->error_code = DockRobot::Result::DOCK_NOT_VALID;
   } catch (opennav_docking_core::FailedToControl & e) {
-    RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
+    RCLCPP_ERROR(get_logger(), "%s", e.what());
     result->error_code = DockRobot::Result::FAILED_TO_CONTROL;
   } catch (opennav_docking_core::DockingException & e) {
-    RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
+    RCLCPP_ERROR(get_logger(), "%s", e.what());
     result->error_code = DockRobot::Result::UNKNOWN;
   } catch (std::exception & e) {
     RCLCPP_ERROR(get_logger(), "Internal error: %s", e.what());
