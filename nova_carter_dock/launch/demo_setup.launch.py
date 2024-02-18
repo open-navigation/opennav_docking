@@ -31,6 +31,10 @@ def generate_launch_description():
         get_package_share_directory('carter_navigation'), 'launch')
     nova_carter_dock_launch_dir = os.path.join(
         get_package_share_directory('nova_carter_dock'), 'launch')
+    nova_carter_dock_params_dir = os.path.join(
+        get_package_share_directory('nova_carter_dock'), 'params')
+
+    params_file = default_value=os.path.join(nova_carter_dock_params_dir, 'nova_carter_dock.yaml')
 
     robot_base_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(os.path.join(
@@ -45,7 +49,16 @@ def generate_launch_description():
             nova_carter_dock_launch_dir, 'isaac_apriltag_detection_pipeline.launch.py'))
     )
 
+    docking_server = Node(
+        package='opennav_docking',
+        executable='opennav_docking',
+        name='docking_server',
+        output='screen',
+        parameters=[params_file],
+    )
+
     return LaunchDescription([
         robot_base_launch,
         dock_detection_launch,
+        docking_server
     ])

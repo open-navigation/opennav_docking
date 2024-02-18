@@ -74,6 +74,7 @@ install(DIRECTORY include/
 )
 
 install(DIRECTORY launch DESTINATION share/${PROJECT_NAME})
+install(DIRECTORY params DESTINATION share/${PROJECT_NAME})
 
 ament_export_include_directories(include)
 ament_export_libraries(${library_name})
