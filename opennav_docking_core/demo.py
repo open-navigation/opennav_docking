@@ -164,6 +164,8 @@ def main():
     tester = DockingTester()
     tester.startup()
 
+    time.sleep(1)
+
     # Some example dock 40 cm in front of itself.
     # The same as the staging distance to dock in mid-air
     dock_pose = PoseStamped()
