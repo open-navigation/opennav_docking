@@ -46,14 +46,14 @@ class DockPosePublisher : public rclcpp::Node
       for (unsigned int i = 0; i != msg->detections.size(); i++) {
         if (!use_first_detection_) {
           if (msg->detections[i].family == dock_tag_family_ && msg->detections[i].id == dock_tag_id_) {
-            p.header = msg->detections[i].pose.header;
+            p.header = msg->header;
             p.pose = msg->detections[i].pose.pose.pose;
             publisher_->publish(p);
             return;
           }
         } else {
           // Use the first detection found
-          p.header = msg->detections[0].pose.header;
+          p.header = msg->header;
           p.pose = msg->detections[0].pose.pose.pose;
           publisher_->publish(p);
           return;

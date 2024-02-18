@@ -40,7 +40,7 @@ def generate_launch_description():
         PythonLaunchDescriptionSource(os.path.join(
             carter_navigation_launch_dir, 'teleop.launch.py')),
         launch_arguments={
-            'launch_hawks': True,
+            'launch_hawks': 'True',
         }.items(),
     )
 
