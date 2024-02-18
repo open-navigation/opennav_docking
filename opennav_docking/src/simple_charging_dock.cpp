@@ -168,58 +168,63 @@ geometry_msgs::msg::PoseStamped SimpleChargingDock::getStagingPose(
 
 bool SimpleChargingDock::getRefinedPose(geometry_msgs::msg::PoseStamped & pose)
 {
-  // If using detection, get current detections, transform to frame, and apply offsets
-  if (use_external_detection_pose_) {
-    geometry_msgs::msg::PoseStamped detected = detected_dock_pose_;
+  // If using not detection, set the dock pose to the static fixed-frame version
+  if (!use_external_detection_pose_) {
+    dock_pose_pub_->publish(pose);
+    dock_pose_ = pose;
+    return true;
+  }
 
-    // Validate that external pose is new enough
-    auto timeout = rclcpp::Duration::from_seconds(external_detection_timeout_);
-    if (node_->now() - detected.header.stamp > timeout) {
-      RCLCPP_WARN(node_->get_logger(), "Lost detection: timeout exceeded");
-      return false;
-    }
+  // If using detections, get current detections, transform to frame, and apply offsets
+  geometry_msgs::msg::PoseStamped detected = detected_dock_pose_;
 
-    // Transform detected pose into fixed frame. Note that the argument pose
-    // is the output of detection, but also acts as the initial estimate
-    // and contains the frame_id of docking
-    if (detected.header.frame_id != pose.header.frame_id) {
-      try {
-        if (!tf2_buffer_->canTransform(
-            pose.header.frame_id, detected.header.frame_id,
-            detected.header.stamp, rclcpp::Duration::from_seconds(0.2)))
-        {
-          RCLCPP_WARN(node_->get_logger(), "Failed to transform detected dock pose");
-          return false;
-        }
-        tf2_buffer_->transform(detected, detected, pose.header.frame_id);
-      } catch (const tf2::TransformException & ex) {
+  // Validate that external pose is new enough
+  auto timeout = rclcpp::Duration::from_seconds(external_detection_timeout_);
+  if (node_->now() - detected.header.stamp > timeout) {
+    RCLCPP_WARN(node_->get_logger(), "Lost detection: timeout exceeded");
+    return false;
+  }
+
+  // Transform detected pose into fixed frame. Note that the argument pose
+  // is the output of detection, but also acts as the initial estimate
+  // and contains the frame_id of docking
+  if (detected.header.frame_id != pose.header.frame_id) {
+    try {
+      if (!tf2_buffer_->canTransform(
+          pose.header.frame_id, detected.header.frame_id,
+          detected.header.stamp, rclcpp::Duration::from_seconds(0.2)))
+      {
         RCLCPP_WARN(node_->get_logger(), "Failed to transform detected dock pose");
         return false;
       }
+      tf2_buffer_->transform(detected, detected, pose.header.frame_id);
+    } catch (const tf2::TransformException & ex) {
+      RCLCPP_WARN(node_->get_logger(), "Failed to transform detected dock pose");
+      return false;
     }
-
-    // Filter the detected pose
-    detected = filter_->update(detected);
-    filtered_dock_pose_pub_->publish(detected);
-
-    // Rotate the just the orientation
-    geometry_msgs::msg::PoseStamped just_orientation;
-    just_orientation.pose.orientation = tf2::toMsg(external_detection_rotation_);
-    geometry_msgs::msg::TransformStamped transform;
-    transform.transform.rotation = detected.pose.orientation;
-    tf2::doTransform(just_orientation, just_orientation, transform);
-
-    // Construct dock_pose_ by applying translation/rotation
-    dock_pose_.header = detected.header;
-    dock_pose_.pose.position = detected.pose.position;
-    dock_pose_.pose.orientation = just_orientation.pose.orientation;
-    const double yaw = tf2::getYaw(dock_pose_.pose.orientation);
-    dock_pose_.pose.position.x += cos(yaw) * external_detection_translation_x_ -
-      sin(yaw) * external_detection_translation_y_;
-    dock_pose_.pose.position.y += sin(yaw) * external_detection_translation_x_ +
-      cos(yaw) * external_detection_translation_y_;
-    dock_pose_.pose.position.z = 0.0;
   }
+
+  // Filter the detected pose
+  detected = filter_->update(detected);
+  filtered_dock_pose_pub_->publish(detected);
+
+  // Rotate the just the orientation
+  geometry_msgs::msg::PoseStamped just_orientation;
+  just_orientation.pose.orientation = tf2::toMsg(external_detection_rotation_);
+  geometry_msgs::msg::TransformStamped transform;
+  transform.transform.rotation = detected.pose.orientation;
+  tf2::doTransform(just_orientation, just_orientation, transform);
+
+  // Construct dock_pose_ by applying translation/rotation
+  dock_pose_.header = detected.header;
+  dock_pose_.pose.position = detected.pose.position;
+  dock_pose_.pose.orientation = just_orientation.pose.orientation;
+  const double yaw = tf2::getYaw(dock_pose_.pose.orientation);
+  dock_pose_.pose.position.x += cos(yaw) * external_detection_translation_x_ -
+    sin(yaw) * external_detection_translation_y_;
+  dock_pose_.pose.position.y += sin(yaw) * external_detection_translation_x_ +
+    cos(yaw) * external_detection_translation_y_;
+  dock_pose_.pose.position.z = 0.0;
 
   // Publish & return dock pose for debugging purposes
   dock_pose_pub_->publish(dock_pose_);

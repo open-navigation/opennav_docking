@@ -40,7 +40,11 @@ def generate_launch_description():
         PythonLaunchDescriptionSource(os.path.join(
             carter_navigation_launch_dir, 'teleop.launch.py')),
         launch_arguments={
-            'launch_hawks': 'True',
+            'launch_hawks': 'True',      # stereo
+            'launch_owls': 'False',      # fisheye
+            'launch_rplidars': 'False',  # 2D
+            'launch_hesai': 'False',     # 3D
+            'launch_segway': 'True'      # base
         }.items(),
     )
 
@@ -57,8 +61,17 @@ def generate_launch_description():
         parameters=[params_file],
     )
 
+    lifecycle_manager = Node(
+        package='nav2_lifecycle_manager',
+        executable='lifecycle_manager',
+        name='lifecycle_manager_docking',
+        output='screen',
+        parameters=[{'autostart': True}, {'node_names': ['docking_server']}],
+    )
+
     return LaunchDescription([
         robot_base_launch,
         dock_detection_launch,
-        docking_server
+        docking_server,
+        lifecycle_manager
     ])

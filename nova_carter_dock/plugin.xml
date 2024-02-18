@@ -1,5 +1,5 @@
 <class_libraries>
-  <library path="nova_carter_dock">
+  <library path="nova_carter_dock_core">
     <class type="nova_carter_dock::NovaCarterChargingDock"  base_class_type="opennav_docking_core::ChargingDock">
       <description>A charging dock plugin for the Nova Carter robot.</description>
     </class>

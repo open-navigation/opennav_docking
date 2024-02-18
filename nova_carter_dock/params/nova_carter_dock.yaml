@@ -4,27 +4,39 @@ docking_server:
     initial_perception_timeout: 5.0
     wait_charge_timeout: 5.0
     dock_approach_timeout: 30.0
-    undock_linear_tolerance: 0.2
-    undock_angular_tolerance: 0.2
+    undock_linear_tolerance: 0.05
+    undock_angular_tolerance: 0.1
     max_retries: 3
     base_frame: "base_link"
     fixed_frame: "odom"
     dock_backwards: false
     dock_prestaging_tolerance: 0.5
 
+    # Types of docks
     dock_plugins: ['nova_carter_dock']
     nova_carter_dock:
-      plugin: 'nova_carter_dock::NovaCarterChargingDock'
-      docking_threshold: 0.3
-      staging_x_offset: 0.85
-      use_external_detection_pose: true
-      external_detection_timeout: 2.0
-      external_detection_translation_x: -0.1
-      external_detection_translation_y: 0.0
-      external_detection_rotation_roll: -1.57
-      external_detection_rotation_pitch: -1.57
-      external_detection_rotation_yaw: 0.0
-      filter_coef: 0.1
+      # plugin: 'nova_carter_dock::NovaCarterChargingDock'
+      plugin: 'opennav_docking::SimpleChargingDock'
+      docking_threshold: 0.05
+      staging_x_offset: -0.6
+      use_external_detection_pose: false # true
+      use_battery_status: false # true
+      use_stall_detection: false
+
+      # external_detection_timeout: 2.0
+      # external_detection_translation_x: -0.1
+      # external_detection_translation_y: 0.0
+      # external_detection_rotation_roll: -1.57
+      # external_detection_rotation_pitch: -1.57
+      # external_detection_rotation_yaw: 0.0
+      # filter_coef: 0.1
+
+    # Dock instances
+    docks: ['home_dock']
+    home_dock:
+      type: 'nova_carter_dock'
+      frame: map
+      pose: [0.0, 0.0, 0.0]
 
     controller:
       k_phi: 3.0
