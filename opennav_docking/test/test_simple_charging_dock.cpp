@@ -60,7 +60,7 @@ TEST(SimpleChargingDockTests, BatteryState)
   auto pub = node->create_publisher<sensor_msgs::msg::BatteryState>(
     "battery_state", rclcpp::QoS(1));
   pub->on_activate();
-  node->declare_parameter("my_dock.use_external_detection_pose", rclcpp::ParameterValue(true));
+  node->declare_parameter("my_dock.use_battery_state", rclcpp::ParameterValue(true));
 
   auto dock = std::make_unique<opennav_docking::SimpleChargingDock>();
 
