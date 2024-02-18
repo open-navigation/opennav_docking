@@ -9,11 +9,8 @@ You can find the apriltags used in these launch files in the ``media`` folder. N
 ---
 
 ```
-# Get the cameras and robot running
-ros2 launch carter_navigation teleop.launch.py launch_hawks:=True
-
-# Get the april tag detection and dock pose publisher running
-ros2 launch nova_carter_dock isaac_apriltag_detection_pipeline.launch.py
+# Launches the robot base, all the camears, apriltag detector, and dock pose publisher
+ros2 launch nova_carter_dock nova_carter_robot_and_detector.launch.py
 
 # Get the docking server running
 ros2 launch opennav_docking docking_server
