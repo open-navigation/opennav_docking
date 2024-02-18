@@ -34,7 +34,7 @@ void SimpleChargingDock::configure(
 
   // Optionally use battery info to check when charging, else say charging if docked
   nav2_util::declare_parameter_if_not_declared(
-    node_, name + ".use_battery_status", rclcpp::ParameterValue(false));
+    node_, name + ".use_battery_status", rclcpp::ParameterValue(true));
 
   // Parameters for optional external detection of dock pose
   nav2_util::declare_parameter_if_not_declared(
@@ -105,7 +105,7 @@ void SimpleChargingDock::configure(
   if (use_battery_status_) {
     battery_sub_ = node_->create_subscription<sensor_msgs::msg::BatteryState>(
       "battery_state", 1,
-      [this] (const sensor_msgs::msg::BatteryState::SharedPtr state) {
+      [this](const sensor_msgs::msg::BatteryState::SharedPtr state) {
         is_charging_ = state->current > charging_threshold_;
       });
   }
@@ -114,7 +114,7 @@ void SimpleChargingDock::configure(
     dock_pose_.header.stamp = rclcpp::Time(0);
     dock_pose_sub_ = node_->create_subscription<geometry_msgs::msg::PoseStamped>(
       "detected_dock_pose", 1,
-      [this] (const geometry_msgs::msg::PoseStamped::SharedPtr pose) {
+      [this](const geometry_msgs::msg::PoseStamped::SharedPtr pose) {
         detected_dock_pose_ = *pose;
       });
   }
