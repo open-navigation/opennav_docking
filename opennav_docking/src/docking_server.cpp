@@ -399,6 +399,15 @@ bool DockingServer::approachDock(Dock * dock, geometry_msgs::msg::PoseStamped & 
     // Transform target_pose into base_link frame
     geometry_msgs::msg::PoseStamped target_pose = dock_pose;
     target_pose.header.stamp = rclcpp::Time(0);
+
+    // The control law can get jittery when close to the end when atan2's can explode.
+    // Thus, we backward project the controller's target pose a little bit after the
+    // dock so that the robot never gets to the end of the spiral before its in contact
+    // with the dock to stop the docking procedure.
+    const double backward_projection = 0.25;
+    const double yaw = tf2::getYaw(target_pose.pose.orientation);
+    target_pose.pose.position.x += cos(yaw) * backward_projection;
+    target_pose.pose.position.y += sin(yaw) * backward_projection;
     tf2_buffer_->transform(target_pose, target_pose, base_frame_);
 
     // Compute and publish controls
