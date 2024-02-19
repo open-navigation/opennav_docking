@@ -208,17 +208,20 @@ bool SimpleChargingDock::getRefinedPose(geometry_msgs::msg::PoseStamped & pose)
   detected = filter_->update(detected);
   filtered_dock_pose_pub_->publish(detected);
 
-  // Rotate the just the orientation
+  // Rotate the just the orientation, then remove roll/pitch
   geometry_msgs::msg::PoseStamped just_orientation;
   just_orientation.pose.orientation = tf2::toMsg(external_detection_rotation_);
   geometry_msgs::msg::TransformStamped transform;
   transform.transform.rotation = detected.pose.orientation;
   tf2::doTransform(just_orientation, just_orientation, transform);
 
+  tf2::Quaternion orientation;
+  orientation.setEuler(0.0, 0.0, tf2::getYaw(just_orientation.pose.orientation));
+  dock_pose_.pose.orientation = tf2::toMsg(orientation);
+
   // Construct dock_pose_ by applying translation/rotation
   dock_pose_.header = detected.header;
   dock_pose_.pose.position = detected.pose.position;
-  dock_pose_.pose.orientation = just_orientation.pose.orientation;
   const double yaw = tf2::getYaw(dock_pose_.pose.orientation);
   dock_pose_.pose.position.x += cos(yaw) * external_detection_translation_x_ -
     sin(yaw) * external_detection_translation_y_;

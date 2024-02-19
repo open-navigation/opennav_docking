@@ -47,7 +47,7 @@ def generate_launch_description():
         package='nova_carter_dock',
         executable='dock_pose_publisher',
         name='dock_pose_publisher',
-        parameters=[{'use_first_detection': False}],
+        parameters=[{'use_first_detection': True}],
     )
 
     return launch.LaunchDescription([apriltag_container, dock_pose_publisher])
