@@ -153,49 +153,27 @@ return true if `isCharging` returns true.
 The `SimpleChargingDock` plugin is an example with many common options which may be fully functional for
 some robots.
 
-`getStagingPose` applys two transformations to the dock pose.
-The first `staging_x_offset` specifies the distance in front of the dock to stage the robot at.
-The pose can then be rotated by `staging_yaw_offset` parameter, although this will usually be set to 0.0.
+`getStagingPose` applys a parameterized translational and rotational offset to the dock pose to obtain the staging pose.
 
-`getRefinedPose` can be used in two ways. The simplest is a blind approach where
-the returned dock pose will simply be equal to whatever was passed in from the dock database.
-This may work with a reduced success rate on a real robot (due to global localization error), but is useful for initial testing and simulation.
-The more realistic use case is to use an AR marker, dock pose detection algorithm, etc.
-By setting the parameter `use_external_detection_pose = true`, the plugin will subscribe to a
-`geometry_msgs/PoseStamped` topic `detected_dock_pose`. This can be used
-with the `image_proc/TrackMarkerNode` for Apriltags or other custom detectors for your dock.
-It is unlikely the detected pose is actually the pose you want to dock with, so several parameters are supplied to represent your docked pose relative to the detected feature's pose:
-
- * `external_detection_translation_x`
- * `external_detection_translation_y`
- * `external_detection_rotation_yaw`
- * `external_detection_rotation_pitch`
- * `external_detection_rotation_roll`
-
-There is also a `external_detection_timeout` parameter in case detections are lost or not present. The detected pose can also
-be filtered by setting the `filter_coef` parameter.
+`getRefinedPose` can be used in two ways. 
+1. A blind approach where the returned dock pose will simply be equal to whatever was passed in from the dock database. This may work with a reduced success rate on a real robot (due to global localization error), but is useful for initial testing and simulation.
+2. The more realistic use case is to use an AR marker, dock pose detection algorithm, etc. Tthe plugin will subscribe to a `geometry_msgs/PoseStamped` topic `detected_dock_pose`. This can be used with the `image_proc/TrackMarkerNode` for Apriltags or other custom detectors for your dock. It is unlikely the detected pose is actually the pose you want to dock with, so several parameters are supplied to represent your docked pose relative to the detected feature's pose.
 
 During the docking approach, there are two options for detecting `isDocked`:
-
- * If `use_stall_detection`, then we check the joint states of the wheels if the current has spiked above a set threshold to indicate that the robot has made contact with the dock or other physical object.
- * If stall detection is not used, the dock pose is compared with the robot
-   pose and `isDocked` returns true when the distance drops below the
-   specified `docking_threshold` parameter.
+1. We can check the joint states of the wheels if the current has spiked above a set threshold to indicate that the robot has made contact with the dock or other physical object.
+2. The dock pose is compared with the robot pose and `isDocked` returns true when the distance drops below the specified `docking_threshold`.
 
 The `isCharging` and `hasStoppedCharging` functions have two options:
-  * Subscribing to a `sensor_msgs/BatteryState` message on topic `battery_state`. The robot is
-considered charging when the `current` field of the message exceeds the
-`charging_threshold` parameter setting.
-  * If `use_battery_state = false`, we simply return that we are charging is `isDocked() = true`, which is useful for initial testing or low-reliability docking until battery state or similar information is available.
+1. Subscribing to a `sensor_msgs/BatteryState` message on topic `battery_state`. The robot is considered charging when the `current` field of the message exceeds the `charging_threshold`.
+2. We can return that we are charging is `isDocked() = true`, which is useful for initial testing or low-reliability docking until battery state or similar information is available.
 
 For debugging purposes, there are several publishers which can be used with RVIZ:
 
- * `dock_pose` (`geometry_msgs/PoseStamped`): Publishes the dock pose any time
-   `getRefinedPose` is called.
- * `filtered_dock_pose` (`geometry_msgs/PoseStamped`): Publishes the filtered but
-   untransformed detected dock pose. Only published if using external detection.
- * `staging_pose` (`geometry_msgs/PoseStamped`): Publishes the staging pose when
-   `getStagingPose` is called.
+| Topic                        | Description                                             | Type   |
+|------------------------------|---------------------------------------------------------|--------|
+| dock_pose         | The current transformed dock pose         | `geometry_msgs/PoseStamped` |
+| filtered_dock_pose         | The current un-transformed dock pose         | `geometry_msgs/PoseStamped` |
+| staging_pose         | The staging pose for the dock          | `geometry_msgs/PoseStamped` |
 
 ## Configuration
 
