@@ -30,11 +30,11 @@ def generate_launch_description():
     carter_navigation_launch_dir = os.path.join(
         get_package_share_directory('carter_navigation'), 'launch')
     nova_carter_dock_launch_dir = os.path.join(
-        get_package_share_directory('nova_carter_dock'), 'launch')
+        get_package_share_directory('nova_carter_docking'), 'launch')
     nova_carter_dock_params_dir = os.path.join(
-        get_package_share_directory('nova_carter_dock'), 'params')
+        get_package_share_directory('nova_carter_docking'), 'params')
 
-    params_file = default_value=os.path.join(nova_carter_dock_params_dir, 'nova_carter_dock.yaml')
+    params_file = default_value=os.path.join(nova_carter_dock_params_dir, 'nova_carter_docking.yaml')
 
     robot_base_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(os.path.join(

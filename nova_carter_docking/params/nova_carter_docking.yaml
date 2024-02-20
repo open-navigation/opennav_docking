@@ -19,17 +19,17 @@ docking_server:
       plugin: 'opennav_docking::SimpleChargingDock'
       docking_threshold: 0.05
       staging_x_offset: -0.6
-      use_external_detection_pose: true # true
+      use_external_detection_pose: false #true
       use_battery_status: false # true
       use_stall_detection: false
 
-      # external_detection_timeout: 5.0  # TODO old??
-      # external_detection_translation_x: 0.0  # TODO visualize + TF, making robot drift aside.  
-      # external_detection_translation_y: 0.0
-      # external_detection_rotation_roll: -1.57
-      # external_detection_rotation_pitch: -1.57
-      # external_detection_rotation_yaw: 0.0
-      # filter_coef: 0.1
+      external_detection_timeout: 5.0  # TODO old??
+      external_detection_translation_x: 0.0  # TODO visualize + TF, making robot drift aside.  
+      external_detection_translation_y: 0.0
+      external_detection_rotation_roll: -1.57
+      external_detection_rotation_pitch: -1.57
+      external_detection_rotation_yaw: 0.0
+      filter_coef: 0.1
 
     # Dock instances
     docks: ['home_dock']

@@ -1,6 +1,6 @@
 ## Nova Carter Docking
 
-This package contains a dock plugin, utility nodes, params, and demo launch files for working with the nova carter robot for auto-docking. 
+This package contains a dock plugin, utility nodes, params, and demo launch files for working with the nova carter robot for auto-docking. It can be seen as a demonstration of using the Docking Server with detection and a custom dock.
 
 The dock plugin is used by the framework to transact with the dock to get its pose, charging state information, and contact status. 
 The `dock_pose_publisher` takes in the output of Isaac ROS' GPU optimized apriltags detector and republishes out a `PoseStamped` of the particular docking tag pose of interest.
@@ -13,7 +13,7 @@ You can find the apriltags used in these demos in the ``media`` folder. Note: yo
 
 ### Brief Developer Instructions
 
-Add `opennav_docking` and `navigation2` to your `isaac_ros-dev` workspace generated using the [Nova Carter instructions](https://nvidia-isaac-ros.github.io/robots/nova_carter.html#development-environment-setup) and Dockerfile. Use `humble` branch for both & build the entire workspace in Docker before continuing with `--symlink-install`.
+Add `opennav_docking` on the appropriate branch to your `isaac_ros-dev` workspace generated using the [Nova Carter instructions](https://nvidia-isaac-ros.github.io/robots/nova_carter.html#development-environment-setup) and Dockerfile. Build the entire workspace in Docker before continuing with `--symlink-install`.
 
 ```
 # Add robot's IP to your /etc/hosts to ssh by name, add key to prevent password prompts (ssh-copy-id)
@@ -24,7 +24,7 @@ cd $ISAAC_ROS_WS/src/isaac_ros_common &&   ./scripts/run_dev.sh $ISAAC_ROS_WS
 
 # Launches the robot base, all the cameras, apriltag detector, dock pose publisher, and docking server
 source install/setup.bash
-ros2 launch nova_carter_dock demo_setup.launch.py
+ros2 launch nova_carter_docking demo_setup.launch.py
 
 # Run test script that you wish
 # ... python3 demo.py
