@@ -26,12 +26,12 @@ The Docking Framework has 5 main components:
 The `ChargingDock` plugins are the heart of the customizability of the framework to support any type of charging dock for any kind of robot. The `DockDatabase` is how you describe where these docks exist in your environment to interact with and any of them may be used in your docking request. 
 
 The docking procedure is as follows:
-* Take action request and obtain the dock's plugin and its pose
-* If the robot is not within the prestaging tolerance of the dock's staging pose, navigate to the staging pose
-* Use the dock's plugin to initially detect the dock and return the docking pose
-* Enter a vision-control loop where the robot attempts to reach the docking pose while its actively being refined by the vision system
-* Exit the vision-control loop once contact has been detected or charging has started 
-* Wait until charging starts and return success.
+1. Take action request and obtain the dock's plugin and its pose
+2. If the robot is not within the prestaging tolerance of the dock's staging pose, navigate to the staging pose
+3. Use the dock's plugin to initially detect the dock and return the docking pose
+4. Enter a vision-control loop where the robot attempts to reach the docking pose while its actively being refined by the vision system
+5. Exit the vision-control loop once contact has been detected or charging has started 
+6. Wait until charging starts and return success.
 
 If anywhere this procedure is unsuccessful, `N` retries may be made by driving back to the dock's staging pose and trying again. If still unsuccessful, it will return a failure code to indicate what kind of failure occurred to the client.
 
