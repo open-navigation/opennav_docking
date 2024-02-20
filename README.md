@@ -240,7 +240,6 @@ Note: `dock_plugins` and either `docks` or `dock_database` are required.
 | external_detection_rotation_roll        | Roll offset from detected pose for docking pose (rad)    | double |  -1.57      |
 | filter_coef        | Dock external detection method filtering algorithm coefficient   | double |  0.1      |
 | charging_threshold        | Threshold of current in battery state above which `isCharging() = true`    | double |  0.5      |
-
 | use_stall_detection        | Whether or not to use stall detection for `isDocked()` or positional threshold    | bool |  false      |
 | stall_joint_names        | Names in `joint_states` topic of joints to track   | vector<string> | N/A      |
 | stall_velocity_threshold        | The joint velocity below which to trigger `isDocked() = true`    | double |  1.0      |
