@@ -36,9 +36,9 @@ The docking procedure is as follows:
 If anywhere this procedure is unsuccessful, `N` retries may be made by driving back to the dock's staging pose and trying again. If still unsuccessful, it will return a failure code to indicate what kind of failure occurred to the client.
 
 Undocking works more simply:
-* If previously docked, use the known dock information to get the dock type. If not, use the undock action request's indicated dock type
-* Find the staging pose for this dock and back out to that pose
-* Check if successfully backed out to the pose and charging has stopped
+1. If previously docked, use the known dock information to get the dock type. If not, use the undock action request's indicated dock type
+2. Find the staging pose for this dock and back out to that pose
+3. Check if successfully backed out to the pose and charging has stopped
 
 ## Interfaces 
 
