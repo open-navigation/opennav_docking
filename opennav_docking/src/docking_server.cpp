@@ -61,7 +61,7 @@ DockingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
   get_parameter("dock_prestaging_tolerance", dock_prestaging_tolerance_);
   RCLCPP_INFO(get_logger(), "Controller frequency set to %.4fHz", controller_frequency_);
 
-  vel_publisher_ = create_publisher<geometry_msgs::msg::Twist>("cmd_vel", 1);
+  vel_publisher_ = std::make_unique<nav2_util::TwistPublisher>(node, "cmd_vel", 1);
   tf2_buffer_ = std::make_shared<tf2_ros::Buffer>(node->get_clock());
   tf2_listener_ = std::make_unique<tf2_ros::TransformListener>(*tf2_buffer_);
 
@@ -422,7 +422,7 @@ bool DockingServer::approachDock(Dock * dock, geometry_msgs::msg::PoseStamped & 
     if (!controller_->computeVelocityCommand(target_pose.pose, command, dock_backwards_)) {
       throw opennav_docking_core::FailedToControl("Failed to get control");
     }
-    vel_publisher_->publish(command);
+    vel_publisher_->publish(std::make_unique<geometry_msgs::msg::Twist>(command));
 
     if (this->now() - start > timeout) {
       throw opennav_docking_core::FailedToControl(
@@ -484,7 +484,7 @@ bool DockingServer::resetApproach(const geometry_msgs::msg::PoseStamped & stagin
     {
       return true;
     }
-    vel_publisher_->publish(command);
+    vel_publisher_->publish(std::make_unique<geometry_msgs::msg::Twist>(command));
 
     if (this->now() - start > timeout) {
       throw opennav_docking_core::FailedToControl("Timed out resetting dock approach");
@@ -605,7 +605,7 @@ void DockingServer::undockRobot()
       {
         RCLCPP_INFO(get_logger(), "Robot has reached staging pose");
         // Have reached staging_pose
-        vel_publisher_->publish(command);
+        vel_publisher_->publish(std::make_unique<geometry_msgs::msg::Twist>(command));
         if (dock->hasStoppedCharging()) {
           RCLCPP_INFO(get_logger(), "Robot has undocked!");
           result->success = true;
@@ -619,7 +619,7 @@ void DockingServer::undockRobot()
       }
 
       // Publish command and sleep
-      vel_publisher_->publish(command);
+      vel_publisher_->publish(std::make_unique<geometry_msgs::msg::Twist>(command));
       loop_rate.sleep();
     }
   } catch (const tf2::TransformException & e) {
@@ -654,7 +654,7 @@ geometry_msgs::msg::PoseStamped DockingServer::getRobotPoseInFrame(const std::st
 
 void DockingServer::publishZeroVelocity()
 {
-  vel_publisher_->publish(geometry_msgs::msg::Twist());
+  vel_publisher_->publish(std::make_unique<geometry_msgs::msg::Twist>());
 }
 
 void DockingServer::publishDockingFeedback(uint16_t state)
