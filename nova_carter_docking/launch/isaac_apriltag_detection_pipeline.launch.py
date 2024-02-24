@@ -20,13 +20,30 @@ from launch_ros.descriptions import ComposableNode
 from launch_ros.actions import Node
 
 def generate_launch_description():
+
+    rectify_node = ComposableNode(
+        name='rectify_node',
+        package='isaac_ros_image_proc',
+        plugin='nvidia::isaac_ros::image_proc::RectifyNode',
+        parameters=[{
+            'output_width': 1920,
+            'output_height': 1200,
+        }],
+        remappings=[
+            ('image_raw', '/hawk_front/left/image_raw'),
+            ('camera_info', '/hawk_front/left/camerainfo'),
+            ('image_rect', '/hawk_front/left/image_rect'),
+            ('camera_info_rect', '/hawk_front/left/camera_info_rect')
+        ]
+    )
+
     apriltag_node = ComposableNode(
         package='isaac_ros_apriltag',
         plugin='nvidia::isaac_ros::apriltag::AprilTagNode',
         name='apriltag',
         remappings=[
-            ('image', '/hawk_front/left/image_raw'),        # /owl_front/left/image_raw
-            ('camera_info', '/hawk_front/left/camerainfo')  # /owl_front/left/camerainfo
+            ('image', '/hawk_front/left/image_rect'),        # /owl_front/left/image_raw
+            ('camera_info', '/hawk_front/left/camera_info_rect')  # /owl_front/left/camerainfo
         ],
         parameters=[{'size': 0.1524,  # 6 inches
                      'max_tags': 4,
@@ -38,16 +55,17 @@ def generate_launch_description():
         namespace='',
         executable='component_container_mt',
         composable_node_descriptions=[
+            rectify_node,
             apriltag_node,
         ],
         output='screen'
     )
 
     dock_pose_publisher = Node(
-        package='nova_carter_dock',
+        package='nova_carter_docking',
         executable='dock_pose_publisher',
         name='dock_pose_publisher',
-        parameters=[{'use_first_detection': False}],
+        parameters=[{'use_first_detection': True}],
     )
 
     return launch.LaunchDescription([apriltag_container, dock_pose_publisher])
