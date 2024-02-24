@@ -20,7 +20,6 @@ uint16 UNKNOWN=999
 
 bool success True  # docking success status
 uint16 error_code 0  # Contextual error code, if any
-float32 charge_level 0  # Charge level, 0.0 - 1.0
 
 ---
 #feedback definition

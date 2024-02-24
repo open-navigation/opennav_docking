@@ -15,9 +15,9 @@
 #include <cmath>
 #include <string>
 #include <memory>
-#include "nova_carter_dock/nova_carter_dock.hpp"
+#include "nova_carter_docking/nova_carter_dock.hpp"
 
-namespace nova_carter_dock
+namespace nova_carter_docking
 {
 
 void NovaCarterChargingDock::configure(
@@ -106,7 +106,7 @@ void NovaCarterChargingDock::batteryCallback(const sensor_msgs::msg::BatteryStat
   is_charging_ = state->current > charging_threshold_;
 }
 
-}  // namespace nova_carter_dock
+}  // namespace nova_carter_docking
 
 #include "pluginlib/class_list_macros.hpp"
-PLUGINLIB_EXPORT_CLASS(nova_carter_dock::NovaCarterChargingDock, opennav_docking_core::ChargingDock)
+PLUGINLIB_EXPORT_CLASS(nova_carter_docking::NovaCarterChargingDock, opennav_docking_core::ChargingDock)

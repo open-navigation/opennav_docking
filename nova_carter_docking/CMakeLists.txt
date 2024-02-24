@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(nova_carter_dock)
+project(nova_carter_docking)
 
 find_package(ament_cmake REQUIRED)
 find_package(angles REQUIRED)

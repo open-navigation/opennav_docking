@@ -303,28 +303,28 @@ void DockingServer::dockRobot()
     RCLCPP_ERROR(get_logger(), "Transform error: %s", e.what());
     result->error_code = DockRobot::Result::UNKNOWN;
   } catch (opennav_docking_core::DockNotInDB & e) {
-    RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
+    RCLCPP_ERROR(get_logger(), "%s", e.what());
     result->error_code = DockRobot::Result::DOCK_NOT_IN_DB;
   } catch (opennav_docking_core::DockNotValid & e) {
-    RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
+    RCLCPP_ERROR(get_logger(), "%s", e.what());
     result->error_code = DockRobot::Result::DOCK_NOT_VALID;
   } catch (opennav_docking_core::FailedToStage & e) {
-    RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
+    RCLCPP_ERROR(get_logger(), "%s", e.what());
     result->error_code = DockRobot::Result::FAILED_TO_STAGE;
   } catch (opennav_docking_core::FailedToDetectDock & e) {
-    RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
+    RCLCPP_ERROR(get_logger(), "%s", e.what());
     result->error_code = DockRobot::Result::FAILED_TO_DETECT_DOCK;
   } catch (opennav_docking_core::FailedToControl & e) {
-    RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
+    RCLCPP_ERROR(get_logger(), "%s", e.what());
     result->error_code = DockRobot::Result::FAILED_TO_CONTROL;
   } catch (opennav_docking_core::FailedToCharge & e) {
-    RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
+    RCLCPP_ERROR(get_logger(), "%s", e.what());
     result->error_code = DockRobot::Result::FAILED_TO_CHARGE;
   } catch (opennav_docking_core::DockingException & e) {
-    RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
+    RCLCPP_ERROR(get_logger(), "%s", e.what());
     result->error_code = DockRobot::Result::UNKNOWN;
   } catch (std::exception & e) {
-    RCLCPP_ERROR(get_logger(), "Internal error: %s", e.what());
+    RCLCPP_ERROR(get_logger(), "%s", e.what());
     result->error_code = DockRobot::Result::UNKNOWN;
   }
 
@@ -367,6 +367,13 @@ void DockingServer::doInitialPerception(Dock * dock, geometry_msgs::msg::PoseSta
     if (this->now() - start > timeout) {
       throw opennav_docking_core::FailedToDetectDock("Failed initial dock detection");
     }
+
+    if (checkAndWarnIfCancelled(docking_action_server_, "dock_robot") ||
+      checkAndWarnIfPreempted(docking_action_server_, "dock_robot"))
+    {
+      return;
+    }
+
     loop_rate.sleep();
   }
 }
@@ -399,6 +406,15 @@ bool DockingServer::approachDock(Dock * dock, geometry_msgs::msg::PoseStamped & 
     // Transform target_pose into base_link frame
     geometry_msgs::msg::PoseStamped target_pose = dock_pose;
     target_pose.header.stamp = rclcpp::Time(0);
+
+    // The control law can get jittery when close to the end when atan2's can explode.
+    // Thus, we backward project the controller's target pose a little bit after the
+    // dock so that the robot never gets to the end of the spiral before its in contact
+    // with the dock to stop the docking procedure.
+    const double backward_projection = 0.25;
+    const double yaw = tf2::getYaw(target_pose.pose.orientation);
+    target_pose.pose.position.x += cos(yaw) * backward_projection;
+    target_pose.pose.position.y += sin(yaw) * backward_projection;
     tf2_buffer_->transform(target_pose, target_pose, base_frame_);
 
     // Compute and publish controls
@@ -610,13 +626,13 @@ void DockingServer::undockRobot()
     RCLCPP_ERROR(get_logger(), "Transform error: %s", e.what());
     result->error_code = DockRobot::Result::UNKNOWN;
   } catch (opennav_docking_core::DockNotValid & e) {
-    RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
+    RCLCPP_ERROR(get_logger(), "%s", e.what());
     result->error_code = DockRobot::Result::DOCK_NOT_VALID;
   } catch (opennav_docking_core::FailedToControl & e) {
-    RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
+    RCLCPP_ERROR(get_logger(), "%s", e.what());
     result->error_code = DockRobot::Result::FAILED_TO_CONTROL;
   } catch (opennav_docking_core::DockingException & e) {
-    RCLCPP_ERROR(get_logger(), "Invalid mode set: %s", e.what());
+    RCLCPP_ERROR(get_logger(), "%s", e.what());
     result->error_code = DockRobot::Result::UNKNOWN;
   } catch (std::exception & e) {
     RCLCPP_ERROR(get_logger(), "Internal error: %s", e.what());

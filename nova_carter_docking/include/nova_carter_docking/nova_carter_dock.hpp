@@ -11,8 +11,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 
-#ifndef NOVA_CARTER_DOCK__NOVA_CARTER_DOCK_HPP_
-#define NOVA_CARTER_DOCK__NOVA_CARTER_DOCK_HPP_
+#ifndef NOVA_CARTER_DOCKING__NOVA_CARTER_DOCK_HPP_
+#define NOVA_CARTER_DOCKING__NOVA_CARTER_DOCK_HPP_
 
 #include <cmath>
 #include <string>
@@ -23,7 +23,7 @@
 #include "tf2/utils.h"
 #include "opennav_docking_core/charging_dock.hpp"
 
-namespace nova_carter_dock
+namespace nova_carter_docking
 {
 
 class NovaCarterChargingDock : public opennav_docking_core::ChargingDock
@@ -111,6 +111,6 @@ private:
 
   std::shared_ptr<tf2_ros::Buffer> tf2_buffer_;
 };
-}  // namespace nova_carter_dock
+}  // namespace nova_carter_docking
 
-#endif  // NOVA_CARTER_DOCK__NOVA_CARTER_DOCK_HPP_
+#endif  // NOVA_CARTER_DOCKING__NOVA_CARTER_DOCK_HPP_

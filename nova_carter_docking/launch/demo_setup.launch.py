@@ -30,17 +30,21 @@ def generate_launch_description():
     carter_navigation_launch_dir = os.path.join(
         get_package_share_directory('carter_navigation'), 'launch')
     nova_carter_dock_launch_dir = os.path.join(
-        get_package_share_directory('nova_carter_dock'), 'launch')
+        get_package_share_directory('nova_carter_docking'), 'launch')
     nova_carter_dock_params_dir = os.path.join(
-        get_package_share_directory('nova_carter_dock'), 'params')
+        get_package_share_directory('nova_carter_docking'), 'params')
 
-    params_file = default_value=os.path.join(nova_carter_dock_params_dir, 'nova_carter_dock.yaml')
+    params_file = default_value=os.path.join(nova_carter_dock_params_dir, 'nova_carter_docking.yaml')
 
     robot_base_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(os.path.join(
             carter_navigation_launch_dir, 'teleop.launch.py')),
         launch_arguments={
-            'launch_hawks': 'True',
+            'launch_hawks': 'True',      # stereo
+            'launch_owls': 'False',      # fisheye
+            'launch_rplidars': 'False',  # 2D
+            'launch_hesai': 'False',     # 3D
+            'launch_segway': 'True'      # base
         }.items(),
     )
 
@@ -57,8 +61,17 @@ def generate_launch_description():
         parameters=[params_file],
     )
 
+    lifecycle_manager = Node(
+        package='nav2_lifecycle_manager',
+        executable='lifecycle_manager',
+        name='lifecycle_manager_docking',
+        output='screen',
+        parameters=[{'autostart': True}, {'node_names': ['docking_server']}],
+    )
+
     return LaunchDescription([
         robot_base_launch,
         dock_detection_launch,
-        docking_server
+        docking_server,
+        lifecycle_manager
     ])
