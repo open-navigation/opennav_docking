@@ -38,7 +38,6 @@ void UndockRobotAction::on_tick()
 BT::NodeStatus UndockRobotAction::on_success()
 {
   setOutput("success", result_.result->success);
-  setOutput("charge_level", result_.result->charge_level);
   setOutput("error_code_id", ActionResult::NONE);
   return BT::NodeStatus::SUCCESS;
 }
@@ -46,7 +45,6 @@ BT::NodeStatus UndockRobotAction::on_success()
 BT::NodeStatus UndockRobotAction::on_aborted()
 {
   setOutput("success", result_.result->success);
-  setOutput("charge_level", result_.result->charge_level);
   setOutput("error_code_id", result_.result->error_code);
   return BT::NodeStatus::FAILURE;
 }

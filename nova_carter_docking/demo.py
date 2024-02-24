@@ -121,6 +121,9 @@ class DockingTester(Node):
     def _feedbackCallback(self, msg):
         self.feedback = msg.feedback
         return
+    
+    def cancelAction(self):
+        self.goal_handle.cancel_goal()
 
     def getFeedback(self):
         """Get the pending action feedback message."""
@@ -164,58 +167,63 @@ def main():
     tester = DockingTester()
     tester.startup()
 
-    time.sleep(1)
-
-    # Some example dock 40 cm in front of itself.
-    # The same as the staging distance to dock in mid-air
-    dock_pose = PoseStamped()
-    dock_pose.header.stamp = tester.get_clock().now().to_msg()
-    dock_pose.header.frame_id = "base_link"
-    dock_pose.pose.position.x = 0.6
-    dock_pose.pose.position.y = 0.0
-    tester.dockRobot(dock_pose)
-
-    i = 0
-    while not tester.isTaskComplete():
-        i = i + 1
-        if i % 5 == 0:
-            print('Docking in progress...')
+    while True:
         time.sleep(1)
 
-    # Do something depending on the return code
-    result = tester.getResult()
-    if result == TaskResult.SUCCEEDED:
-        print('Docking succeeded!')
-    elif result == TaskResult.CANCELED:
-        print('Docking canceled!')
-    elif result == TaskResult.FAILED:
-        print('Docking failed!')
-    else:
-        print('Docking has an invalid return status!')
+        # Some example dock 40 cm in front of itself.
+        # The same as the staging distance to dock in mid-air
+        dock_pose = PoseStamped()
+        dock_pose.header.stamp = tester.get_clock().now().to_msg()
+        dock_pose.header.frame_id = "base_link"
+        dock_pose.pose.position.x = 0.7
+        dock_pose.pose.position.y = 0.0
+        tester.dockRobot(dock_pose)
 
-    time.sleep(3)
+        # Test cancel action
+        # time.sleep(0.5)
+        # tester.cancelAction()
 
-    # Undock from this dock
-    dock_type = "nova_carter_dock"
-    tester.undockRobot(dock_type)
+        i = 0
+        while not tester.isTaskComplete():
+            i = i + 1
+            if i % 5 == 0:
+                print('Docking in progress...')
+            time.sleep(1)
 
-    i = 0
-    while not tester.isTaskComplete():
-        i = i + 1
-        if i % 5 == 0:
-            print('Undocking in progress...')
-        time.sleep(1)
+        # Do something depending on the return code
+        result = tester.getResult()
+        if result == TaskResult.SUCCEEDED:
+            print('Docking succeeded!')
+        elif result == TaskResult.CANCELED:
+            print('Docking canceled!')
+        elif result == TaskResult.FAILED:
+            print('Docking failed!')
+        else:
+            print('Docking has an invalid return status!')
 
-    # Do something depending on the return code
-    result = tester.getResult()
-    if result == TaskResult.SUCCEEDED:
-        print('Undock succeeded!')
-    elif result == TaskResult.CANCELED:
-        print('Undock canceled!')
-    elif result == TaskResult.FAILED:
-        print('Undock failed!')
-    else:
-        print('Undock has an invalid return status!')
+        time.sleep(3)
+
+        # Undock from this dock
+        dock_type = "nova_carter_dock"
+        tester.undockRobot(dock_type)
+
+        i = 0
+        while not tester.isTaskComplete():
+            i = i + 1
+            if i % 5 == 0:
+                print('Undocking in progress...')
+            time.sleep(1)
+
+        # Do something depending on the return code
+        result = tester.getResult()
+        if result == TaskResult.SUCCEEDED:
+            print('Undock succeeded!')
+        elif result == TaskResult.CANCELED:
+            print('Undock canceled!')
+        elif result == TaskResult.FAILED:
+            print('Undock failed!')
+        else:
+            print('Undock has an invalid return status!')
 
 
 if __name__ == '__main__':

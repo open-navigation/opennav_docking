@@ -90,8 +90,6 @@ public:
           "success", "If the action was successful"),
         BT::OutputPort<ActionResult::_error_code_type>(
           "error_code", "Error code"),
-        BT::OutputPort<ActionResult::_charge_level_type>(
-          "charge_level", "Charge level of robot, from 0.0-1.0"),
       });
   }
 };

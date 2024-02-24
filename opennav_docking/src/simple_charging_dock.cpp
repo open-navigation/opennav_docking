@@ -181,7 +181,7 @@ bool SimpleChargingDock::getRefinedPose(geometry_msgs::msg::PoseStamped & pose)
   // Validate that external pose is new enough
   auto timeout = rclcpp::Duration::from_seconds(external_detection_timeout_);
   if (node_->now() - detected.header.stamp > timeout) {
-    RCLCPP_WARN(node_->get_logger(), "Lost detection: timeout exceeded");
+    RCLCPP_WARN(node_->get_logger(), "Lost detection or did not detect: timeout exceeded");
     return false;
   }
 
