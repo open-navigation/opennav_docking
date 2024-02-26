@@ -29,12 +29,12 @@ DockingServer::DockingServer(const rclcpp::NodeOptions & options)
 {
   RCLCPP_INFO(get_logger(), "Creating %s", get_name());
 
-  declare_parameter("controller_frequency", 20.0);
+  declare_parameter("controller_frequency", 50.0);
   declare_parameter("initial_perception_timeout", 5.0);
   declare_parameter("wait_charge_timeout", 5.0);
   declare_parameter("dock_approach_timeout", 30.0);
-  declare_parameter("undock_linear_tolerance", 0.1);
-  declare_parameter("undock_angular_tolerance", 0.1);
+  declare_parameter("undock_linear_tolerance", 0.05);
+  declare_parameter("undock_angular_tolerance", 0.05);
   declare_parameter("max_retries", 3);
   declare_parameter("base_frame", "base_link");
   declare_parameter("fixed_frame", "odom");
