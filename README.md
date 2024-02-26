@@ -12,7 +12,11 @@ This is split into 4 packages
 - `opennav_docking_bt`: Contains behavior tree nodes and example XML files using the docking task server
 - `nova_carter_docking`: Contains an implementation using the Docking system with the Nvidia [Nova Carter](https://robotics.segway.com/nova-carter/) Robot platform and dock.
 
-TODO video in action / nv & on graphic
+![NvidiaxOpenNavigation](./docs/nv_on.png)
+
+[![IMAGE ALT TEXT](./docs/demo.gif)](https://youtu.be/J3ygkehttlg)
+
+Click on the image above to see an extended video of docking in action.
 
 ## Architecture
 
@@ -179,12 +183,12 @@ For debugging purposes, there are several publishers which can be used with RVIZ
 
 | Parameter                    | Description                                             | Type   | Default   |
 |------------------------------|---------------------------------------------------------|--------|-----------|
-| controller_frequency         | Control frequency (Hz) for vision-control loop          | double | 20.0      |
+| controller_frequency         | Control frequency (Hz) for vision-control loop          | double | 50.0      |
 | initial_perception_timeout   | Timeout (s) to wait to obtain intial perception of the dock | double | 5.0   |
 | wait_charge_timeout          | Timeout (s) to wait to see if charging starts after docking  | double | 5.0  |
 | dock_approach_timeout        | timeout (s) to attempt vision-control approach loop    | double |  30.0      |
-| undock_linear_tolerance      | Tolerance (m) to exit the undocking control loop at staging pose    | double |  0.1      |
-| undock_angular_tolerance     | Angular Tolerance (rad) to exist undocking loop at staging pose    | double |  0.1      |
+| undock_linear_tolerance      | Tolerance (m) to exit the undocking control loop at staging pose    | double |  0.05      |
+| undock_angular_tolerance     | Angular Tolerance (rad) to exist undocking loop at staging pose    | double |  0.05      |
 | max_retries        | Maximum number of retries to attempt    | int |  3      |
 | base_frame        | Robot's base frame for control law   | string |  "base_link"      |
 | fixed_frame        | Fixed frame to use, recommended to be a smooth odometry frame **not** map   | string |  "map"      |
@@ -194,8 +198,8 @@ For debugging purposes, there are several publishers which can be used with RVIZ
 | dock_database  |  The filepath to the dock database to use for this environment | string |  N/A  |
 | docks  |  Instead of `dock_database`, the set of docks specified in the params file itself | vector<string> | N/A     |
 | navigator_bt_xml  | BT XML to use for Navigator, if non-default | string | ""     |
-| controller.k_phi  | TODO | double | 2.0  |
-| controller.k_delta  |  TODO | double | 1.0     |
+| controller.k_phi  | TODO | double | 3.0  |
+| controller.k_delta  |  TODO | double | 2.0     |
 | controller.beta  |  TODO | double | 0.4  |
 | controller.lambda  |  TODO | double | 2.0     |
 | controller.v_linear_min  |  TODO | double | 0.1     |
@@ -210,8 +214,8 @@ Note: `dock_plugins` and either `docks` or `dock_database` are required.
 |------------------------------|---------------------------------------------------------|--------|-----------|
 | use_battery_status         | Whether to use the battery state message or `isDocked()` for `isCharging()` | bool | true      |
 | use_external_detection_pose   | Whether to use external detection topic for dock or use the databases' pose | bool | false  |
-| external_detection_timeout          | Timeout at which if the newest detection update does not meet to fail  | double | 0.5  |
-| external_detection_translation_x        | X offset from detected pose for docking pose (m)    | double |  0.0      |
+| external_detection_timeout          | Timeout at which if the newest detection update does not meet to fail  | double | 1.0  |
+| external_detection_translation_x        | X offset from detected pose for docking pose (m)    | double |  -0.20      |
 | external_detection_translation_y        | Y offset from detected pose for docking pose (m)    | double |  0.0      |
 | external_detection_rotation_yaw        | Yaw offset from detected pose for docking pose (rad)    | double |  0.0      |
 | external_detection_rotation_pitch        | Pitch offset from detected pose for docking pose (rad)    | double |  1.57      |
@@ -222,8 +226,8 @@ Note: `dock_plugins` and either `docks` or `dock_database` are required.
 | stall_joint_names        | Names in `joint_states` topic of joints to track   | vector<string> | N/A      |
 | stall_velocity_threshold        | The joint velocity below which to trigger `isDocked() = true`    | double |  1.0      |
 | stall_effort_threshold        | Current or motor effort in joint state to trigger `isDocked() = true`    | double |  1.0      |
-| docking_threshold        | If not using stall detection, the pose threshold to the docking pose where `isDocked() = true`    | double |  0.02     |
-| staging_x_offset        | Staging pose offset forward (negative) of dock pose (m)    | double |  -0.5    |
+| docking_threshold        | If not using stall detection, the pose threshold to the docking pose where `isDocked() = true`    | double |  0.05     |
+| staging_x_offset        | Staging pose offset forward (negative) of dock pose (m)    | double |  -0.7    |
 | staging_yaw_offset        | Staging pose angle relative to dock pose (rad)    | double |  0.0    |
 
 Note: The external detection rotation angles are setup to work out of the box with Apriltags detectors in `image_proc` and `isaac_ros`.
