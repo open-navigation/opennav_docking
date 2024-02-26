@@ -24,9 +24,9 @@ namespace opennav_docking
 Controller::Controller(const rclcpp_lifecycle::LifecycleNode::SharedPtr & node)
 {
   nav2_util::declare_parameter_if_not_declared(
-    node, "controller.k_phi", rclcpp::ParameterValue(2.0));
+    node, "controller.k_phi", rclcpp::ParameterValue(3.0));
   nav2_util::declare_parameter_if_not_declared(
-    node, "controller.k_delta", rclcpp::ParameterValue(1.0));
+    node, "controller.k_delta", rclcpp::ParameterValue(2.0));
   nav2_util::declare_parameter_if_not_declared(
     node, "controller.beta", rclcpp::ParameterValue(0.4));
   nav2_util::declare_parameter_if_not_declared(

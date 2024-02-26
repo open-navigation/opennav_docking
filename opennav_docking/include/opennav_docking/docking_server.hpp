@@ -23,6 +23,7 @@
 #include "nav2_util/lifecycle_node.hpp"
 #include "nav2_util/node_utils.hpp"
 #include "nav2_util/simple_action_server.hpp"
+#include "nav2_util/twist_publisher.hpp"
 #include "opennav_docking/controller.hpp"
 #include "opennav_docking/utils.hpp"
 #include "opennav_docking/types.hpp"
@@ -243,8 +244,7 @@ protected:
   // This is a class member so it can be accessed in publish feedback
   rclcpp::Time action_start_time_;
 
-  rclcpp_lifecycle::LifecyclePublisher<geometry_msgs::msg::Twist>::SharedPtr vel_publisher_;
-
+  std::unique_ptr<nav2_util::TwistPublisher> vel_publisher_;
   std::unique_ptr<DockingActionServer> docking_action_server_;
   std::unique_ptr<UndockingActionServer> undocking_action_server_;
 

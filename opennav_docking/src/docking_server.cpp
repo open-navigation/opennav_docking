@@ -29,12 +29,12 @@ DockingServer::DockingServer(const rclcpp::NodeOptions & options)
 {
   RCLCPP_INFO(get_logger(), "Creating %s", get_name());
 
-  declare_parameter("controller_frequency", 20.0);
+  declare_parameter("controller_frequency", 50.0);
   declare_parameter("initial_perception_timeout", 5.0);
   declare_parameter("wait_charge_timeout", 5.0);
   declare_parameter("dock_approach_timeout", 30.0);
-  declare_parameter("undock_linear_tolerance", 0.1);
-  declare_parameter("undock_angular_tolerance", 0.1);
+  declare_parameter("undock_linear_tolerance", 0.05);
+  declare_parameter("undock_angular_tolerance", 0.05);
   declare_parameter("max_retries", 3);
   declare_parameter("base_frame", "base_link");
   declare_parameter("fixed_frame", "odom");
@@ -61,7 +61,7 @@ DockingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
   get_parameter("dock_prestaging_tolerance", dock_prestaging_tolerance_);
   RCLCPP_INFO(get_logger(), "Controller frequency set to %.4fHz", controller_frequency_);
 
-  vel_publisher_ = create_publisher<geometry_msgs::msg::Twist>("cmd_vel", 1);
+  vel_publisher_ = std::make_unique<nav2_util::TwistPublisher>(node, "cmd_vel", 1);
   tf2_buffer_ = std::make_shared<tf2_ros::Buffer>(node->get_clock());
   tf2_listener_ = std::make_unique<tf2_ros::TransformListener>(*tf2_buffer_);
 
@@ -418,11 +418,12 @@ bool DockingServer::approachDock(Dock * dock, geometry_msgs::msg::PoseStamped & 
     tf2_buffer_->transform(target_pose, target_pose, base_frame_);
 
     // Compute and publish controls
-    geometry_msgs::msg::Twist command;
-    if (!controller_->computeVelocityCommand(target_pose.pose, command, dock_backwards_)) {
+    auto command = std::make_unique<geometry_msgs::msg::TwistStamped>();
+    command->header.stamp = now();
+    if (!controller_->computeVelocityCommand(target_pose.pose, command->twist, dock_backwards_)) {
       throw opennav_docking_core::FailedToControl("Failed to get control");
     }
-    vel_publisher_->publish(command);
+    vel_publisher_->publish(std::move(command));
 
     if (this->now() - start > timeout) {
       throw opennav_docking_core::FailedToControl(
@@ -477,14 +478,15 @@ bool DockingServer::resetApproach(const geometry_msgs::msg::PoseStamped & stagin
     }
 
     // Compute and publish command
-    geometry_msgs::msg::Twist command;
+    auto command = std::make_unique<geometry_msgs::msg::TwistStamped>();
+    command->header.stamp = now();
     if (getCommandToPose(
-        command, staging_pose, undock_linear_tolerance_, undock_angular_tolerance_,
+        command->twist, staging_pose, undock_linear_tolerance_, undock_angular_tolerance_,
         !dock_backwards_))
     {
       return true;
     }
-    vel_publisher_->publish(command);
+    vel_publisher_->publish(std::move(command));
 
     if (this->now() - start > timeout) {
       throw opennav_docking_core::FailedToControl("Timed out resetting dock approach");
@@ -598,14 +600,15 @@ void DockingServer::undockRobot()
       }
 
       // Get command to approach staging pose
-      geometry_msgs::msg::Twist command;
+      auto command = std::make_unique<geometry_msgs::msg::TwistStamped>();
+      command->header.stamp = now();
       if (getCommandToPose(
-          command, staging_pose, undock_linear_tolerance_, undock_angular_tolerance_,
+          command->twist, staging_pose, undock_linear_tolerance_, undock_angular_tolerance_,
           !dock_backwards_))
       {
         RCLCPP_INFO(get_logger(), "Robot has reached staging pose");
         // Have reached staging_pose
-        vel_publisher_->publish(command);
+        vel_publisher_->publish(std::move(command));
         if (dock->hasStoppedCharging()) {
           RCLCPP_INFO(get_logger(), "Robot has undocked!");
           result->success = true;
@@ -619,7 +622,7 @@ void DockingServer::undockRobot()
       }
 
       // Publish command and sleep
-      vel_publisher_->publish(command);
+      vel_publisher_->publish(std::move(command));
       loop_rate.sleep();
     }
   } catch (const tf2::TransformException & e) {
@@ -654,7 +657,9 @@ geometry_msgs::msg::PoseStamped DockingServer::getRobotPoseInFrame(const std::st
 
 void DockingServer::publishZeroVelocity()
 {
-  vel_publisher_->publish(geometry_msgs::msg::Twist());
+  auto cmd_vel = std::make_unique<geometry_msgs::msg::TwistStamped>();
+  cmd_vel->header.stamp = now();
+  vel_publisher_->publish(std::move(cmd_vel));
 }
 
 void DockingServer::publishDockingFeedback(uint16_t state)

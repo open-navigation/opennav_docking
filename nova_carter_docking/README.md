@@ -1,8 +1,8 @@
 ## Nova Carter Docking
 
-This package contains a dock plugin, utility nodes, params, and demo launch files for working with the nova carter robot for auto-docking. It can be seen as a demonstration of using the Docking Server with detection and a custom dock.
+This package contains utility nodes, params, and launch files for working with the nova carter robot for auto-docking using `opennav_docking`. It can be seen as a demonstration of using the Docking Server with detection and a custom dock.
 
-The dock plugin is used by the framework to transact with the dock to get its pose, charging state information, and contact status. 
+The dock plugin is used by the framework to transact with the dock to get its pose, charging state information, and contact status. For this robot, we can use a certain configuration of the options in the simple charging dock plugin.
 The `dock_pose_publisher` takes in the output of Isaac ROS' GPU optimized apriltags detector and republishes out a `PoseStamped` of the particular docking tag pose of interest.
 The launch files provided launch the robot's basic hardware and sensors, the `isaac_ros_apriltags` server, the `dock_pose_publisher` node, and the pre-configued Docking Server.
 
