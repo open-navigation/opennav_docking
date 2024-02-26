@@ -40,9 +40,9 @@ void SimpleChargingDock::configure(
   nav2_util::declare_parameter_if_not_declared(
     node_, name + ".use_external_detection_pose", rclcpp::ParameterValue(false));
   nav2_util::declare_parameter_if_not_declared(
-    node_, name + ".external_detection_timeout", rclcpp::ParameterValue(0.5));
+    node_, name + ".external_detection_timeout", rclcpp::ParameterValue(1.0));
   nav2_util::declare_parameter_if_not_declared(
-    node_, name + ".external_detection_translation_x", rclcpp::ParameterValue(0.0));
+    node_, name + ".external_detection_translation_x", rclcpp::ParameterValue(-0.20));
   nav2_util::declare_parameter_if_not_declared(
     node_, name + ".external_detection_translation_y", rclcpp::ParameterValue(0.0));
   nav2_util::declare_parameter_if_not_declared(
@@ -70,11 +70,11 @@ void SimpleChargingDock::configure(
 
   // If not using stall detection, this is how close robot should get to pose
   nav2_util::declare_parameter_if_not_declared(
-    node_, name + ".docking_threshold", rclcpp::ParameterValue(0.02));
+    node_, name + ".docking_threshold", rclcpp::ParameterValue(0.05));
 
   // Staging pose configuration
   nav2_util::declare_parameter_if_not_declared(
-    node_, name + ".staging_x_offset", rclcpp::ParameterValue(-0.5));
+    node_, name + ".staging_x_offset", rclcpp::ParameterValue(-0.7));
   nav2_util::declare_parameter_if_not_declared(
     node_, name + ".staging_yaw_offset", rclcpp::ParameterValue(0.0));
 
