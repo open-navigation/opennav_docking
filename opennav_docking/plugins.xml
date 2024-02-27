@@ -4,4 +4,10 @@
       <description>A simple charging dock plugin.</description>
     </class>
   </library>
+  <library path="test_dock">
+      <class type="opennav_docking::TestFailureDock"
+            base_class_type="opennav_docking_core::ChargingDock">
+          <description>Test dock plugin for failures in unit testing.</description>
+      </class>
+  </library>
 </class_libraries>
