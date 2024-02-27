@@ -90,6 +90,8 @@ public:
         BT::InputPort<std::string>("dock_type", "The dock plugin type, if using dock pose"),
         BT::InputPort<float>(
           "max_staging_time", 1000.0, "Maximum time to navigate to the staging pose"),
+        BT::InputPort<bool>(
+          "navigate_to_staging_pose", true, "Whether to autonomously navigate to staging pose"),
 
         BT::OutputPort<ActionResult::_success_type>(
           "success", "If the action was successful"),

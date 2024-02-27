@@ -43,7 +43,6 @@ protected:
     auto result =
       std::make_shared<opennav_docking_msgs::action::UndockRobot::Result>();
     result->success = true;
-    result->charge_level = 0.5;
     goal_handle->succeed(result);
   }
 };
@@ -123,7 +122,7 @@ TEST_F(UndockRobotActionTestFixture, test_tick)
     R"(
       <root main_tree_to_execute = "MainTree" >
         <BehaviorTree ID="MainTree">
-            <UndockRobot dock_type="dock1" charge_level="{my_level}"/>
+            <UndockRobot dock_type="dock1"/>
         </BehaviorTree>
       </root>)";
 
@@ -136,11 +135,6 @@ TEST_F(UndockRobotActionTestFixture, test_tick)
 
   // the goal should have reached our server
   EXPECT_EQ(tree_->rootNode()->status(), BT::NodeStatus::SUCCESS);
-
-  // check if returned charge level is correct
-  float charge_lvl = 0.0f;
-  config_->blackboard->get<float>("my_level", charge_lvl);
-  EXPECT_NEAR(charge_lvl, 0.5, 1e-4);
 
   // halt node so another goal can be sent
   tree_->rootNode()->halt();
