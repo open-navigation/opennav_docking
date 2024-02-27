@@ -22,7 +22,7 @@
             <inverter>
               <IsBatteryCharging/>
             </inverter>
-            <UndockRobot dock_type="{dock_type}">
+            <UndockRobot dock_type="{dock_type}"/>
           </ReactiveFallback>
           <!-- Token Application -->
           <NavigateToPose goal="{picking_location}"/>

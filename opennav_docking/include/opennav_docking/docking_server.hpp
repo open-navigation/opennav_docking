@@ -121,7 +121,7 @@ public:
    * @param frame The frame_id to get the robot pose in.
    * @returns Computed robot pose, throws TF2 error if failure.
    */
-  geometry_msgs::msg::PoseStamped getRobotPoseInFrame(const std::string & frame);
+  virtual geometry_msgs::msg::PoseStamped getRobotPoseInFrame(const std::string & frame);
 
   /**
    * @brief Gets a preempted goal if immediately requested
