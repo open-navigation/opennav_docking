@@ -12,15 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <chrono>
 #include "gtest/gtest.h"
 #include "rclcpp/rclcpp.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "geometry_msgs/msg/twist.hpp"
 #include "sensor_msgs/msg/battery_state.hpp"
 #include "opennav_docking/docking_server.hpp"
-#include "ament_index_cpp/get_package_share_directory.hpp"
+#include "nav2_util/node_thread.hpp"
 
 // Testing unit functions in docking server, smoke/system tests in python file
+
+using namespace std::chrono_literals;  // NOLINT
 
 class RosLockGuard
 {
@@ -33,6 +36,19 @@ RosLockGuard g_rclcpp;
 namespace opennav_docking
 {
 
+class DockingServerShim : public DockingServer
+{
+public:
+  DockingServerShim()
+  : DockingServer() {}
+
+  // Bypass TF
+  virtual geometry_msgs::msg::PoseStamped getRobotPoseInFrame(const std::string &)
+  {
+    return geometry_msgs::msg::PoseStamped();
+  }
+};
+
 TEST(DockingServerTests, ObjectLifecycle)
 {
   auto node = std::make_shared<opennav_docking::DockingServer>();
@@ -44,11 +60,131 @@ TEST(DockingServerTests, ObjectLifecycle)
   node.reset();
 }
 
+TEST(DockingServerTests, testErrorExceptions)
+{
+  auto node = std::make_shared<DockingServerShim>();
+  auto node_thread = nav2_util::NodeThread(node);
+  auto node2 = std::make_shared<rclcpp::Node>("client_node");
+
+  // Setup 1 instance of the test failure dock & its plugin instance
+  node->declare_parameter(
+    "docks",
+    rclcpp::ParameterValue(std::vector<std::string>{"test_dock"}));
+  node->declare_parameter(
+    "test_dock.type",
+    rclcpp::ParameterValue(std::string{"dock_plugin"}));
+  node->declare_parameter(
+    "test_dock.pose",
+    rclcpp::ParameterValue(std::vector<double>{0.0, 0.0, 0.0}));
+  node->declare_parameter(
+    "dock_plugins",
+    rclcpp::ParameterValue(std::vector<std::string>{"dock_plugin"}));
+  node->declare_parameter(
+    "dock_plugin.plugin",
+    rclcpp::ParameterValue(std::string{"opennav_docking::TestFailureDock"}));
+
+  node->on_configure(rclcpp_lifecycle::State());
+  node->on_activate(rclcpp_lifecycle::State());
+
+  node->declare_parameter(
+    "exception_to_throw",
+    rclcpp::ParameterValue(""));
+
+  // Error codes docking
+  std::vector<std::string> error_ids{
+    "TransformException", "DockNotInDB", "DockNotValid",
+    "FailedToStage", "FailedToDetectDock", "FailedToControl", "FailedToCharge",
+    "DockingException", "exception"};
+  std::vector<int> error_codes{999, 901, 902, 903, 904, 905, 906, 999, 999};
+
+  // Call action, check error code
+  for (unsigned int i = 0; i != error_ids.size(); i++) {
+    node->set_parameter(
+      rclcpp::Parameter(
+        "exception_to_throw",
+        rclcpp::ParameterValue(error_ids[i])));
+
+    auto client = rclcpp_action::create_client<DockRobot>(node2, "dock_robot");
+    if (!client->wait_for_action_server(1s)) {
+      RCLCPP_ERROR(node2->get_logger(), "Action server not available after waiting");
+    }
+    auto goal_msg = DockRobot::Goal();
+    goal_msg.dock_id = "test_dock";
+    goal_msg.navigate_to_staging_pose = false;
+    auto future_goal_handle = client->async_send_goal(goal_msg);
+
+    if (rclcpp::spin_until_future_complete(
+        node2, future_goal_handle, 2s) == rclcpp::FutureReturnCode::SUCCESS)
+    {
+      auto future_result = client->async_get_result(future_goal_handle.get());
+      if (rclcpp::spin_until_future_complete(
+          node2, future_result, 5s) == rclcpp::FutureReturnCode::SUCCESS)
+      {
+        auto result = future_result.get();
+        EXPECT_EQ(result.result->error_code, error_codes[i]);
+      } else {
+        EXPECT_TRUE(false);
+      }
+    } else {
+      EXPECT_TRUE(false);
+    }
+  }
+
+  // Now for undocking
+  std::vector<std::string> error_ids_undocking{
+    "TransformException", "DockNotValid", "FailedToControl",
+    "DockingException", "exception"};
+  std::vector<int> error_codes_undocking{999, 902, 905, 999, 999};
+
+  // Call action, check error code
+  for (unsigned int i = 0; i != error_ids_undocking.size(); i++) {
+    node->set_parameter(
+      rclcpp::Parameter(
+        "exception_to_throw",
+        rclcpp::ParameterValue(error_ids_undocking[i])));
+
+    auto client = rclcpp_action::create_client<UndockRobot>(node2, "undock_robot");
+    if (!client->wait_for_action_server(1s)) {
+      RCLCPP_ERROR(node2->get_logger(), "Action server not available after waiting");
+    }
+    auto goal_msg = UndockRobot::Goal();
+    goal_msg.dock_type = "dock_plugin";
+    auto future_goal_handle = client->async_send_goal(goal_msg);
+
+    if (rclcpp::spin_until_future_complete(
+        node2, future_goal_handle, 2s) == rclcpp::FutureReturnCode::SUCCESS)
+    {
+      auto future_result = client->async_get_result(future_goal_handle.get());
+      if (rclcpp::spin_until_future_complete(
+          node2, future_result, 5s) == rclcpp::FutureReturnCode::SUCCESS)
+      {
+        auto result = future_result.get();
+        EXPECT_EQ(result.result->error_code, error_codes_undocking[i]);
+      } else {
+        EXPECT_TRUE(false);
+      }
+    } else {
+      EXPECT_TRUE(false);
+    }
+  }
+}
+
+TEST(DockingServerTests, getateGoalDock)
+{
+  auto node = std::make_shared<opennav_docking::DockingServer>();
+  node->on_configure(rclcpp_lifecycle::State());
+  std::shared_ptr<const DockRobot::Goal> goal = std::make_shared<const DockRobot::Goal>();
+  auto dock = node->generateGoalDock(goal);
+  EXPECT_EQ(dock->plugin, nullptr);
+  EXPECT_EQ(dock->frame, std::string());
+  node->stashDockData(false, dock, true);
+}
+
 TEST(DockingServerTests, testDynamicParams)
 {
   auto node = std::make_shared<opennav_docking::DockingServer>();
-  node->configure();
-  node->activate();
+  node->on_configure(rclcpp_lifecycle::State());
+  node->on_activate(rclcpp_lifecycle::State());
 
   auto rec_param = std::make_shared<rclcpp::AsyncParametersClient>(
     node->get_node_base_interface(), node->get_node_topics_interface(),
