@@ -141,6 +141,32 @@ TEST_F(DockRobotActionTestFixture, test_tick)
   EXPECT_EQ(tree_->rootNode()->status(), BT::NodeStatus::IDLE);
 }
 
+TEST_F(DockRobotActionTestFixture, test_tick2)
+{
+  // create tree
+  std::string xml_txt =
+    R"(
+      <root main_tree_to_execute = "MainTree" >
+        <BehaviorTree ID="MainTree">
+            <DockRobot use_dock_id="false" dock_type="dock1"/>
+        </BehaviorTree>
+      </root>)";
+
+  tree_ = std::make_shared<BT::Tree>(factory_->createTreeFromText(xml_txt, config_->blackboard));
+
+  // tick until node succeeds
+  while (tree_->rootNode()->status() != BT::NodeStatus::SUCCESS) {
+    tree_->rootNode()->executeTick();
+  }
+
+  // the goal should have reached our server
+  EXPECT_EQ(tree_->rootNode()->status(), BT::NodeStatus::SUCCESS);
+
+  // halt node so another goal can be sent
+  tree_->rootNode()->halt();
+  EXPECT_EQ(tree_->rootNode()->status(), BT::NodeStatus::IDLE);
+}
+
 int main(int argc, char ** argv)
 {
   ::testing::InitGoogleTest(&argc, argv);

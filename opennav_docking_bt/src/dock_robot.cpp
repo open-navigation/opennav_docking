@@ -38,6 +38,7 @@ void DockRobotAction::on_tick()
     getInput("dock_type", goal_.dock_type);
     getInput("max_staging_time", goal_.max_staging_time);
   }
+  getInput("navigate_to_staging_pose", goal_.navigate_to_staging_pose);
 }
 
 BT::NodeStatus DockRobotAction::on_success()

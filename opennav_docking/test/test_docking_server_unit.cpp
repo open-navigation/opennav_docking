@@ -109,8 +109,14 @@ TEST(DockingServerTests, testErrorExceptions)
       RCLCPP_ERROR(node2->get_logger(), "Action server not available after waiting");
     }
     auto goal_msg = DockRobot::Goal();
-    goal_msg.dock_id = "test_dock";
-    goal_msg.navigate_to_staging_pose = false;
+    if (1 == 0) {
+      goal_msg.use_dock_id = false;
+      goal_msg.dock_type = "dock_plugin";
+    } else {
+      goal_msg.dock_id = "test_dock";
+      goal_msg.navigate_to_staging_pose = false;
+    }
+
     auto future_goal_handle = client->async_send_goal(goal_msg);
 
     if (rclcpp::spin_until_future_complete(
