@@ -191,7 +191,7 @@ For debugging purposes, there are several publishers which can be used with RVIZ
 | undock_angular_tolerance     | Angular Tolerance (rad) to exist undocking loop at staging pose    | double |  0.05      |
 | max_retries        | Maximum number of retries to attempt    | int |  3      |
 | base_frame        | Robot's base frame for control law   | string |  "base_link"      |
-| fixed_frame        | Fixed frame to use, recommended to be a smooth odometry frame **not** map   | string |  "map"      |
+| fixed_frame        | Fixed frame to use, recommended to be a smooth odometry frame **not** map   | string |  "odom"      |
 | dock_backwards        | Whether the robot is docking with the dock forward or backward in motion | bool |  false      |
 | dock_prestaging_tolerance  |  L2 distance in X,Y,Theta from the staging pose to bypass navigation | double |  0.5      |
 | dock_plugins  | A set of dock plugins to load | vector<string> |  N/A      |
