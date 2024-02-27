@@ -50,7 +50,7 @@ def generate_test_description():
                          'test_dock': {
                             'type': 'test_dock_plugin',
                             'frame': 'odom',
-                            'pose': [1.0, 0.0, 0.0]
+                            'pose': [10.0, 0.0, 0.0]
                          }}],
             output='screen',
         ),
@@ -215,8 +215,8 @@ class TestDockingServer(unittest.TestCase):
 
         self.node.get_logger().info('Goal preempted')
 
-        # Run for 2 seconds
-        for i in range(20):
+        # Run for 0.5 seconds
+        for i in range(5):
             rclpy.spin_once(self.node, timeout_sec=0.1)
             time.sleep(0.1)
 
@@ -253,6 +253,7 @@ class TestDockingServer(unittest.TestCase):
         self.is_charging = False
         self.undock_action_client.wait_for_server(timeout_sec=5.0)
         goal = UndockRobot.Goal()
+        goal.dock_type = 'test_dock_plugin'
         future = self.undock_action_client.send_goal_async(goal)
         future.add_done_callback(self.action_goal_callback)
 

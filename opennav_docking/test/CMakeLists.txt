@@ -65,6 +65,17 @@ target_link_libraries(test_pose_filter
   pose_filter
 )
 
+# Test dock pluing for server tests
+add_library(test_dock SHARED testing_dock.cpp)
+ament_target_dependencies(test_dock ${dependencies})
+target_compile_definitions(test_dock PUBLIC "PLUGINLIB__DISABLE_BOOST_FUNCTIONS")
+install(TARGETS test_dock
+    ARCHIVE DESTINATION lib
+    LIBRARY DESTINATION lib
+    RUNTIME DESTINATION lib/${PROJECT_NAME}
+)
+ament_export_libraries(test_dock)
+
 # Test docking server (unit)
 ament_add_gtest(test_docking_server_unit
   test_docking_server_unit.cpp

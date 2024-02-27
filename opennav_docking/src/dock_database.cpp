@@ -148,7 +148,9 @@ bool DockDatabase::getDockInstances(const rclcpp_lifecycle::LifecycleNode::Share
 
   // Attempt to obtain docks from separate file
   std::string dock_filepath;
-  node->declare_parameter("dock_database", PARAMETER_STRING);
+  if (!node->has_parameter("dock_database")) {
+    node->declare_parameter("dock_database", PARAMETER_STRING);
+  }
   if (node->get_parameter("dock_database", dock_filepath)) {
     RCLCPP_INFO(
       node->get_logger(), "Loading dock from database file  %s.", dock_filepath.c_str());
@@ -165,7 +167,9 @@ bool DockDatabase::getDockInstances(const rclcpp_lifecycle::LifecycleNode::Share
 
   // Attempt to obtain docks from parameter file
   std::vector<std::string> docks_param;
-  node->declare_parameter("docks", PARAMETER_STRING_ARRAY);
+  if (!node->has_parameter("docks")) {
+    node->declare_parameter("docks", PARAMETER_STRING_ARRAY);
+  }
   if (node->get_parameter("docks", docks_param)) {
     RCLCPP_INFO(node->get_logger(), "Loading docks from parameter file.");
     return utils::parseDockParams(docks_param, node, dock_instances_);

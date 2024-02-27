@@ -65,13 +65,6 @@ DockingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
   tf2_buffer_ = std::make_shared<tf2_ros::Buffer>(node->get_clock());
   tf2_listener_ = std::make_unique<tf2_ros::TransformListener>(*tf2_buffer_);
 
-  controller_ = std::make_unique<Controller>(node);
-  navigator_ = std::make_unique<Navigator>(node);
-  dock_db_ = std::make_unique<DockDatabase>();
-  if (!dock_db_->initialize(node, tf2_buffer_)) {
-    return nav2_util::CallbackReturn::FAILURE;
-  }
-
   double action_server_result_timeout;
   nav2_util::declare_parameter_if_not_declared(
     node, "action_server_result_timeout", rclcpp::ParameterValue(10.0));
@@ -91,6 +84,14 @@ DockingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
     std::bind(&DockingServer::undockRobot, this),
     nullptr, std::chrono::milliseconds(500),
     true, server_options);
+
+  // Create composed utilities
+  controller_ = std::make_unique<Controller>(node);
+  navigator_ = std::make_unique<Navigator>(node);
+  dock_db_ = std::make_unique<DockDatabase>();
+  if (!dock_db_->initialize(node, tf2_buffer_)) {
+    return nav2_util::CallbackReturn::FAILURE;
+  }
 
   return nav2_util::CallbackReturn::SUCCESS;
 }

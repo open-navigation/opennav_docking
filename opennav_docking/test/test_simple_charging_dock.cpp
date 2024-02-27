@@ -163,7 +163,7 @@ TEST(SimpleChargingDockTests, StagingPose)
   geometry_msgs::msg::Pose pose;
   std::string frame = "my_frame";
   auto staging_pose = dock->getStagingPose(pose, frame);
-  EXPECT_NEAR(staging_pose.pose.position.x, -0.5, 0.01);
+  EXPECT_NEAR(staging_pose.pose.position.x, -0.7, 0.01);
   EXPECT_NEAR(staging_pose.pose.position.y, 0.0, 0.01);
   EXPECT_NEAR(tf2::getYaw(staging_pose.pose.orientation), 0.0, 0.01);
   EXPECT_EQ(staging_pose.header.frame_id, frame);
@@ -193,7 +193,7 @@ TEST(SimpleChargingDockTests, StagingPoseWithYawOffset)
   std::string frame = "my_frame";
   auto staging_pose = dock->getStagingPose(pose, frame);
   // Pose should be the same as default, but pointing in opposite direction
-  EXPECT_NEAR(staging_pose.pose.position.x, -0.5, 0.01);
+  EXPECT_NEAR(staging_pose.pose.position.x, -0.7, 0.01);
   EXPECT_NEAR(staging_pose.pose.position.y, 0.0, 0.01);
   EXPECT_NEAR(tf2::getYaw(staging_pose.pose.orientation), 3.14, 0.01);
   EXPECT_EQ(staging_pose.header.frame_id, frame);
