@@ -12,6 +12,7 @@ find_package(action_msgs REQUIRED)
 rosidl_generate_interfaces(${PROJECT_NAME}
   "action/DockRobot.action"
   "action/UndockRobot.action"
+  "srv/ReloadDatabase.srv"
   DEPENDENCIES builtin_interfaces geometry_msgs std_msgs action_msgs nav_msgs
 )
 

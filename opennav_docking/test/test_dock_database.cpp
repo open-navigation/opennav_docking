@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <chrono>
 #include "gtest/gtest.h"
 #include "rclcpp/rclcpp.hpp"
 #include "opennav_docking/dock_database.hpp"
@@ -28,6 +29,8 @@ public:
   ~RosLockGuard() {rclcpp::shutdown();}
 };
 RosLockGuard g_rclcpp;
+
+using namespace std::chrono_literals;
 
 namespace opennav_docking
 {
@@ -94,6 +97,40 @@ TEST(DatabaseTests, findTests)
 
   db.populateTwo();
   db.findDockPlugin("");
+}
+
+TEST(DatabaseTests, reloadDbService)
+{
+  auto node = std::make_shared<rclcpp_lifecycle::LifecycleNode>("test");
+  std::vector<std::string> plugins{"dockv1", "dockv2"};
+  node->declare_parameter("dock_plugins", rclcpp::ParameterValue(plugins));
+  opennav_docking::DockDatabase db;
+  db.initialize(node, nullptr);
+
+  // Call service with a filepath
+  auto client =
+    node->create_client<opennav_docking_msgs::srv::ReloadDatabase>("test/reload_database");
+
+  auto request = std::make_shared<opennav_docking_msgs::srv::ReloadDatabase::Request>();
+  request->filepath = ament_index_cpp::get_package_share_directory("opennav_docking") +
+    "/test_dock_file.yaml";
+  EXPECT_TRUE(client->wait_for_service(1s));
+  auto result = client->async_send_request(request);
+  EXPECT_EQ(
+    rclcpp::spin_until_future_complete(node, result, 2s),
+    rclcpp::FutureReturnCode::SUCCESS);
+  EXPECT_TRUE(result.get()->success);
+
+  // Try again with a bogus file
+  auto request2 = std::make_shared<opennav_docking_msgs::srv::ReloadDatabase::Request>();
+  request2->filepath = ament_index_cpp::get_package_share_directory("opennav_docking") +
+    "/file_does_not_exist.yaml";
+  EXPECT_TRUE(client->wait_for_service(1s));
+  auto result2 = client->async_send_request(request2);
+  EXPECT_EQ(
+    rclcpp::spin_until_future_complete(node, result2, 2s),
+    rclcpp::FutureReturnCode::SUCCESS);
+  EXPECT_FALSE(result2.get()->success);
 }
 
 }  // namespace opennav_docking
