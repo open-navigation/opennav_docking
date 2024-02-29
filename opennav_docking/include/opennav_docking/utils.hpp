@@ -45,7 +45,13 @@ inline bool parseDockFile(
   const rclcpp_lifecycle::LifecycleNode::SharedPtr & node,
   DockMap & dock_db)
 {
-  YAML::Node yaml_file = YAML::LoadFile(yaml_filepath);
+  YAML::Node yaml_file;
+  try {
+    yaml_file = YAML::LoadFile(yaml_filepath);
+  } catch (...) {
+    return false;
+  }
+
   if (!yaml_file["docks"]) {
     RCLCPP_ERROR(
       node->get_logger(),
