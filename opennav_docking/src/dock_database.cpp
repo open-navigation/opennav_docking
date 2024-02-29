@@ -72,7 +72,7 @@ void DockDatabase::reloadDbCb(
   std::shared_ptr<opennav_docking_msgs::srv::ReloadDatabase::Response> response)
 {
   DockMap dock_instances;
-  if (utils::parseDockFile(request->filepath, node_.lock(), dock_instances_)) {
+  if (utils::parseDockFile(request->filepath, node_.lock(), dock_instances)) {
     dock_instances_ = dock_instances;
     response->success = true;
     return;
