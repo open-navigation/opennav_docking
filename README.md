@@ -67,6 +67,10 @@ There is also a maximum undocking time as a timeout for failures to uncouple its
 
 The result similarly contains `success` and semantic `error_code` with no feedback.
 
+### Reload Database Service
+
+This service exists to potentially reload the dock server's known dock database with a new file of docks after it is loaded. Simply provide the `filepath` to your new set of docks and it shall be done!
+
 ## Dock Specification
 
 There are two unique elements to consider in specifying docks: dock _instances_ and dock _plugins_. Dock instances are instances of a particular dock in the map, as the database may contain many known docks (and you can specify which by name you'd like to dock at). Dock plugins are the model of dock that each is an instance of. The plugins contain the capabilities to generically detect and connect to a particular dock model. This separation allows us to efficiently enable many individual docking locations of potentially several different revisions with different attributes.
