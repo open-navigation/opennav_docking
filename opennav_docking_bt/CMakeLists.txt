@@ -12,7 +12,7 @@ find_package(nav2_behavior_tree REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(opennav_docking_msgs REQUIRED)
-find_package(behaviortree_cpp_v3 REQUIRED)
+find_package(behaviortree_cpp REQUIRED)
 
 # potentially replace with nav2_common, nav2_package()
 set(CMAKE_CXX_STANDARD 17)
@@ -33,7 +33,7 @@ set(dependencies
   nav_msgs
   geometry_msgs
   opennav_docking_msgs
-  behaviortree_cpp_v3
+  behaviortree_cpp
 )
 
 add_library(opennav_dock_action_bt_node SHARED src/dock_robot.cpp)
