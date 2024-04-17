@@ -13,8 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef OPENNAV_DYNAMIC_FOLLOWING__FOLLOWING_SERVER_HPP_
-#define OPENNAV_DYNAMIC_FOLLOWING__FOLLOWING_SERVER_HPP_
+#ifndef OPENNAV_FOLLOWING__FOLLOWING_SERVER_HPP_
+#define OPENNAV_FOLLOWING__FOLLOWING_SERVER_HPP_
 
 #include <vector>
 #include <memory>
@@ -32,10 +32,10 @@
 
 #include "opennav_following_msgs/action/follow_object.hpp"
 
-namespace opennav_dynamic_following
+namespace opennav_following
 {
 /**
- * @class opennav_dynamic_following::FollowingServer
+ * @class opennav_following::FollowingServer
  * @brief An action server which implements a dynamic following behavior
  */
 class FollowingServer : public nav2_util::LifecycleNode
@@ -45,13 +45,13 @@ public:
   using FollowingActionServer = nav2_util::SimpleActionServer<FollowObjectAction>;
 
   /**
-   * @brief A constructor for opennav_dynamic_following::FollowingServer
+   * @brief A constructor for opennav_following::FollowingServer
    * @param options Additional options to control creation of the node.
    */
   explicit FollowingServer(const rclcpp::NodeOptions & options = rclcpp::NodeOptions());
 
   /**
-   * @brief A destructor for opennav_dynamic_following::FollowingServer
+   * @brief A destructor for opennav_following::FollowingServer
    */
   ~FollowingServer() = default;
 
@@ -241,6 +241,6 @@ protected:
   std::unique_ptr<tf2_ros::TransformListener> tf2_listener_;
 };
 
-}  // namespace opennav_dynamic_following
+}  // namespace opennav_following
 
-#endif  // OPENNAV_DYNAMIC_FOLLOWING__FOLLOWING_SERVER_HPP_
+#endif  // OPENNAV_FOLLOWING__FOLLOWING_SERVER_HPP_

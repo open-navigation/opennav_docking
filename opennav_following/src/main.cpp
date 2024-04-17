@@ -14,13 +14,13 @@
 
 #include <memory>
 
-#include "opennav_dynamic_following/following_server.hpp"
+#include "opennav_following/following_server.hpp"
 #include "rclcpp/rclcpp.hpp"
 
 int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
-  auto node = std::make_shared<opennav_dynamic_following::FollowingServer>();
+  auto node = std::make_shared<opennav_following::FollowingServer>();
   rclcpp::spin(node->get_node_base_interface());
   rclcpp::shutdown();
 
