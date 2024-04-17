@@ -58,7 +58,6 @@ set(dependencies
 )
 
 add_library(${library_name} SHARED
-  src/controller.cpp
   src/following_server.cpp
 )
 

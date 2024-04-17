@@ -78,7 +78,7 @@ FollowingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
     true, server_options);
 
   // Create composed utilities
-  controller_ = std::make_unique<Controller>(node);
+  controller_ = std::make_unique<opennav_docking::Controller>(node);
 
   // Setup filter
   double filter_coef;
