@@ -25,8 +25,8 @@
 #include "nav2_util/node_utils.hpp"
 #include "nav2_util/simple_action_server.hpp"
 #include "nav2_util/twist_publisher.hpp"
+#include "opennav_docking/controller.hpp"
 #include "opennav_docking/pose_filter.hpp"
-#include "opennav_dynamic_following/controller.hpp"
 #include "tf2_ros/buffer.h"
 #include "tf2_ros/transform_listener.h"
 
@@ -236,7 +236,7 @@ protected:
   std::unique_ptr<nav2_util::TwistPublisher> vel_publisher_;
   std::unique_ptr<FollowingActionServer> following_action_server_;
 
-  std::unique_ptr<Controller> controller_;
+  std::unique_ptr<opennav_docking::Controller> controller_;
   std::shared_ptr<tf2_ros::Buffer> tf2_buffer_;
   std::unique_ptr<tf2_ros::TransformListener> tf2_listener_;
 };
