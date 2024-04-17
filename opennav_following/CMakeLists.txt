@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(opennav_dynamic_following)
+project(opennav_following)
 
 find_package(ament_cmake REQUIRED)
 find_package(angles REQUIRED)
@@ -31,7 +31,7 @@ include_directories(
   include
 )
 
-set(executable_name opennav_dynamic_following)
+set(executable_name opennav_following)
 set(library_name ${executable_name}_core)
 
 set(dependencies
@@ -75,7 +75,7 @@ ament_target_dependencies(${executable_name}
   ${dependencies}
 )
 
-rclcpp_components_register_nodes(${library_name} "opennav_dynamic_following::FollowingServer")
+rclcpp_components_register_nodes(${library_name} "opennav_following::FollowingServer")
 
 install(TARGETS ${executable_name}
   RUNTIME DESTINATION lib/${PROJECT_NAME}

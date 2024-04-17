@@ -14,7 +14,7 @@
 // limitations under the License.
 
 #include "angles/angles.h"
-#include "opennav_dynamic_following/following_server.hpp"
+#include "opennav_following/following_server.hpp"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 #include "tf2/utils.h"
 
@@ -22,7 +22,7 @@ using namespace std::chrono_literals;
 using rcl_interfaces::msg::ParameterType;
 using std::placeholders::_1;
 
-namespace opennav_dynamic_following
+namespace opennav_following
 {
 
 FollowingServer::FollowingServer(const rclcpp::NodeOptions & options)
@@ -472,11 +472,11 @@ FollowingServer::dynamicParametersCallback(std::vector<rclcpp::Parameter> parame
   return result;
 }
 
-}  // namespace opennav_dynamic_following
+}  // namespace opennav_following
 
 #include "rclcpp_components/register_node_macro.hpp"
 
 // Register the component with class_loader.
 // This acts as a sort of entry point, allowing the component to be discoverable when its library
 // is being loaded into a running process.
-RCLCPP_COMPONENTS_REGISTER_NODE(opennav_dynamic_following::FollowingServer)
+RCLCPP_COMPONENTS_REGISTER_NODE(opennav_following::FollowingServer)

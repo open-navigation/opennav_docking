@@ -15,7 +15,7 @@
 #include <chrono>
 #include "gtest/gtest.h"
 #include "rclcpp/rclcpp.hpp"
-#include "opennav_dynamic_following/following_server.hpp"
+#include "opennav_following/following_server.hpp"
 #include "nav2_util/node_thread.hpp"
 
 // Testing unit functions in following server, smoke/system tests in python file
@@ -30,7 +30,7 @@ public:
 };
 RosLockGuard g_rclcpp;
 
-namespace opennav_dynamic_following
+namespace opennav_following
 {
 
 class FollowingServerShim : public FollowingServer
@@ -48,7 +48,7 @@ public:
 
 TEST(FollowingServerTests, ObjectLifecycle)
 {
-  auto node = std::make_shared<opennav_dynamic_following::FollowingServer>();
+  auto node = std::make_shared<opennav_following::FollowingServer>();
   node->configure();
   node->activate();
   node->deactivate();
@@ -59,7 +59,7 @@ TEST(FollowingServerTests, ObjectLifecycle)
 
 TEST(FollowingServerTests, testDynamicParams)
 {
-  auto node = std::make_shared<opennav_dynamic_following::FollowingServer>();
+  auto node = std::make_shared<opennav_following::FollowingServer>();
   node->on_configure(rclcpp_lifecycle::State());
   node->on_activate(rclcpp_lifecycle::State());
 
@@ -90,7 +90,7 @@ TEST(FollowingServerTests, testDynamicParams)
 
 TEST(FollowingServerTests, RefinedPoseTest)
 {
-  auto node = std::make_shared<opennav_dynamic_following::FollowingServer>();
+  auto node = std::make_shared<opennav_following::FollowingServer>();
   node->on_configure(rclcpp_lifecycle::State());
   node->on_activate(rclcpp_lifecycle::State());
   auto pub = node->create_publisher<geometry_msgs::msg::PoseStamped>(
@@ -118,4 +118,4 @@ TEST(FollowingServerTests, RefinedPoseTest)
   node.reset();
 }
 
-}  // namespace opennav_dynamic_following
+}  // namespace opennav_following
