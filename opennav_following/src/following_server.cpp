@@ -96,6 +96,8 @@ FollowingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
   filtered_dynamic_pose_pub_ = create_publisher<geometry_msgs::msg::PoseStamped>(
     "filtered_dynamic_pose", 1);
 
+  trajectory_pub_ = node->create_publisher<nav_msgs::msg::Path>("trajectory", 1);
+
   return nav2_util::CallbackReturn::SUCCESS;
 }
 
@@ -108,6 +110,7 @@ FollowingServer::on_activate(const rclcpp_lifecycle::State & /*state*/)
 
   vel_publisher_->on_activate();
   filtered_dynamic_pose_pub_->on_activate();
+  trajectory_pub_->on_activate();
   following_action_server_->activate();
 
   // Add callback for dynamic parameters
@@ -127,6 +130,7 @@ FollowingServer::on_deactivate(const rclcpp_lifecycle::State & /*state*/)
 
   following_action_server_->deactivate();
   filtered_dynamic_pose_pub_->on_deactivate();
+  trajectory_pub_->on_deactivate();
   vel_publisher_->on_deactivate();
 
   dyn_params_handler_.reset();
@@ -146,6 +150,8 @@ FollowingServer::on_cleanup(const rclcpp_lifecycle::State & /*state*/)
   following_action_server_.reset();
   controller_.reset();
   vel_publisher_.reset();
+  filtered_dynamic_pose_pub_.reset();
+  trajectory_pub_.reset();
   return nav2_util::CallbackReturn::SUCCESS;
 }
 
@@ -337,6 +343,11 @@ bool FollowingServer::approachObject(geometry_msgs::msg::PoseStamped & object_po
       return false;
     }
     vel_publisher_->publish(std::move(command));
+
+    // Generate and publish the trajectory for debugging / visualization
+    auto trajectory = controller_->simulateTrajectory(target_pose, backwards_);
+    trajectory.header = target_pose.header;
+    trajectory_pub_->publish(trajectory);
 
     if (this->now() - start > timeout) {
       // TODO(ajtudela): Throw exception?

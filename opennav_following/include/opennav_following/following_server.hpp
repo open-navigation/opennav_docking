@@ -174,7 +174,7 @@ protected:
 
   /**
    * @brief Check if the goal has been reached.
-   * 
+   *
    * @param goal_pose The goal pose to check
    * @return true If the goal has been reached
    */
@@ -222,6 +222,9 @@ protected:
   // Publish the filtered dynamic pose
   rclcpp_lifecycle::LifecyclePublisher<geometry_msgs::msg::PoseStamped>::SharedPtr
     filtered_dynamic_pose_pub_;
+
+  // Publish the trajectory
+  std::shared_ptr<rclcpp_lifecycle::LifecyclePublisher<nav_msgs::msg::Path>> trajectory_pub_;
 
   // Latest message
   geometry_msgs::msg::PoseStamped detected_dynamic_pose_;
