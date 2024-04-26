@@ -30,6 +30,7 @@
 #include "tf2_ros/buffer.h"
 #include "tf2_ros/transform_listener.h"
 
+#include "opennav_following/following_exceptions.hpp"
 #include "opennav_following_msgs/action/follow_object.hpp"
 
 namespace opennav_following
@@ -57,8 +58,9 @@ public:
 
   /**
    * @brief Publish feedback from a following action.
+   * @param state Current state - should be one of those defined in message.
    */
-  void publishFollowingFeedback();
+  void publishFollowingFeedback(uint16_t state);
 
   /**
    * @brief Do initial perception, up to a timeout.
