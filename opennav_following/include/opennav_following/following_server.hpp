@@ -212,8 +212,10 @@ protected:
   std::string fixed_frame_;
   // Does the robot drive backwards to follow the object? Default is forwards
   bool backwards_;
-  // Distance to keep from the object
-  double safe_distance_;
+  // Desired distance to keep from the object
+  double desired_distance_;
+  // Skip perception orientation
+  bool skip_orientation_;
 
   // This is a class member so it can be accessed in publish feedback
   rclcpp::Time action_start_time_;

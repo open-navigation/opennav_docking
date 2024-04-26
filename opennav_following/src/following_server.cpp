@@ -14,9 +14,10 @@
 // limitations under the License.
 
 #include "angles/angles.h"
-#include "opennav_following/following_server.hpp"
+#include "nav2_util/geometry_utils.hpp"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 #include "tf2/utils.h"
+#include "opennav_following/following_server.hpp"
 
 using namespace std::chrono_literals;
 using rcl_interfaces::msg::ParameterType;
@@ -39,7 +40,8 @@ FollowingServer::FollowingServer(const rclcpp::NodeOptions & options)
   declare_parameter("fixed_frame", "odom");
   declare_parameter("backwards", false);
   declare_parameter("filter_coef", 0.1);
-  declare_parameter("safe_distance", 1.0);
+  declare_parameter("desired_distance", 1.0);
+  declare_parameter("skip_orientation", true);
 }
 
 nav2_util::CallbackReturn
@@ -56,7 +58,8 @@ FollowingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
   get_parameter("base_frame", base_frame_);
   get_parameter("fixed_frame", fixed_frame_);
   get_parameter("backwards", backwards_);
-  get_parameter("safe_distance", safe_distance_);
+  get_parameter("desired_distance", desired_distance_);
+  get_parameter("skip_orientation", skip_orientation_);
   RCLCPP_INFO(get_logger(), "Controller frequency set to %.4fHz", controller_frequency_);
 
   vel_publisher_ = std::make_unique<nav2_util::TwistPublisher>(node, "cmd_vel", 1);
@@ -314,7 +317,7 @@ bool FollowingServer::approachObject(geometry_msgs::msg::PoseStamped & object_po
     publishFollowingFeedback(FollowObjectAction::Feedback::CONTROLLING);
 
     // Stop and report success if reached goal
-    auto approach_pose = getBackwardPose(object_pose, safe_distance_);
+    auto approach_pose = getBackwardPose(object_pose, desired_distance_);
     if (isGoalReached(approach_pose)) {
       return true;
     }
@@ -407,6 +410,18 @@ bool FollowingServer::getRefinedPose(geometry_msgs::msg::PoseStamped & pose)
     }
   }
 
+  // The control law can oscillate if the orientation in the perception is not set correctly or
+  // has a lot of noise.
+  // Then, we skip the target orientation by pointing it
+  // in the same orientation than the vector from the robot to the object.
+  if (skip_orientation_) {
+    auto robot_pose = getRobotPoseInFrame(detected.header.frame_id);
+    double dx = detected.pose.position.x - robot_pose.pose.position.x;
+    double dy = detected.pose.position.y - robot_pose.pose.position.y;
+    double angle_to_target = std::atan2(dy, dx);
+    detected.pose.orientation = nav2_util::geometry_utils::orientationAroundZAxis(angle_to_target);
+  }
+
   // Filter the detected pose
   detected = filter_->update(detected);
   filtered_dynamic_pose_pub_->publish(detected);
@@ -473,16 +488,24 @@ FollowingServer::dynamicParametersCallback(std::vector<rclcpp::Parameter> parame
         controller_frequency_ = parameter.as_double();
       } else if (name == "initial_perception_timeout") {
         initial_perception_timeout_ = parameter.as_double();
+      } else if (name == "detection_timeout") {
+        detection_timeout_ = parameter.as_double();
       } else if (name == "object_approach_timeout") {
         object_approach_timeout_ = parameter.as_double();
       } else if (name == "transform_tolerance") {
         transform_tolerance_ = parameter.as_double();
+      } else if (name == "desired_distance") {
+        desired_distance_ = parameter.as_double();
       }
     } else if (type == ParameterType::PARAMETER_STRING) {
       if (name == "base_frame") {
         base_frame_ = parameter.as_string();
       } else if (name == "fixed_frame") {
         fixed_frame_ = parameter.as_string();
+      }
+    } else if (type == ParameterType::PARAMETER_BOOL) {
+      if (name == "skip_orientation") {
+        skip_orientation_ = parameter.as_bool();
       }
     }
   }
