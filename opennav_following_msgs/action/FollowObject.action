@@ -12,10 +12,19 @@ uint16 NONE=0
 uint16 UNKNOWN=1000
 uint16 TIMEOUT=1001
 uint16 TF_ERROR=1002
+uint16 OBJECT_NOT_VALID=1003
+uint16 FAILED_TO_DETECT_OBJECT=1004
+uint16 FAILED_TO_CONTROL=1005
 
 builtin_interfaces/Duration total_elapsed_time
-uint16 error_code
+uint16 error_code 0  # Contextual error code, if any
 
 ---
 #feedback definition
+
+uint16 NONE=0
+uint16 INITIAL_PERCEPTION=1
+uint16 CONTROLLING=2
+
+uint16 state  # Current following state
 builtin_interfaces/Duration following_time

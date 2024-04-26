@@ -93,9 +93,9 @@ FollowingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
       detected_dynamic_pose_ = *pose;
     });
 
+  // And publish filtered pose and trajectory for debugging
   filtered_dynamic_pose_pub_ = create_publisher<geometry_msgs::msg::PoseStamped>(
     "filtered_dynamic_pose", 1);
-
   trajectory_pub_ = node->create_publisher<nav_msgs::msg::Path>("trajectory", 1);
 
   return nav2_util::CallbackReturn::SUCCESS;
@@ -249,18 +249,31 @@ void FollowingServer::followObject()
           }
         }
 
-        // Cancelled, preempted, or shutting down (recoverable errors throw Exception)
+        // Cancelled, preempted, or shutting down (recoverable errors throw FollowingException)
         result->total_elapsed_time = this->now() - action_start_time_;
         publishZeroVelocity();
         following_action_server_->terminate_all(result);
         return;
-      } catch (std::exception & e) {
-        RCLCPP_WARN(get_logger(), "Following failed, will retry: %s", e.what());
+      } catch (opennav_following::FollowingException & e) {
+        RCLCPP_WARN(get_logger(), "Following failed");
+        throw;
       }
     }
   } catch (const tf2::TransformException & e) {
     RCLCPP_ERROR(get_logger(), "Transform error: %s", e.what());
     result->error_code = FollowObjectAction::Result::TF_ERROR;
+  } catch (opennav_following::ObjectNotValid & e) {
+    RCLCPP_ERROR(get_logger(), "%s", e.what());
+    result->error_code = FollowObjectAction::Result::OBJECT_NOT_VALID;
+  } catch (opennav_following::FailedToDetectObject & e) {
+    RCLCPP_ERROR(get_logger(), "%s", e.what());
+    result->error_code = FollowObjectAction::Result::FAILED_TO_DETECT_OBJECT;
+  } catch (opennav_following::FailedToControl & e) {
+    RCLCPP_ERROR(get_logger(), "%s", e.what());
+    result->error_code = FollowObjectAction::Result::FAILED_TO_CONTROL;
+  } catch (opennav_following::FollowingException & e) {
+    RCLCPP_ERROR(get_logger(), "%s", e.what());
+    result->error_code = FollowObjectAction::Result::UNKNOWN;
   } catch (std::exception & e) {
     RCLCPP_ERROR(get_logger(), "%s", e.what());
     result->error_code = FollowObjectAction::Result::UNKNOWN;
@@ -273,13 +286,13 @@ void FollowingServer::followObject()
 
 void FollowingServer::doInitialPerception(geometry_msgs::msg::PoseStamped & object_pose)
 {
+  publishFollowingFeedback(FollowObjectAction::Feedback::INITIAL_PERCEPTION);
   rclcpp::Rate loop_rate(controller_frequency_);
   auto start = this->now();
   auto timeout = rclcpp::Duration::from_seconds(initial_perception_timeout_);
   while (!getRefinedPose(object_pose)) {
     if (this->now() - start > timeout) {
-      // TODO(ajtudela): Throw exception?
-      RCLCPP_ERROR(get_logger(), "Failed initial goal detection");
+      throw opennav_following::FailedToDetectObject("Failed initial object detection");
     }
 
     if (checkAndWarnIfCancelled(following_action_server_, "follow_object") ||
@@ -298,7 +311,7 @@ bool FollowingServer::approachObject(geometry_msgs::msg::PoseStamped & object_po
   auto start = this->now();
   auto timeout = rclcpp::Duration::from_seconds(object_approach_timeout_);
   while (rclcpp::ok()) {
-    publishFollowingFeedback();
+    publishFollowingFeedback(FollowObjectAction::Feedback::CONTROLLING);
 
     // Stop and report success if reached goal
     auto approach_pose = getBackwardPose(object_pose, safe_distance_);
@@ -315,9 +328,7 @@ bool FollowingServer::approachObject(geometry_msgs::msg::PoseStamped & object_po
 
     // Update perception of object
     if (!getRefinedPose(object_pose)) {
-      // TODO(ajtudela): Throw exception?
-      RCLCPP_ERROR(get_logger(), "Failed object detection");
-      return false;
+      throw opennav_following::FailedToDetectObject("Failed object detection");
     }
 
     // Transform target_pose into base_link frame
@@ -338,9 +349,7 @@ bool FollowingServer::approachObject(geometry_msgs::msg::PoseStamped & object_po
     auto command = std::make_unique<geometry_msgs::msg::TwistStamped>();
     command->header.stamp = now();
     if (!controller_->computeVelocityCommand(target_pose.pose, command->twist, backwards_)) {
-      // TODO(ajtudela): Throw exception?
-      RCLCPP_ERROR(get_logger(), "Failed to get control");
-      return false;
+      throw opennav_following::FailedToControl("Failed to get control");
     }
     vel_publisher_->publish(std::move(command));
 
@@ -350,9 +359,7 @@ bool FollowingServer::approachObject(geometry_msgs::msg::PoseStamped & object_po
     trajectory_pub_->publish(trajectory);
 
     if (this->now() - start > timeout) {
-      // TODO(ajtudela): Throw exception?
-      RCLCPP_ERROR(get_logger(), "Timed out approaching object");
-      return false;
+      throw opennav_following::FailedToControl("Timed out approaching object");
     }
 
     loop_rate.sleep();
@@ -420,9 +427,10 @@ void FollowingServer::publishZeroVelocity()
   vel_publisher_->publish(std::move(cmd_vel));
 }
 
-void FollowingServer::publishFollowingFeedback()
+void FollowingServer::publishFollowingFeedback(uint16_t state)
 {
   auto feedback = std::make_shared<FollowObjectAction::Feedback>();
+  feedback->state = state;
   feedback->following_time = this->now() - action_start_time_;
   following_action_server_->publish_feedback(feedback);
 }
