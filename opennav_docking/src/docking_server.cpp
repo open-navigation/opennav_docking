@@ -63,7 +63,6 @@ DockingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
 
   vel_publisher_ = create_publisher<geometry_msgs::msg::Twist>("cmd_vel", 1);
   tf2_buffer_ = std::make_shared<tf2_ros::Buffer>(node->get_clock());
-  tf2_listener_ = std::make_unique<tf2_ros::TransformListener>(*tf2_buffer_);
 
   double action_server_result_timeout;
   nav2_util::declare_parameter_if_not_declared(
