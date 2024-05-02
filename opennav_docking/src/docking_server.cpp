@@ -63,7 +63,6 @@ DockingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
 
   vel_publisher_ = create_publisher<geometry_msgs::msg::Twist>("cmd_vel", 1);
   tf2_buffer_ = std::make_shared<tf2_ros::Buffer>(node->get_clock());
-  tf2_listener_ = std::make_unique<tf2_ros::TransformListener>(*tf2_buffer_);
 
   double action_server_result_timeout;
   nav2_util::declare_parameter_if_not_declared(
@@ -103,6 +102,7 @@ DockingServer::on_activate(const rclcpp_lifecycle::State & /*state*/)
 
   auto node = shared_from_this();
 
+  tf2_listener_ = std::make_unique<tf2_ros::TransformListener>(*tf2_buffer_);
   dock_db_->activate();
   navigator_->activate();
   vel_publisher_->on_activate();
@@ -133,7 +133,6 @@ DockingServer::on_deactivate(const rclcpp_lifecycle::State & /*state*/)
 
   dyn_params_handler_.reset();
   tf2_listener_.reset();
-  tf2_buffer_.reset();
 
   // Destroy bond connection
   destroyBond();
@@ -145,6 +144,7 @@ nav2_util::CallbackReturn
 DockingServer::on_cleanup(const rclcpp_lifecycle::State & /*state*/)
 {
   RCLCPP_INFO(get_logger(), "Cleaning up %s", get_name());
+  tf2_buffer_.reset();
   docking_action_server_.reset();
   undocking_action_server_.reset();
   dock_db_.reset();
