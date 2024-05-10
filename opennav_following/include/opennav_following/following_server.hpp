@@ -206,6 +206,8 @@ protected:
   double object_approach_timeout_;
   // Tolerance for transforming coordinates
   double transform_tolerance_;
+  // Tolerances for arriving at the safe_distance pose
+  double linear_tolerance_, angular_tolerance_;
   // This is the root frame of the robot - typically "base_link"
   std::string base_frame_;
   // This is our fixed frame for controlling - typically "odom"

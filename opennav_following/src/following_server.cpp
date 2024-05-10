@@ -33,9 +33,11 @@ FollowingServer::FollowingServer(const rclcpp::NodeOptions & options)
 
   declare_parameter("controller_frequency", 50.0);
   declare_parameter("initial_perception_timeout", 5.0);
-  declare_parameter("detection_timeout", 1.0);
-  declare_parameter("object_approach_timeout", 30.0);
+  declare_parameter("detection_timeout", 2.0);
+  declare_parameter("object_approach_timeout", 10.0);
   declare_parameter("transform_tolerance", 0.2);
+  declare_parameter("linear_tolerance", 0.15);
+  declare_parameter("angular_tolerance", 0.15);
   declare_parameter("base_frame", "base_link");
   declare_parameter("fixed_frame", "odom");
   declare_parameter("backwards", false);
@@ -55,6 +57,8 @@ FollowingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
   get_parameter("detection_timeout", detection_timeout_);
   get_parameter("object_approach_timeout", object_approach_timeout_);
   get_parameter("transform_tolerance", transform_tolerance_);
+  get_parameter("linear_tolerance", linear_tolerance_);
+  get_parameter("angular_tolerance", angular_tolerance_);
   get_parameter("base_frame", base_frame_);
   get_parameter("fixed_frame", fixed_frame_);
   get_parameter("backwards", backwards_);
@@ -241,7 +245,7 @@ void FollowingServer::followObject()
       try {
         // Approach the object using control law
         if (approachObject(object_pose)) {
-          // We have reached the object, check if we need to approach again
+          // We have reached the object, check if we timeout
           if (this->now() - start > timeout && timeout.seconds() > 0.0) {
             RCLCPP_INFO(get_logger(), "Reached object, but timed out");
             result->error_code = FollowObjectAction::Result::TIMEOUT;
@@ -250,6 +254,9 @@ void FollowingServer::followObject()
             following_action_server_->succeeded_current(result);
             return;
           }
+          // We have reached the object, mantain the position
+          publishZeroVelocity();
+          continue;
         }
 
         // Cancelled, preempted, or shutting down (recoverable errors throw FollowingException)
@@ -261,6 +268,8 @@ void FollowingServer::followObject()
         RCLCPP_WARN(get_logger(), "Following failed");
         throw;
       }
+
+      // TODO(ajtudela): Implement recoveries (rotate, move back, etc.)?
     }
   } catch (const tf2::TransformException & e) {
     RCLCPP_ERROR(get_logger(), "Transform error: %s", e.what());
@@ -316,12 +325,6 @@ bool FollowingServer::approachObject(geometry_msgs::msg::PoseStamped & object_po
   while (rclcpp::ok()) {
     publishFollowingFeedback(FollowObjectAction::Feedback::CONTROLLING);
 
-    // Stop and report success if reached goal
-    auto approach_pose = getBackwardPose(object_pose, desired_distance_);
-    if (isGoalReached(approach_pose)) {
-      return true;
-    }
-
     // Stop if cancelled/preempted
     if (checkAndWarnIfCancelled(following_action_server_, "follow_object") ||
       checkAndWarnIfPreempted(following_action_server_, "follow_object"))
@@ -334,9 +337,15 @@ bool FollowingServer::approachObject(geometry_msgs::msg::PoseStamped & object_po
       throw opennav_following::FailedToDetectObject("Failed object detection");
     }
 
-    // Transform target_pose into base_link frame
-    geometry_msgs::msg::PoseStamped target_pose = object_pose;
+    // Get the pose at the distance we want to maintain from the object
+    // and transform the target_pose into base_frame
+    geometry_msgs::msg::PoseStamped target_pose = getBackwardPose(object_pose, desired_distance_);
     target_pose.header.stamp = rclcpp::Time(0);
+
+    // Stop and report success if goal is reached
+    if (isGoalReached(target_pose)) {
+      return true;
+    }
 
     // The control law can get jittery when close to the end when atan2's can explode.
     // Thus, we backward project the controller's target pose a little bit after the
@@ -462,15 +471,13 @@ geometry_msgs::msg::PoseStamped FollowingServer::getBackwardPose(
 
 bool FollowingServer::isGoalReached(const geometry_msgs::msg::PoseStamped & goal_pose)
 {
-  double linear_tolerance = 0.25;
-  double angular_tolerance = 0.25;
   geometry_msgs::msg::PoseStamped robot_pose = getRobotPoseInFrame(goal_pose.header.frame_id);
   const double dist = std::hypot(
     robot_pose.pose.position.x - goal_pose.pose.position.x,
     robot_pose.pose.position.y - goal_pose.pose.position.y);
   const double yaw = angles::shortest_angular_distance(
     tf2::getYaw(robot_pose.pose.orientation), tf2::getYaw(goal_pose.pose.orientation));
-  return dist < linear_tolerance && abs(yaw) < angular_tolerance;
+  return dist < linear_tolerance_ && abs(yaw) < angular_tolerance_;
 }
 
 rcl_interfaces::msg::SetParametersResult
@@ -496,6 +503,10 @@ FollowingServer::dynamicParametersCallback(std::vector<rclcpp::Parameter> parame
         transform_tolerance_ = parameter.as_double();
       } else if (name == "desired_distance") {
         desired_distance_ = parameter.as_double();
+      } else if (name == "linear_tolerance") {
+        linear_tolerance_ = parameter.as_double();
+      } else if (name == "angular_tolerance") {
+        angular_tolerance_ = parameter.as_double();
       }
     } else if (type == ParameterType::PARAMETER_STRING) {
       if (name == "base_frame") {
