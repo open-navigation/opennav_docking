@@ -55,7 +55,6 @@ FollowingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
   get_parameter("controller_frequency", controller_frequency_);
   get_parameter("initial_perception_timeout", initial_perception_timeout_);
   get_parameter("detection_timeout", detection_timeout_);
-  get_parameter("object_approach_timeout", object_approach_timeout_);
   get_parameter("transform_tolerance", transform_tolerance_);
   get_parameter("linear_tolerance", linear_tolerance_);
   get_parameter("angular_tolerance", angular_tolerance_);
@@ -320,8 +319,6 @@ void FollowingServer::doInitialPerception(geometry_msgs::msg::PoseStamped & obje
 bool FollowingServer::approachObject(geometry_msgs::msg::PoseStamped & object_pose)
 {
   rclcpp::Rate loop_rate(controller_frequency_);
-  auto start = this->now();
-  auto timeout = rclcpp::Duration::from_seconds(object_approach_timeout_);
   while (rclcpp::ok()) {
     publishFollowingFeedback(FollowObjectAction::Feedback::CONTROLLING);
 
@@ -369,10 +366,6 @@ bool FollowingServer::approachObject(geometry_msgs::msg::PoseStamped & object_po
     auto trajectory = controller_->simulateTrajectory(target_pose, backwards_);
     trajectory.header = target_pose.header;
     trajectory_pub_->publish(trajectory);
-
-    if (this->now() - start > timeout) {
-      throw opennav_following::FailedToControl("Timed out approaching object");
-    }
 
     loop_rate.sleep();
   }
@@ -497,8 +490,6 @@ FollowingServer::dynamicParametersCallback(std::vector<rclcpp::Parameter> parame
         initial_perception_timeout_ = parameter.as_double();
       } else if (name == "detection_timeout") {
         detection_timeout_ = parameter.as_double();
-      } else if (name == "object_approach_timeout") {
-        object_approach_timeout_ = parameter.as_double();
       } else if (name == "transform_tolerance") {
         transform_tolerance_ = parameter.as_double();
       } else if (name == "desired_distance") {
