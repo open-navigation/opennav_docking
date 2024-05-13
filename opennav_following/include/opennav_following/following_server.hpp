@@ -202,8 +202,6 @@ protected:
   double controller_frequency_;
   // Timeout for initially detecting the object
   double initial_perception_timeout_;
-  // Timeout to approach to the object
-  double object_approach_timeout_;
   // Tolerance for transforming coordinates
   double transform_tolerance_;
   // Tolerances for arriving at the safe_distance pose
