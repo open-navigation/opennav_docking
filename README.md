@@ -56,7 +56,7 @@ If you wish for the docking server to stage your robot at the the dock's staging
 Else, you can send your robot to this pose and it will be skipped as long as the robot is within the prestaging tolerances. 
 You may set the maximum time for navigation using `max_staging_time`.
 
-In return, you obtain the `num_retries`, for the number of attempted retries of the action; `success`, if the action worked and the robot is successfully charging; and `errro_code` to return a semantically meaningful error code about what kind of error occurred, if any. See `DockRobot.action` for more details. 
+In return, you obtain the `num_retries`, for the number of attempted retries of the action; `success`, if the action worked and the robot is successfully charging; and `error_code` to return a semantically meaningful error code about what kind of error occurred, if any. See `DockRobot.action` for more details. 
 
 While the action is performing, you can obtain feedback about the current `state` of docking, how much time `docking_time` has elapsed, and the current number of retries attempted.
 
@@ -165,7 +165,7 @@ some robots.
 
 `getRefinedPose` can be used in two ways. 
 1. A blind approach where the returned dock pose will simply be equal to whatever was passed in from the dock database. This may work with a reduced success rate on a real robot (due to global localization error), but is useful for initial testing and simulation.
-2. The more realistic use case is to use an AR marker, dock pose detection algorithm, etc. Tthe plugin will subscribe to a `geometry_msgs/PoseStamped` topic `detected_dock_pose`. This can be used with the `image_proc/TrackMarkerNode` for Apriltags or other custom detectors for your dock. It is unlikely the detected pose is actually the pose you want to dock with, so several parameters are supplied to represent your docked pose relative to the detected feature's pose.
+2. The more realistic use case is to use an AR marker, dock pose detection algorithm, etc. The plugin will subscribe to a `geometry_msgs/PoseStamped` topic `detected_dock_pose`. This can be used with the `image_proc/TrackMarkerNode` for Apriltags or other custom detectors for your dock. It is unlikely the detected pose is actually the pose you want to dock with, so several parameters are supplied to represent your docked pose relative to the detected feature's pose.
 
 During the docking approach, there are two options for detecting `isDocked`:
 1. We can check the joint states of the wheels if the current has spiked above a set threshold to indicate that the robot has made contact with the dock or other physical object.
