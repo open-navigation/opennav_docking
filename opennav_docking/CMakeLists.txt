@@ -20,6 +20,7 @@ find_package(tf2_geometry_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(yaml_cpp_vendor REQUIRED)
+find_package(yaml-cpp REQUIRED)
 find_package(opennav_docking_msgs REQUIRED)
 find_package(opennav_docking_core REQUIRED)
 
@@ -67,6 +68,9 @@ add_library(${library_name} SHARED
 ament_target_dependencies(${library_name}
   ${dependencies}
 )
+
+target_link_libraries(${library_name}
+  yaml-cpp::yaml-cpp)
 
 add_library(pose_filter SHARED
   src/pose_filter.cpp
