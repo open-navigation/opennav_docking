@@ -12,6 +12,8 @@ This is split into 4 packages
 - `opennav_docking_bt`: Contains behavior tree nodes and example XML files using the docking task server
 - `nova_carter_docking`: Contains an implementation using the Docking system with the Nvidia [Nova Carter](https://robotics.segway.com/nova-carter/) Robot platform and dock.
 
+**NOTE**: This capability has been migrated within Nav2 itself as of June 2024.
+
 ![NvidiaxOpenNavigation](./docs/nv_on.png)
 
 [![IMAGE ALT TEXT](./docs/demo.gif)](https://youtu.be/J3ygkehttlg)
