@@ -148,10 +148,7 @@ inline bool parseDockParams(
     if (!node->has_parameter(dock_name + ".id")) {
       node->declare_parameter(dock_name + ".id", "");
     }
-    if (!node->get_parameter(dock_name + ".id", curr_dock.id)) {
-      RCLCPP_ERROR(node->get_logger(), "Dock %s has no valid 'id'.", dock_name.c_str());
-      return false;
-    }
+    node->get_parameter(dock_name + ".id", curr_dock.id);
 
     // Insert into dock instance database
     dock_db.emplace(dock_name, curr_dock);
