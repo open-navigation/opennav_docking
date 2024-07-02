@@ -60,9 +60,6 @@ TEST(UtilsTests, parseDockParams2)
   node->declare_parameter("dockC.pose", rclcpp::ParameterValue(dock_pose));
   node->declare_parameter("dockD.pose", rclcpp::ParameterValue(dock_pose));
 
-  // Don't declare C, check if empty string default
-  node->declare_parameter("dockD.id", rclcpp::ParameterValue("D"));
-
   std::vector<std::string> docks_param;
   node->get_parameter("docks", docks_param);
 
@@ -72,8 +69,6 @@ TEST(UtilsTests, parseDockParams2)
   EXPECT_EQ(db["dockC"].type, std::string("typeA"));
   EXPECT_EQ(db["dockC"].pose.position.x, 0.3);
   EXPECT_EQ(db["dockC"].pose.position.y, 0.3);
-  EXPECT_EQ(db["dockC"].id, std::string(""));
-  EXPECT_EQ(db["dockD"].id, std::string("D"));
 }
 
 TEST(UtilsTests, parseDockParams3)
@@ -113,8 +108,6 @@ TEST(UtilsTests, parseDockFile)
   EXPECT_EQ(db["dock2"].pose.position.x, 0.0);
   EXPECT_EQ(db["dock2"].pose.position.y, 0.0);
   EXPECT_NE(db["dock2"].pose.orientation.w, 1.0);
-  EXPECT_EQ(db["dock1"].id, std::string(""));
-  EXPECT_EQ(db["dock2"].id, std::string("2"));
 }
 
 TEST(UtilsTests, testgetDockPoseStamped)

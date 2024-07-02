@@ -81,7 +81,7 @@ public:
    * @param pose The initial estimate of the dock pose.
    * @param frame The frame of the initial estimate.
    */
-  virtual bool getRefinedPose(geometry_msgs::msg::PoseStamped & pose, std::string id);
+  virtual bool getRefinedPose(geometry_msgs::msg::PoseStamped & pose);
 
   /**
    * @copydoc opennav_docking_core::ChargingDock::isDocked
