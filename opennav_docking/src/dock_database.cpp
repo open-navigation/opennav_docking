@@ -17,8 +17,9 @@
 namespace opennav_docking
 {
 
-DockDatabase::DockDatabase()
-: dock_loader_("opennav_docking_core", "opennav_docking_core::ChargingDock")
+DockDatabase::DockDatabase(std::shared_ptr<std::mutex> mutex)
+: mutex_(mutex),
+  dock_loader_("opennav_docking_core", "opennav_docking_core::ChargingDock")
 {}
 
 DockDatabase::~DockDatabase()
@@ -71,13 +72,21 @@ void DockDatabase::reloadDbCb(
   const std::shared_ptr<opennav_docking_msgs::srv::ReloadDatabase::Request> request,
   std::shared_ptr<opennav_docking_msgs::srv::ReloadDatabase::Response> response)
 {
+  if (!mutex_->try_lock()) {
+    RCLCPP_ERROR(node_.lock()->get_logger(), "Cannot reload database while docking!");
+    response->success = false;
+    return;
+  }
+
   DockMap dock_instances;
   if (utils::parseDockFile(request->filepath, node_.lock(), dock_instances)) {
     dock_instances_ = dock_instances;
     response->success = true;
+    mutex_->unlock();
     return;
   }
   response->success = false;
+  mutex_->unlock();
 }
 
 Dock * DockDatabase::findDock(const std::string & dock_id)
