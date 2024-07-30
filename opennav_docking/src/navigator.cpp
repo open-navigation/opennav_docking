@@ -52,12 +52,16 @@ void Navigator::deactivate()
 void Navigator::goToPose(
   const geometry_msgs::msg::PoseStamped & pose,
   const rclcpp::Duration & max_staging_duration,
+  std::function<bool()> isPreempted,
   bool recursed)
 {
+  auto node = node_.lock();
+
   Nav2Pose::Goal goal;
   goal.pose = pose;
   goal.behavior_tree = navigator_bt_xml_;
   const auto timeout = max_staging_duration.to_chrono<std::chrono::milliseconds>();
+  const auto start_time = node->now();
 
   // Wait for server to be active
   nav_to_pose_client_->wait_for_action_server(1s);
@@ -66,19 +70,36 @@ void Navigator::goToPose(
       future_goal_handle, 2s) == rclcpp::FutureReturnCode::SUCCESS)
   {
     auto future_result = nav_to_pose_client_->async_get_result(future_goal_handle.get());
-    if (executor_.spin_until_future_complete(
-        future_result, timeout) == rclcpp::FutureReturnCode::SUCCESS)
-    {
-      auto result = future_result.get();
-      if (result.code == rclcpp_action::ResultCode::SUCCEEDED && result.result->error_code == 0) {
-        return;  // Success!
+
+    while (rclcpp::ok()) {
+      if (isPreempted()) {
+        nav_to_pose_client_->async_cancel_goal(future_goal_handle.get());
+        throw opennav_docking_core::Preempted("Navigation request to staging pose preempted.");
+      }
+
+      if (node->now() - start_time > max_staging_duration) {
+        nav_to_pose_client_->async_cancel_goal(future_goal_handle.get());
+        throw opennav_docking_core::FailedToStage("Navigation request to staging pose timed out.");
+      }
+
+      if (executor_.spin_until_future_complete(
+          future_result, 1s) == rclcpp::FutureReturnCode::SUCCESS)
+      {
+        auto result = future_result.get();
+        if (result.code == rclcpp_action::ResultCode::SUCCEEDED &&
+          result.result->error_code == 0)
+        {
+          return;  // Success!
+        } else {
+          throw opennav_docking_core::FailedToStage("Navigation request to staging pose failed.");
+        }
       }
     }
   }
 
   // Attempt to retry once using single iteration recursion
   if (!recursed) {
-    goToPose(pose, max_staging_duration, true);
+    goToPose(pose, max_staging_duration, isPreempted, true);
     return;
   }
 

@@ -18,6 +18,7 @@
 #include <vector>
 #include <memory>
 #include <string>
+#include <functional>
 
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
@@ -72,6 +73,7 @@ public:
   void goToPose(
     const geometry_msgs::msg::PoseStamped & pose,
     const rclcpp::Duration & max_staging_duration,
+    std::function<bool()> isPreempted = []() { return false; },
     bool recursed = false);
 
 protected:

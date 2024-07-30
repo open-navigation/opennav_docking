@@ -246,8 +246,15 @@ void DockingServer::dockRobot()
     {
       RCLCPP_INFO(get_logger(), "Robot already within pre-staging pose tolerance for dock");
     } else {
+      std::function<bool()> isPreempted = [this]() {
+        return checkAndWarnIfCancelled(docking_action_server_, "dock_robot") ||
+        checkAndWarnIfPreempted(docking_action_server_, "dock_robot");
+      };
+
       navigator_->goToPose(
-        initial_staging_pose, rclcpp::Duration::from_seconds(goal->max_staging_time));
+        initial_staging_pose,
+        rclcpp::Duration::from_seconds(goal->max_staging_time),
+        isPreempted);
       RCLCPP_INFO(get_logger(), "Successful navigation to staging pose");
     }
 
@@ -322,6 +329,9 @@ void DockingServer::dockRobot()
   } catch (opennav_docking_core::FailedToCharge & e) {
     RCLCPP_ERROR(get_logger(), "%s", e.what());
     result->error_code = DockRobot::Result::FAILED_TO_CHARGE;
+  } catch (opennav_docking_core::Preempted & e) {
+    RCLCPP_ERROR(get_logger(), "%s", e.what());
+    result->error_code = DockRobot::Result::PREEMPTED;
   } catch (opennav_docking_core::DockingException & e) {
     RCLCPP_ERROR(get_logger(), "%s", e.what());
     result->error_code = DockRobot::Result::UNKNOWN;
