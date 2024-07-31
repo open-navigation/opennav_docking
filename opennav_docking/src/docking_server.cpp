@@ -329,9 +329,6 @@ void DockingServer::dockRobot()
   } catch (opennav_docking_core::FailedToCharge & e) {
     RCLCPP_ERROR(get_logger(), "%s", e.what());
     result->error_code = DockRobot::Result::FAILED_TO_CHARGE;
-  } catch (opennav_docking_core::Preempted & e) {
-    RCLCPP_ERROR(get_logger(), "%s", e.what());
-    result->error_code = DockRobot::Result::PREEMPTED;
   } catch (opennav_docking_core::DockingException & e) {
     RCLCPP_ERROR(get_logger(), "%s", e.what());
     result->error_code = DockRobot::Result::UNKNOWN;
