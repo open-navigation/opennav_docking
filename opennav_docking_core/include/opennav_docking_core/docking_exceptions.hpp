@@ -98,17 +98,6 @@ public:
   : DockingException(description) {}
 };
 
-/**
- * @class Preepted
- * @brief Docking action was preempted
- */
-class Preempted : public DockingException
-{
-public:
-  explicit Preempted(const std::string & description)
-  : DockingException(description) {}
-};
-
 }  // namespace opennav_docking_core
 
 #endif  // OPENNAV_DOCKING_CORE__DOCKING_EXCEPTIONS_HPP_

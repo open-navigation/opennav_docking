@@ -73,7 +73,7 @@ public:
   void goToPose(
     const geometry_msgs::msg::PoseStamped & pose,
     const rclcpp::Duration & max_staging_duration,
-    std::function<bool()> isPreempted = []() { return false; },
+    std::function<bool()> isPreempted,
     bool recursed = false);
 
 protected:

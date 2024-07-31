@@ -60,7 +60,6 @@ void Navigator::goToPose(
   Nav2Pose::Goal goal;
   goal.pose = pose;
   goal.behavior_tree = navigator_bt_xml_;
-  const auto timeout = max_staging_duration.to_chrono<std::chrono::milliseconds>();
   const auto start_time = node->now();
 
   // Wait for server to be active
@@ -73,8 +72,9 @@ void Navigator::goToPose(
 
     while (rclcpp::ok()) {
       if (isPreempted()) {
-        nav_to_pose_client_->async_cancel_goal(future_goal_handle.get());
-        throw opennav_docking_core::Preempted("Navigation request to staging pose preempted.");
+        auto cancel_future = nav_to_pose_client_->async_cancel_goal(future_goal_handle.get());
+        executor_.spin_until_future_complete(cancel_future, 1s);
+        throw opennav_docking_core::FailedToStage("Navigation request to staging pose preempted.");
       }
 
       if (node->now() - start_time > max_staging_duration) {
@@ -83,7 +83,7 @@ void Navigator::goToPose(
       }
 
       if (executor_.spin_until_future_complete(
-          future_result, 1s) == rclcpp::FutureReturnCode::SUCCESS)
+          future_result, 100ms) == rclcpp::FutureReturnCode::SUCCESS)
       {
         auto result = future_result.get();
         if (result.code == rclcpp_action::ResultCode::SUCCEEDED &&
