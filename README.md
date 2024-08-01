@@ -16,6 +16,8 @@ This is split into 4 packages
 
 ![NvidiaxOpenNavigation](./docs/nv_on.png)
 
+**⚠️ Need ROS 2, Nav2 help or support? Contact [Open Navigation](https://www.opennav.org/)! ⚠️**
+
 [![IMAGE ALT TEXT](./docs/demo.gif)](https://youtu.be/J3ygkehttlg)
 
 Click on the image above to see an extended video of docking in action.
