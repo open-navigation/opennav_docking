@@ -78,12 +78,14 @@ void Navigator::goToPose(
       }
 
       if (node->now() - start_time > max_staging_duration) {
-        nav_to_pose_client_->async_cancel_goal(future_goal_handle.get());
-        throw opennav_docking_core::FailedToStage("Navigation request to staging pose timed out.");
+        auto cancel_future = nav_to_pose_client_->async_cancel_goal(future_goal_handle.get());
+        executor_.spin_until_future_complete(cancel_future, 1s);
+        RCLCPP_WARN(node->get_logger(), "Navigation request to staging pose timed out.");
+        break;
       }
 
       if (executor_.spin_until_future_complete(
-          future_result, 100ms) == rclcpp::FutureReturnCode::SUCCESS)
+          future_result, 10ms) == rclcpp::FutureReturnCode::SUCCESS)
       {
         auto result = future_result.get();
         if (result.code == rclcpp_action::ResultCode::SUCCEEDED &&
@@ -91,7 +93,8 @@ void Navigator::goToPose(
         {
           return;  // Success!
         } else {
-          throw opennav_docking_core::FailedToStage("Navigation request to staging pose failed.");
+          RCLCPP_WARN(node->get_logger(), "Navigation request to staging pose failed.");
+          break;
         }
       }
     }
