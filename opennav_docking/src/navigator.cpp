@@ -51,7 +51,7 @@ void Navigator::deactivate()
 
 void Navigator::goToPose(
   const geometry_msgs::msg::PoseStamped & pose,
-  const rclcpp::Duration & max_staging_duration,
+  rclcpp::Duration remaining_staging_duration,
   std::function<bool()> isPreempted,
   bool recursed)
 {
@@ -77,11 +77,10 @@ void Navigator::goToPose(
         throw opennav_docking_core::FailedToStage("Navigation request to staging pose preempted.");
       }
 
-      if (node->now() - start_time > max_staging_duration) {
+      if (node->now() - start_time > remaining_staging_duration) {
         auto cancel_future = nav_to_pose_client_->async_cancel_goal(future_goal_handle.get());
         executor_.spin_until_future_complete(cancel_future, 1s);
-        RCLCPP_WARN(node->get_logger(), "Navigation request to staging pose timed out.");
-        break;
+        throw opennav_docking_core::FailedToStage("Navigation request to staging pose timed out.");
       }
 
       if (executor_.spin_until_future_complete(
@@ -102,7 +101,9 @@ void Navigator::goToPose(
 
   // Attempt to retry once using single iteration recursion
   if (!recursed) {
-    goToPose(pose, max_staging_duration, isPreempted, true);
+    auto elapsed_time = node->now() - start_time;
+    remaining_staging_duration = remaining_staging_duration - elapsed_time;
+    goToPose(pose, remaining_staging_duration, isPreempted, true);
     return;
   }
 
