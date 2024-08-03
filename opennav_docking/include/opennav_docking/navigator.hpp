@@ -69,6 +69,8 @@ public:
    * Blocks until completion.
    * @param pose Pose to go to
    * @param remaining_staging_duration Remaining time to get to the staging pose
+   * @param isPreempted Function to check if preempted
+   * @param recursed True if recursed (used to retry once)
    */
   void goToPose(
     const geometry_msgs::msg::PoseStamped & pose,
