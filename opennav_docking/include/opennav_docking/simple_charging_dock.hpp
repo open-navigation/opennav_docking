@@ -142,6 +142,7 @@ protected:
   double charging_threshold_;
   // If not using an external pose reference, this is the distance threshold
   double docking_threshold_;
+  std::string base_frame_id_;
   // Offset for staging pose relative to dock pose
   double staging_x_offset_;
   double staging_yaw_offset_;
