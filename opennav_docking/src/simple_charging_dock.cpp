@@ -96,6 +96,7 @@ void SimpleChargingDock::configure(
   node_->get_parameter(name + ".docking_threshold", docking_threshold_);
   node_->get_parameter(name + ".staging_x_offset", staging_x_offset_);
   node_->get_parameter(name + ".staging_yaw_offset", staging_yaw_offset_);
+  node_->get_parameter("base_frame", base_frame_id_);  // Get server base frame ID
 
   // Setup filter
   double filter_coef;
@@ -250,7 +251,7 @@ bool SimpleChargingDock::isDocked()
   // Find base pose in target frame
   geometry_msgs::msg::PoseStamped base_pose;
   base_pose.header.stamp = rclcpp::Time(0);
-  base_pose.header.frame_id = "base_link";
+  base_pose.header.frame_id = base_frame_id_;
   base_pose.pose.orientation.w = 1.0;
   try {
     tf2_buffer_->transform(base_pose, base_pose, dock_pose_.header.frame_id);
