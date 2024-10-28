@@ -40,6 +40,7 @@ ament_target_dependencies(test_controller
 )
 target_link_libraries(test_controller
   ${library_name}
+  controller
 )
 
 # Test Simple Dock
