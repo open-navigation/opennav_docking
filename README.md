@@ -12,7 +12,7 @@ This is split into 4 packages
 - `opennav_docking_bt`: Contains behavior tree nodes and example XML files using the docking task server
 - `nova_carter_docking`: Contains an implementation using the Docking system with the Nvidia [Nova Carter](https://robotics.segway.com/nova-carter/) Robot platform and dock.
 
-**NOTE**: This capability has been migrated within Nav2 itself as of June 2024 and `nova_carter_docking` was migrated to [Nova Carter's GitHub](https://github.com/NVIDIA-ISAAC-ROS/nova_carter/tree/main) in August 2024.
+**NOTE**: This capability has been migrated within Nav2 itself as of June 2024 and `nova_carter_docking` was migrated to [Nova Carter's GitHub](https://github.com/NVIDIA-ISAAC-ROS/nova_carter/tree/main) in August 2024. If using Humble, please use this repository's `humble` branch. Otherwise, refer to Nav2! 
 
 ![NvidiaxOpenNavigation](./docs/nv_on.png)
 
