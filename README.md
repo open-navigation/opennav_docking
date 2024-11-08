@@ -207,14 +207,17 @@ For debugging purposes, there are several publishers which can be used with RVIZ
 | dock_database  |  The filepath to the dock database to use for this environment | string |  N/A  |
 | docks  |  Instead of `dock_database`, the set of docks specified in the params file itself | vector<string> | N/A     |
 | navigator_bt_xml  | BT XML to use for Navigator, if non-default | string | ""     |
-| controller.k_phi  | TODO | double | 3.0  |
-| controller.k_delta  |  TODO | double | 2.0     |
-| controller.beta  |  TODO | double | 0.4  |
-| controller.lambda  |  TODO | double | 2.0     |
-| controller.v_linear_min  |  TODO | double | 0.1     |
-| controller.v_linear_max |  TODO | double | 0.25    |
-| controller.v_angular_max |  TODO | double | 0.75    |
-| controller.slowdown_radius |  TODO | double | 0.25     |
+| initial_rotation |  Enable a rotation in place to the goal before starting the path. The control law may generate large sweeping arcs to the goal pose, depending on the initial robot orientation and k_phi, k_delta. | bool | true    |
+| initial_rotation_min_angle|  The difference in the path orientation and the starting robot orientation to trigger a rotate in place, if initial_rotation is enabled. | double | 0.3     |
+| controller.k_phi  | Ratio of the rate of change of angle relative to distance from the target. Much be > 0. | double | 3.0  |
+| controller.k_delta  |  Higher values result in converging to the target more quickly. | double | 2.0     |
+| controller.beta  |  Parameter to reduce linear velocity proportional to path curvature. Increasing this linearly reduces the velocity (v(t) = v_max / (1 + beta * |curv|^lambda)). | double | 0.4  |
+| controller.lambda  |  Parameter to reduce linear velocity proportional to path curvature. Increasing this exponentially reduces the velocity (v(t) = v_max / (1 + beta * |curv|^lambda)). | double | 2.0     |
+| controller.v_linear_min  |  Minimum velocity for approaching dock. | double | 0.1     |
+| controller.v_linear_max |  Maximum velocity for approaching dock. | double | 0.25    |
+| controller.v_angular_min |  Minimum angular velocity for approaching dock. | double | 0.15    |
+| controller.v_angular_max |  Maximum angular velocity for approaching dock. | double | 0.75    |
+| controller.slowdown_radius |  Radius to end goal to commense slow down. | double | 0.25     |
 
 Note: `dock_plugins` and either `docks` or `dock_database` are required.
 
