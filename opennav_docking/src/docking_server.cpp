@@ -699,6 +699,8 @@ DockingServer::dynamicParametersCallback(std::vector<rclcpp::Parameter> paramete
         undock_linear_tolerance_ = parameter.as_double();
       } else if (name == "undock_angular_tolerance") {
         undock_angular_tolerance_ = parameter.as_double();
+      } else if (name == "initial_rotation_min_angle") {
+        initial_rotation_min_angle_ = parameter.as_double();
       }
     } else if (type == ParameterType::PARAMETER_STRING) {
       if (name == "base_frame") {
@@ -709,6 +711,10 @@ DockingServer::dynamicParametersCallback(std::vector<rclcpp::Parameter> paramete
     } else if (type == ParameterType::PARAMETER_INTEGER) {
       if (name == "max_retries") {
         max_retries_ = parameter.as_int();
+      }
+    } else if(type == ParameterType::PARAMETER_BOOL){
+      if (name == "initial_rotation") {
+        initial_rotation_ = parameter.as_bool();
       }
     }
   }
