@@ -41,7 +41,7 @@ DockingServer::DockingServer(const rclcpp::NodeOptions & options)
   declare_parameter("dock_backwards", false);
   declare_parameter("dock_prestaging_tolerance", 0.5);
   declare_parameter("initial_rotation", true);
-  declare_parameter("initial_rotation_min_angle", 0.5);
+  declare_parameter("initial_rotation_min_angle", 0.3);
 }
 
 nav2_util::CallbackReturn
