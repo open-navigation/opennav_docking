@@ -21,6 +21,7 @@
 #include "geometry_msgs/msg/twist.hpp"
 #include "nav2_graceful_controller/smooth_control_law.hpp"
 #include "nav2_util/lifecycle_node.hpp"
+#include <vector>
 
 namespace opennav_docking
 {
@@ -47,6 +48,17 @@ public:
     const geometry_msgs::msg::Pose & pose,const geometry_msgs::msg::Pose & robot_pose, geometry_msgs::msg::Twist & cmd,
     bool backward = false);
   
+
+  /**
+   * @brief Callback executed when a parameter change is detected
+   * @param event ParameterEvent message
+   */
+  rcl_interfaces::msg::SetParametersResult
+  dynamicParametersCallback(std::vector<rclcpp::Parameter> parameters);
+  // Dynamic parameters handler
+  rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr dyn_params_handler_;
+  std::mutex dynamic_params_lock_;
+
   /**
    * @brief Perform a rotation about an angle.
    * @param angle_to_target Rotation angle <-2*pi;2*pi>.
@@ -54,11 +66,10 @@ public:
    */
   geometry_msgs::msg::Twist rotateToTarget(const double & angle_to_target);
 
-private:
-  double v_angular_max_;
-  double v_angular_min_;
 protected:
   std::unique_ptr<nav2_graceful_controller::SmoothControlLaw> control_law_;
+  double k_phi_, k_delta_, beta_, lambda_;
+  double slowdown_radius_, v_linear_min_, v_linear_max_, v_angular_max_,v_angular_min_;
 };
 
 }  // namespace opennav_docking
