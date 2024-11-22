@@ -215,6 +215,13 @@ For debugging purposes, there are several publishers which can be used with RVIZ
 | controller.v_linear_max |  TODO | double | 0.25    |
 | controller.v_angular_max |  TODO | double | 0.75    |
 | controller.slowdown_radius |  TODO | double | 0.25     |
+| controller.use_collision_detection | Whether to use collision detection to avoid obstacles | bool | true     |
+| controller.costmap_topic | The topic to use for the costmap | string | "local_costmap/costmap_raw"     |
+| controller.footprint_topic | The topic to use for the robot's footprint | string | "local_costmap/published_footprint"     |
+| controller.transform_tolerance | Time with which to post-date the transform that is published, to indicate that this transform is valid into the future. | double | 0.1     |
+| controller.projection_time | Time to look ahead for collisions (s). | double | 5.0     |
+| controller.simulation_time_step | Time step for projections (s). | double | 0.1     |
+| controller.dock_collision_threshold | Distance (m) from the dock pose to ignore collisions, i.e. the robot will not check for collisions within this distance from the dock pose, as the robot will make contact with the dock. Set to `0.0` when physical contact is not made with a dock. | double | 0.3     |
 
 Note: `dock_plugins` and either `docks` or `dock_database` are required.
 
