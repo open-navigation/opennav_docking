@@ -19,6 +19,8 @@
 #include <vector>
 #include <memory>
 #include <string>
+#include <mutex>
+#include <functional>
 
 #include "rclcpp/rclcpp.hpp"
 #include "nav2_util/lifecycle_node.hpp"
@@ -27,11 +29,9 @@
 #include "nav2_util/twist_publisher.hpp"
 #include "opennav_docking/controller.hpp"
 #include "opennav_docking/pose_filter.hpp"
+#include "opennav_following_msgs/action/follow_object.hpp"
 #include "tf2_ros/buffer.h"
 #include "tf2_ros/transform_listener.h"
-
-#include "opennav_following/following_exceptions.hpp"
-#include "opennav_following_msgs/action/follow_object.hpp"
 
 namespace opennav_following
 {
@@ -42,8 +42,8 @@ namespace opennav_following
 class FollowingServer : public nav2_util::LifecycleNode
 {
 public:
-  using FollowObjectAction = opennav_following_msgs::action::FollowObject;
-  using FollowingActionServer = nav2_util::SimpleActionServer<FollowObjectAction>;
+  using FollowObject = opennav_following_msgs::action::FollowObject;
+  using FollowingActionServer = nav2_util::SimpleActionServer<FollowObject>;
 
   /**
    * @brief A constructor for opennav_following::FollowingServer
@@ -66,10 +66,10 @@ public:
    * @brief Do initial perception, up to a timeout.
    * @param object_pose Initial object pose, will be refined by perception.
    */
-  void doInitialPerception(geometry_msgs::msg::PoseStamped & object_pose);
+  virtual void doInitialPerception(geometry_msgs::msg::PoseStamped & object_pose);
 
   /**
-   * @brief Use control law and perception to approach the object
+   * @brief Use control law and perception to approach the object.
    * @param object_pose Initial object pose, will be refined by perception.
    * @returns True if successfully approached, False if cancelled. For
    *          any internal error, will throw.
@@ -156,22 +156,27 @@ public:
    */
   void publishZeroVelocity();
 
+protected:
   /**
-   * @brief Method to obtain the refined dynamic pose
+   * @brief Main action callback method to complete following request
+   */
+  void followObject();
+
+  /**
+   * @brief Method to obtain the refined dynamic pose.
    * @param pose The initial estimate of the dynamic pose
-   * which will be updated with the refined pose.
+   *        which will be updated with the refined pose.
    */
   virtual bool getRefinedPose(geometry_msgs::msg::PoseStamped & pose);
 
-protected:
   /**
-   * @brief Projects the given pose backwards the specified distance.
+   * @brief Get the pose at a distance in front of the input pose
    *
-   * @param pose Input pose to project
+   * @param pose Input pose
    * @param distance Distance to move (in meters)
-   * @return Pose distance meters behind the input pose
+   * @return Pose distance meters in front of the input pose
    */
-  geometry_msgs::msg::PoseStamped getBackwardPose(
+  geometry_msgs::msg::PoseStamped getPoseAtDistance(
     const geometry_msgs::msg::PoseStamped & pose, double distance);
 
   /**
@@ -183,11 +188,6 @@ protected:
   bool isGoalReached(const geometry_msgs::msg::PoseStamped & goal_pose);
 
   /**
-   * @brief Main action callback method to complete following request
-   */
-  void followObject();
-
-  /**
    * @brief Callback executed when a parameter change is detected
    * @param event ParameterEvent message
    */
@@ -196,7 +196,9 @@ protected:
 
   // Dynamic parameters handler
   rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr dyn_params_handler_;
-  std::mutex dynamic_params_lock_;
+
+  // Mutex for dynamic parameters
+  std::shared_ptr<std::mutex> dynamic_params_lock_;
 
   // Frequency to run control loops
   double controller_frequency_;
@@ -204,6 +206,8 @@ protected:
   double initial_perception_timeout_;
   // Tolerance for transforming coordinates
   double transform_tolerance_;
+  // Timeout to approach into the dock and reset its approach is retrying
+  // double dock_approach_timeout_;
   // Tolerances for arriving at the safe_distance pose
   double linear_tolerance_, angular_tolerance_;
   // This is the root frame of the robot - typically "base_link"
@@ -227,9 +231,6 @@ protected:
   rclcpp_lifecycle::LifecyclePublisher<geometry_msgs::msg::PoseStamped>::SharedPtr
     filtered_dynamic_pose_pub_;
 
-  // Publish the trajectory
-  std::shared_ptr<rclcpp_lifecycle::LifecyclePublisher<nav_msgs::msg::Path>> trajectory_pub_;
-
   // Latest message
   geometry_msgs::msg::PoseStamped detected_dynamic_pose_;
 
@@ -244,6 +245,7 @@ protected:
   std::unique_ptr<FollowingActionServer> following_action_server_;
 
   std::unique_ptr<opennav_docking::Controller> controller_;
+
   std::shared_ptr<tf2_ros::Buffer> tf2_buffer_;
   std::unique_ptr<tf2_ros::TransformListener> tf2_listener_;
 };

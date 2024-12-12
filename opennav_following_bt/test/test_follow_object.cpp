@@ -20,7 +20,7 @@
 
 #include "geometry_msgs/msg/pose_stamped.hpp"
 
-#include "behaviortree_cpp_v3/bt_factory.h"
+#include "behaviortree_cpp/bt_factory.h"
 
 #include "nav2_behavior_tree/utils/test_action_server.hpp"
 #include "opennav_following_bt/follow_object.hpp"
@@ -133,7 +133,7 @@ TEST_F(FollowObjectActionTestFixture, test_tick)
   EXPECT_EQ(action_server_->getCurrentGoal()->object_pose, pose);
 
   // halt node so another goal can be sent
-  tree_->rootNode()->halt();
+  tree_->haltTree();
   EXPECT_EQ(tree_->rootNode()->status(), BT::NodeStatus::IDLE);
 
   // set new goal
