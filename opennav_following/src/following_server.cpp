@@ -14,10 +14,11 @@
 // limitations under the License.
 
 #include "angles/angles.h"
+#include "opennav_following/following_exceptions.hpp"
+#include "opennav_following/following_server.hpp"
 #include "nav2_util/geometry_utils.hpp"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 #include "tf2/utils.h"
-#include "opennav_following/following_server.hpp"
 
 using namespace std::chrono_literals;
 using rcl_interfaces::msg::ParameterType;
@@ -34,8 +35,6 @@ FollowingServer::FollowingServer(const rclcpp::NodeOptions & options)
   declare_parameter("controller_frequency", 50.0);
   declare_parameter("initial_perception_timeout", 5.0);
   declare_parameter("detection_timeout", 2.0);
-  declare_parameter("object_approach_timeout", 10.0);
-  declare_parameter("transform_tolerance", 0.2);
   declare_parameter("linear_tolerance", 0.15);
   declare_parameter("angular_tolerance", 0.15);
   declare_parameter("base_frame", "base_link");
@@ -55,7 +54,6 @@ FollowingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
   get_parameter("controller_frequency", controller_frequency_);
   get_parameter("initial_perception_timeout", initial_perception_timeout_);
   get_parameter("detection_timeout", detection_timeout_);
-  get_parameter("transform_tolerance", transform_tolerance_);
   get_parameter("linear_tolerance", linear_tolerance_);
   get_parameter("angular_tolerance", angular_tolerance_);
   get_parameter("base_frame", base_frame_);
@@ -83,7 +81,9 @@ FollowingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
     true, server_options);
 
   // Create composed utilities
-  controller_ = std::make_unique<opennav_docking::Controller>(node);
+  dynamic_params_lock_ = std::make_shared<std::mutex>();
+  controller_ =
+    std::make_unique<opennav_docking::Controller>(node, tf2_buffer_, fixed_frame_, base_frame_);
 
   // Setup filter
   double filter_coef;
@@ -98,10 +98,9 @@ FollowingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
       detected_dynamic_pose_ = *pose;
     });
 
-  // And publish filtered pose and trajectory for debugging
-  filtered_dynamic_pose_pub_ = create_publisher<geometry_msgs::msg::PoseStamped>(
-    "filtered_dynamic_pose", 1);
-  trajectory_pub_ = node->create_publisher<nav_msgs::msg::Path>("trajectory", 1);
+  // And publish the filtered pose for debugging
+  filtered_dynamic_pose_pub_ =
+    create_publisher<geometry_msgs::msg::PoseStamped>("filtered_dynamic_pose", 1);
 
   return nav2_util::CallbackReturn::SUCCESS;
 }
@@ -116,7 +115,6 @@ FollowingServer::on_activate(const rclcpp_lifecycle::State & /*state*/)
   tf2_listener_ = std::make_unique<tf2_ros::TransformListener>(*tf2_buffer_);
   vel_publisher_->on_activate();
   filtered_dynamic_pose_pub_->on_activate();
-  trajectory_pub_->on_activate();
   following_action_server_->activate();
 
   // Add callback for dynamic parameters
@@ -135,10 +133,10 @@ FollowingServer::on_deactivate(const rclcpp_lifecycle::State & /*state*/)
   RCLCPP_INFO(get_logger(), "Deactivating %s", get_name());
 
   following_action_server_->deactivate();
-  filtered_dynamic_pose_pub_->on_deactivate();
-  trajectory_pub_->on_deactivate();
   vel_publisher_->on_deactivate();
+  filtered_dynamic_pose_pub_->on_deactivate();
 
+  remove_on_set_parameters_callback(dyn_params_handler_.get());
   dyn_params_handler_.reset();
   tf2_listener_.reset();
 
@@ -157,7 +155,6 @@ FollowingServer::on_cleanup(const rclcpp_lifecycle::State & /*state*/)
   controller_.reset();
   vel_publisher_.reset();
   filtered_dynamic_pose_pub_.reset();
-  trajectory_pub_.reset();
   return nav2_util::CallbackReturn::SUCCESS;
 }
 
@@ -204,12 +201,12 @@ bool FollowingServer::checkAndWarnIfPreempted(
 
 void FollowingServer::followObject()
 {
-  std::lock_guard<std::mutex> lock(dynamic_params_lock_);
+  std::lock_guard<std::mutex> lock(*dynamic_params_lock_);
   action_start_time_ = this->now();
   rclcpp::Rate loop_rate(controller_frequency_);
 
   auto goal = following_action_server_->get_current_goal();
-  auto result = std::make_shared<FollowObjectAction::Result>();
+  auto result = std::make_shared<FollowObject::Result>();
 
   if (!following_action_server_ || !following_action_server_->is_server_active()) {
     RCLCPP_DEBUG(get_logger(), "Action server unavailable or inactive. Stopping.");
@@ -230,7 +227,8 @@ void FollowingServer::followObject()
       goal->object_pose.pose.position.x, goal->object_pose.pose.position.y);
 
     // Construct initial estimate of where the object is located in fixed_frame
-    geometry_msgs::msg::PoseStamped object_pose = goal->object_pose;
+    auto object_pose = goal->object_pose;
+    object_pose.header.stamp = rclcpp::Time(0);
     tf2_buffer_->transform(object_pose, object_pose, fixed_frame_);
 
     // Get initial detection of the object before proceeding to move
@@ -239,21 +237,26 @@ void FollowingServer::followObject()
 
     // Following control loop: while not timeout, run controller
     auto start = this->now();
-    rclcpp::Duration timeout = goal->max_duration;
+    rclcpp::Duration max_duration = goal->max_duration;
     while (rclcpp::ok()) {
       try {
+        // Check if we have run out of time
+        if (this->now() - start > max_duration && max_duration.seconds() > 0.0) {
+          RCLCPP_INFO(get_logger(), "Exceeded max duration. Stopping.");
+          result->error_code = FollowObject::Result::TIMEOUT;
+          result->total_elapsed_time = this->now() - action_start_time_;
+          publishZeroVelocity();
+          following_action_server_->succeeded_current(result);
+          return;
+        }
+
         // Approach the object using control law
         if (approachObject(object_pose)) {
-          // We have reached the object, check if we timeout
-          if (this->now() - start > timeout && timeout.seconds() > 0.0) {
-            RCLCPP_INFO(get_logger(), "Reached object, but timed out");
-            result->error_code = FollowObjectAction::Result::TIMEOUT;
-            result->total_elapsed_time = this->now() - action_start_time_;
-            publishZeroVelocity();
-            following_action_server_->succeeded_current(result);
-            return;
-          }
-          // We have reached the object, mantain the position
+          // We have reached the object, maintain position
+          RCLCPP_INFO_THROTTLE(
+            get_logger(), *get_clock(), 1000,
+            "Reached object. Stopping until goal is moved again.");
+          publishFollowingFeedback(FollowObject::Feedback::STOPPING);
           publishZeroVelocity();
           continue;
         }
@@ -265,29 +268,27 @@ void FollowingServer::followObject()
         return;
       } catch (opennav_following::FollowingException & e) {
         RCLCPP_WARN(get_logger(), "Following failed");
-        throw;
+        throw e;
       }
-
-      // TODO(ajtudela): Implement recoveries (rotate, move back, etc.)?
     }
   } catch (const tf2::TransformException & e) {
     RCLCPP_ERROR(get_logger(), "Transform error: %s", e.what());
-    result->error_code = FollowObjectAction::Result::TF_ERROR;
+    result->error_code = FollowObject::Result::TF_ERROR;
   } catch (opennav_following::ObjectNotValid & e) {
     RCLCPP_ERROR(get_logger(), "%s", e.what());
-    result->error_code = FollowObjectAction::Result::OBJECT_NOT_VALID;
+    result->error_code = FollowObject::Result::OBJECT_NOT_VALID;
   } catch (opennav_following::FailedToDetectObject & e) {
     RCLCPP_ERROR(get_logger(), "%s", e.what());
-    result->error_code = FollowObjectAction::Result::FAILED_TO_DETECT_OBJECT;
+    result->error_code = FollowObject::Result::FAILED_TO_DETECT_OBJECT;
   } catch (opennav_following::FailedToControl & e) {
     RCLCPP_ERROR(get_logger(), "%s", e.what());
-    result->error_code = FollowObjectAction::Result::FAILED_TO_CONTROL;
+    result->error_code = FollowObject::Result::FAILED_TO_CONTROL;
   } catch (opennav_following::FollowingException & e) {
     RCLCPP_ERROR(get_logger(), "%s", e.what());
-    result->error_code = FollowObjectAction::Result::UNKNOWN;
+    result->error_code = FollowObject::Result::UNKNOWN;
   } catch (std::exception & e) {
     RCLCPP_ERROR(get_logger(), "%s", e.what());
-    result->error_code = FollowObjectAction::Result::UNKNOWN;
+    result->error_code = FollowObject::Result::UNKNOWN;
   }
 
   // Stop the robot and report
@@ -295,13 +296,13 @@ void FollowingServer::followObject()
   following_action_server_->terminate_current(result);
 }
 
-void FollowingServer::doInitialPerception(geometry_msgs::msg::PoseStamped & object_pose)
+void FollowingServer::doInitialPerception(geometry_msgs::msg::PoseStamped & dock_pose)
 {
-  publishFollowingFeedback(FollowObjectAction::Feedback::INITIAL_PERCEPTION);
+  publishFollowingFeedback(FollowObject::Feedback::INITIAL_PERCEPTION);
   rclcpp::Rate loop_rate(controller_frequency_);
   auto start = this->now();
   auto timeout = rclcpp::Duration::from_seconds(initial_perception_timeout_);
-  while (!getRefinedPose(object_pose)) {
+  while (!getRefinedPose(dock_pose)) {
     if (this->now() - start > timeout) {
       throw opennav_following::FailedToDetectObject("Failed initial object detection");
     }
@@ -320,7 +321,7 @@ bool FollowingServer::approachObject(geometry_msgs::msg::PoseStamped & object_po
 {
   rclcpp::Rate loop_rate(controller_frequency_);
   while (rclcpp::ok()) {
-    publishFollowingFeedback(FollowObjectAction::Feedback::CONTROLLING);
+    publishFollowingFeedback(FollowObject::Feedback::CONTROLLING);
 
     // Stop if cancelled/preempted
     if (checkAndWarnIfCancelled(following_action_server_, "follow_object") ||
@@ -329,14 +330,14 @@ bool FollowingServer::approachObject(geometry_msgs::msg::PoseStamped & object_po
       return false;
     }
 
-    // Update perception of object
+    // Update perception
     if (!getRefinedPose(object_pose)) {
       throw opennav_following::FailedToDetectObject("Failed object detection");
     }
 
     // Get the pose at the distance we want to maintain from the object
     // and transform the target_pose into base_frame
-    geometry_msgs::msg::PoseStamped target_pose = getBackwardPose(object_pose, desired_distance_);
+    auto target_pose = getPoseAtDistance(object_pose, desired_distance_);
     target_pose.header.stamp = rclcpp::Time(0);
 
     // Stop and report success if goal is reached
@@ -346,26 +347,31 @@ bool FollowingServer::approachObject(geometry_msgs::msg::PoseStamped & object_po
 
     // The control law can get jittery when close to the end when atan2's can explode.
     // Thus, we backward project the controller's target pose a little bit after the
-    // object so that the robot never gets to the end of the spiral before its in contact
-    // with the object to stop the following procedure.
+    // dock so that the robot never gets to the end of the spiral before its in contact
+    // with the dock to stop the docking procedure.
     const double backward_projection = 0.25;
     const double yaw = tf2::getYaw(target_pose.pose.orientation);
     target_pose.pose.position.x += cos(yaw) * backward_projection;
     target_pose.pose.position.y += sin(yaw) * backward_projection;
+
+    // Make sure that the target pose is pointing at the robot when moving backwards
+    // This is to ensure that the robot doesn't try to dock from the wrong side
+    if (backwards_) {
+      target_pose.pose.orientation = nav2_util::geometry_utils::orientationAroundZAxis(
+        tf2::getYaw(target_pose.pose.orientation) + M_PI);
+    }
+
     tf2_buffer_->transform(target_pose, target_pose, base_frame_);
 
     // Compute and publish controls
     auto command = std::make_unique<geometry_msgs::msg::TwistStamped>();
     command->header.stamp = now();
-    if (!controller_->computeVelocityCommand(target_pose.pose, command->twist, backwards_)) {
+    if (!controller_->computeVelocityCommand(
+        target_pose.pose, command->twist, true, backwards_))
+    {
       throw opennav_following::FailedToControl("Failed to get control");
     }
     vel_publisher_->publish(std::move(command));
-
-    // Generate and publish the trajectory for debugging / visualization
-    auto trajectory = controller_->simulateTrajectory(target_pose, backwards_);
-    trajectory.header = target_pose.header;
-    trajectory_pub_->publish(trajectory);
 
     loop_rate.sleep();
   }
@@ -379,6 +385,21 @@ geometry_msgs::msg::PoseStamped FollowingServer::getRobotPoseInFrame(const std::
   robot_pose.header.stamp = rclcpp::Time(0);
   tf2_buffer_->transform(robot_pose, robot_pose, frame);
   return robot_pose;
+}
+
+void FollowingServer::publishZeroVelocity()
+{
+  auto cmd_vel = std::make_unique<geometry_msgs::msg::TwistStamped>();
+  cmd_vel->header.stamp = now();
+  vel_publisher_->publish(std::move(cmd_vel));
+}
+
+void FollowingServer::publishFollowingFeedback(uint16_t state)
+{
+  auto feedback = std::make_shared<FollowObject::Feedback>();
+  feedback->state = state;
+  feedback->following_time = this->now() - action_start_time_;
+  following_action_server_->publish_feedback(feedback);
 }
 
 bool FollowingServer::getRefinedPose(geometry_msgs::msg::PoseStamped & pose)
@@ -400,7 +421,7 @@ bool FollowingServer::getRefinedPose(geometry_msgs::msg::PoseStamped & pose)
     try {
       if (!tf2_buffer_->canTransform(
           pose.header.frame_id, detected.header.frame_id,
-          detected.header.stamp, rclcpp::Duration::from_seconds(transform_tolerance_)))
+          detected.header.stamp, rclcpp::Duration::from_seconds(0.2)))
       {
         RCLCPP_WARN(this->get_logger(), "Failed to transform detected object pose");
         return false;
@@ -412,8 +433,8 @@ bool FollowingServer::getRefinedPose(geometry_msgs::msg::PoseStamped & pose)
     }
   }
 
-  // The control law can oscillate if the orientation in the perception is not set correctly or
-  // has a lot of noise.
+  // The control law can oscillate if the orientation in the perception
+  // is not set correctly or has a lot of noise.
   // Then, we skip the target orientation by pointing it
   // in the same orientation than the vector from the robot to the object.
   if (skip_orientation_) {
@@ -425,41 +446,22 @@ bool FollowingServer::getRefinedPose(geometry_msgs::msg::PoseStamped & pose)
   }
 
   // Filter the detected pose
-  detected = filter_->update(detected);
-  filtered_dynamic_pose_pub_->publish(detected);
-
-  // Construct dynamic_pose_
-  dynamic_pose_.header = detected.header;
-  dynamic_pose_.pose = detected.pose;
+  dynamic_pose_ = filter_->update(detected);
+  filtered_dynamic_pose_pub_->publish(dynamic_pose_);
 
   // Return dynamic pose for debugging purposes
   pose = dynamic_pose_;
   return true;
 }
 
-void FollowingServer::publishZeroVelocity()
-{
-  auto cmd_vel = std::make_unique<geometry_msgs::msg::TwistStamped>();
-  cmd_vel->header.stamp = now();
-  vel_publisher_->publish(std::move(cmd_vel));
-}
-
-void FollowingServer::publishFollowingFeedback(uint16_t state)
-{
-  auto feedback = std::make_shared<FollowObjectAction::Feedback>();
-  feedback->state = state;
-  feedback->following_time = this->now() - action_start_time_;
-  following_action_server_->publish_feedback(feedback);
-}
-
-geometry_msgs::msg::PoseStamped FollowingServer::getBackwardPose(
+geometry_msgs::msg::PoseStamped FollowingServer::getPoseAtDistance(
   const geometry_msgs::msg::PoseStamped & pose, double distance)
 {
-  geometry_msgs::msg::PoseStamped backward_pose = pose;
-  const double yaw = tf2::getYaw(backward_pose.pose.orientation);
-  backward_pose.pose.position.x -= distance * cos(yaw);
-  backward_pose.pose.position.y -= distance * sin(yaw);
-  return backward_pose;
+  geometry_msgs::msg::PoseStamped forward_pose = pose;
+  const double yaw = tf2::getYaw(forward_pose.pose.orientation);
+  forward_pose.pose.position.x -= distance * cos(yaw);
+  forward_pose.pose.position.y -= distance * sin(yaw);
+  return forward_pose;
 }
 
 bool FollowingServer::isGoalReached(const geometry_msgs::msg::PoseStamped & goal_pose)
@@ -476,7 +478,7 @@ bool FollowingServer::isGoalReached(const geometry_msgs::msg::PoseStamped & goal
 rcl_interfaces::msg::SetParametersResult
 FollowingServer::dynamicParametersCallback(std::vector<rclcpp::Parameter> parameters)
 {
-  std::lock_guard<std::mutex> lock(dynamic_params_lock_);
+  std::lock_guard<std::mutex> lock(*dynamic_params_lock_);
 
   rcl_interfaces::msg::SetParametersResult result;
   for (auto parameter : parameters) {
@@ -490,14 +492,12 @@ FollowingServer::dynamicParametersCallback(std::vector<rclcpp::Parameter> parame
         initial_perception_timeout_ = parameter.as_double();
       } else if (name == "detection_timeout") {
         detection_timeout_ = parameter.as_double();
-      } else if (name == "transform_tolerance") {
-        transform_tolerance_ = parameter.as_double();
-      } else if (name == "desired_distance") {
-        desired_distance_ = parameter.as_double();
       } else if (name == "linear_tolerance") {
         linear_tolerance_ = parameter.as_double();
       } else if (name == "angular_tolerance") {
         angular_tolerance_ = parameter.as_double();
+      } else if (name == "desired_distance") {
+        desired_distance_ = parameter.as_double();
       }
     } else if (type == ParameterType::PARAMETER_STRING) {
       if (name == "base_frame") {

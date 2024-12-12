@@ -16,15 +16,15 @@
 #ifndef OPENNAV_FOLLOWING__FOLLOWING_EXCEPTIONS_HPP_
 #define OPENNAV_FOLLOWING__FOLLOWING_EXCEPTIONS_HPP_
 
+#include <stdexcept>
 #include <string>
-#include <memory>
 
 namespace opennav_following
 {
 
 /**
  * @class FollowingException
- * @brief Abstract docking exception
+ * @brief Abstract following exception
  */
 class FollowingException : public std::runtime_error
 {
@@ -46,7 +46,7 @@ public:
 
 /**
  * @class FailedToDetectObject
- * @brief Failed to detect the charging dock
+ * @brief Failed to detect the object
  */
 class FailedToDetectObject : public FollowingException
 {
@@ -57,7 +57,7 @@ public:
 
 /**
  * @class FailedToControl
- * @brief Failed to control into or out of the dock
+ * @brief Failed to control to the object
  */
 class FailedToControl : public FollowingException
 {
