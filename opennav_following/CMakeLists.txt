@@ -94,9 +94,9 @@ ament_export_libraries(${library_name})
 ament_export_dependencies(
   geometry_msgs
   nav2_graceful_controller
-  nav2_msgs
   nav2_util
   opennav_docking
+  opennav_following_msgs
   rclcpp
   rclcpp_action
   rclcpp_lifecycle
