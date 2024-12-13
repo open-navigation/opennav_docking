@@ -1,0 +1,5 @@
+# Following test
+ament_add_gtest(test_follow_object test_follow_object.cpp)
+target_link_libraries(test_follow_object opennav_follow_action_bt_node)
+ament_target_dependencies(test_follow_object ${dependencies})
+

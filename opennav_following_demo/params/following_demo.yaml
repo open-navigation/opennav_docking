@@ -1,0 +1,22 @@
+following_server:
+  ros__parameters:
+    controller_frequency: 50.0
+    initial_perception_timeout: 5.0
+    detection_timeout: 5.0
+    linear_tolerance: 0.15
+    angular_tolerance: 0.15
+    base_frame: "base_link"
+    fixed_frame: "odom"
+    backwards: false
+    desired_distance: 1.0
+    skip_orientation: true
+    filter_coef: 0.1
+    controller:
+      k_phi: 1.0
+      k_delta: 2.0
+      beta: 0.4
+      lambda: 2.0
+      v_linear_min: 0.1
+      v_linear_max: 1.0
+      v_angular_max: 2.0
+      slowdown_radius: 0.15
