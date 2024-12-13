@@ -22,7 +22,7 @@ from geometry_msgs.msg import PoseStamped, TransformStamped, Twist, TwistStamped
 from launch import LaunchDescription
 from launch_ros.actions import Node
 import launch_testing
-from nav2_msgs.action import FollowObject
+from opennav_following_msgs.action import FollowObject
 import pytest
 import rclpy
 from rclpy.action import ActionClient
