@@ -37,6 +37,7 @@ FollowingServer::FollowingServer(const rclcpp::NodeOptions & options)
   declare_parameter("detection_timeout", 2.0);
   declare_parameter("linear_tolerance", 0.15);
   declare_parameter("angular_tolerance", 0.15);
+  declare_parameter("max_retries", 3);
   declare_parameter("base_frame", "base_link");
   declare_parameter("fixed_frame", "odom");
   declare_parameter("backwards", false);
@@ -56,6 +57,7 @@ FollowingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
   get_parameter("detection_timeout", detection_timeout_);
   get_parameter("linear_tolerance", linear_tolerance_);
   get_parameter("angular_tolerance", angular_tolerance_);
+  get_parameter("max_retries", max_retries_);
   get_parameter("base_frame", base_frame_);
   get_parameter("fixed_frame", fixed_frame_);
   get_parameter("backwards", backwards_);
@@ -219,6 +221,7 @@ void FollowingServer::followObject()
   }
 
   getPreemptedGoalIfRequested(goal, following_action_server_);
+  num_retries_ = 0;
 
   try {
     RCLCPP_INFO(
@@ -243,8 +246,9 @@ void FollowingServer::followObject()
         // Check if we have run out of time
         if (this->now() - start > max_duration && max_duration.seconds() > 0.0) {
           RCLCPP_INFO(get_logger(), "Exceeded max duration. Stopping.");
-          result->error_code = FollowObject::Result::TIMEOUT;
           result->total_elapsed_time = this->now() - action_start_time_;
+          result->error_code = FollowObject::Result::TIMEOUT;
+          result->num_retries = num_retries_;
           publishZeroVelocity();
           following_action_server_->succeeded_current(result);
           return;
@@ -267,8 +271,13 @@ void FollowingServer::followObject()
         following_action_server_->terminate_all(result);
         return;
       } catch (opennav_following::FollowingException & e) {
-        RCLCPP_WARN(get_logger(), "Following failed");
-        throw e;
+        if (++num_retries_ > max_retries_) {
+          RCLCPP_ERROR(get_logger(), "Failed to follow, all retries have been used");
+          throw;
+        }
+        RCLCPP_WARN(get_logger(), "Following failed, will retry: %s", e.what());
+
+        // TODO(ajtudela): Add a rotate strategy here
       }
     }
   } catch (const tf2::TransformException & e) {
@@ -292,6 +301,7 @@ void FollowingServer::followObject()
   }
 
   // Stop the robot and report
+  result->num_retries = num_retries_;
   publishZeroVelocity();
   following_action_server_->terminate_current(result);
 }
@@ -366,9 +376,7 @@ bool FollowingServer::approachObject(geometry_msgs::msg::PoseStamped & object_po
     // Compute and publish controls
     auto command = std::make_unique<geometry_msgs::msg::TwistStamped>();
     command->header.stamp = now();
-    if (!controller_->computeVelocityCommand(
-        target_pose.pose, command->twist, true, backwards_))
-    {
+    if (!controller_->computeVelocityCommand(target_pose.pose, command->twist, true, backwards_)) {
       throw opennav_following::FailedToControl("Failed to get control");
     }
     vel_publisher_->publish(std::move(command));
@@ -399,6 +407,7 @@ void FollowingServer::publishFollowingFeedback(uint16_t state)
   auto feedback = std::make_shared<FollowObject::Feedback>();
   feedback->state = state;
   feedback->following_time = this->now() - action_start_time_;
+  feedback->num_retries = num_retries_;
   following_action_server_->publish_feedback(feedback);
 }
 

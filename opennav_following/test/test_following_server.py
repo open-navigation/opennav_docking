@@ -41,6 +41,7 @@ def generate_test_description():
             executable='opennav_following',
             name='following_server',
             parameters=[{'desired_distance': 0.5,
+                         'detection_timeout': 0.4,
                          'linear_tolerance': 0.05,
                          'angular_tolerance': 0.05,
                          'controller': {
@@ -111,7 +112,8 @@ class TestFollowingServer(unittest.TestCase):
         p.header.frame_id = 'odom'
         p.pose.position.x = 1.75
         p.pose.position.y = 0.0
-        self.object_pose_pub.publish(p)
+        if not self.at_distance:
+            self.object_pose_pub.publish(p)
 
     def action_feedback_callback(self, msg):
         # Set at_distance flag when the robot is stopping
@@ -154,7 +156,7 @@ class TestFollowingServer(unittest.TestCase):
         goal.object_pose.header.stamp = self.node.get_clock().now().to_msg()
         goal.object_pose.pose.position.x = 1.75
         goal.object_pose.pose.position.y = 0.0
-        goal.max_duration = rclpy.time.Duration(seconds=5.0).to_msg()
+        goal.max_duration = rclpy.time.Duration(seconds=2.0).to_msg()
         future = self.follow_action_client.send_goal_async(
             goal, feedback_callback=self.action_feedback_callback)
         rclpy.spin_until_future_complete(self.node, future)
@@ -194,7 +196,7 @@ class TestFollowingServer(unittest.TestCase):
 
         # Second is aborted due to preemption during main loop (takes down all actions)
         self.assertEqual(self.action_result[1].status, GoalStatus.STATUS_ABORTED)
-        self.assertTrue(self.action_result[0].result, FollowObject.Result.NONE)
+        self.assertTrue(self.action_result[1].result, FollowObject.Result.NONE)
         self.assertFalse(self.at_distance)
 
         # Resend the goal
@@ -209,5 +211,23 @@ class TestFollowingServer(unittest.TestCase):
         self.action_result.append(result_future.result())
 
         self.assertEqual(self.action_result[2].status, GoalStatus.STATUS_SUCCEEDED)
-        self.assertTrue(self.action_result[0].result, FollowObject.Result.TIMEOUT)
+        self.assertTrue(self.action_result[2].result, FollowObject.Result.TIMEOUT)
+        self.assertEqual(self.action_result[2].result.num_retries, 0)
+        self.assertFalse(self.at_distance)
+        
+        # Resend the goal with a different timeout to test the retry
+        goal.max_duration = rclpy.time.Duration(seconds=5.0).to_msg()
+        self.node.get_logger().info('Sending goal again')
+        future = self.follow_action_client.send_goal_async(
+            goal, feedback_callback=self.action_feedback_callback)
+        rclpy.spin_until_future_complete(self.node, future)
+        self.goal_handle = future.result()
+        assert self.goal_handle.accepted
+        result_future = self.goal_handle.get_result_async()
+        rclpy.spin_until_future_complete(self.node, result_future)
+        self.action_result.append(result_future.result())
+
+        self.assertEqual(self.action_result[3].status, GoalStatus.STATUS_ABORTED)
+        self.assertTrue(self.action_result[3].result, FollowObject.Result.FAILED_TO_DETECT_OBJECT)
+        self.assertGreater(self.action_result[3].result.num_retries, 0)
         self.assertTrue(self.at_distance)

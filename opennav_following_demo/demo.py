@@ -30,20 +30,30 @@ class FollowObjectTester(Node):
         self.subscription = self.create_subscription(
             PoseStamped, 'detected_dynamic_pose', self.pose_callback, 10)
         # self.subscription  # prevent unused variable warning
-        self.follow_client = ActionClient(self, FollowObject, 'follow_object')
+        self.follow_action_client = ActionClient(self, FollowObject, 'follow_object')
         self.first_message_received = False
-        self.goal_handle = None
 
     def pose_callback(self, msg):
         """Subscribes to the pose topic and calls the action server with the first pose."""
         if not self.first_message_received:
             self.first_message_received = True
-            self.followObject(msg)
+            self.send_goal(msg)
 
-    def followObject(self, pose):
+    def action_feedback_callback(self, msg):
+        """Prints the feedback message from the action server."""
+        if msg.feedback.state == msg.feedback.INITIAL_PERCEPTION:
+            self.get_logger().info('Initial perception of the object.')
+        elif msg.feedback.state == msg.feedback.CONTROLLING:
+            self.get_logger().info('Controlling the robot to follow the object.')
+        elif msg.feedback.state == msg.feedback.STOPPING:
+            self.get_logger().info('Stopping the robot.')
+        elif msg.feedback.state == msg.feedback.RETRY:
+            self.get_logger().info('Retrying to follow the object.')
+
+    def send_goal(self, pose):
         """Sends the pose to the action server."""
         self.get_logger().info('Sending the pose to follow.')
-        while not self.follow_client.wait_for_server(timeout_sec=1.0):
+        while not self.follow_action_client.wait_for_server(timeout_sec=1.0):
             self.get_logger().info('"FollowObject" action server not available, waiting...')
 
         goal_msg = FollowObject.Goal()
@@ -52,20 +62,16 @@ class FollowObjectTester(Node):
         orientation_list = [orientation_q.x, orientation_q.y, orientation_q.z, orientation_q.w]
 
         # Print the pose in (x,y) format
-        self.get_logger().info('Pose received in frame ' + pose.header.frame_id +
-                               ': x=' + str(pose.pose.position.x) + 
-                               ', y=' + str(pose.pose.position.y))
+        self.get_logger().info(
+            'Pose received in frame ' + pose.header.frame_id +
+            ': x=' + str(pose.pose.position.x) +
+            ', y=' + str(pose.pose.position.y)
+        )
 
-        self.get_logger().info('Sending pose ' + str(pose) + '...')
-        send_goal_future = self.follow_client.send_goal_async(goal_msg)
-        rclpy.spin_until_future_complete(self, send_goal_future)
-        self.goal_handle = send_goal_future.result()
+        future = self.follow_action_client.send_goal_async(
+            goal_msg, feedback_callback=self.action_feedback_callback)
+        self.goal_handle = future.result()
 
-        if not self.goal_handle.accepted:
-            print('Following request was rejected!')
-            return False
-
-        self.result_future = self.goal_handle.get_result_async()
         return True
 
 
