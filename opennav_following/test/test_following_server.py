@@ -214,7 +214,7 @@ class TestFollowingServer(unittest.TestCase):
         self.assertTrue(self.action_result[2].result, FollowObject.Result.TIMEOUT)
         self.assertEqual(self.action_result[2].result.num_retries, 0)
         self.assertFalse(self.at_distance)
-        
+
         # Resend the goal with a different timeout to test the retry
         goal.max_duration = rclpy.time.Duration(seconds=5.0).to_msg()
         self.node.get_logger().info('Sending goal again')

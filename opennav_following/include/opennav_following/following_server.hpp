@@ -217,7 +217,7 @@ protected:
   // This is our fixed frame for controlling - typically "odom"
   std::string fixed_frame_;
   // Does the robot drive backwards to follow the object? Default is forwards
-  bool backwards_;
+  bool allow_backward_;
   // Desired distance to keep from the object
   double desired_distance_;
   // Skip perception orientation

@@ -8,7 +8,7 @@ following_server:
     max_retries: 3
     base_frame: "base_link"
     fixed_frame: "odom"
-    backwards: false
+    allow_backward: true
     desired_distance: 1.0
     skip_orientation: true
     filter_coef: 0.1

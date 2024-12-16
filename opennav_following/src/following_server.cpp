@@ -40,7 +40,7 @@ FollowingServer::FollowingServer(const rclcpp::NodeOptions & options)
   declare_parameter("max_retries", 3);
   declare_parameter("base_frame", "base_link");
   declare_parameter("fixed_frame", "odom");
-  declare_parameter("backwards", false);
+  declare_parameter("allow_backward", false);
   declare_parameter("filter_coef", 0.1);
   declare_parameter("desired_distance", 1.0);
   declare_parameter("skip_orientation", true);
@@ -60,7 +60,7 @@ FollowingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
   get_parameter("max_retries", max_retries_);
   get_parameter("base_frame", base_frame_);
   get_parameter("fixed_frame", fixed_frame_);
-  get_parameter("backwards", backwards_);
+  get_parameter("allow_backward", allow_backward_);
   get_parameter("desired_distance", desired_distance_);
   get_parameter("skip_orientation", skip_orientation_);
   RCLCPP_INFO(get_logger(), "Controller frequency set to %.4fHz", controller_frequency_);
@@ -363,20 +363,20 @@ bool FollowingServer::approachObject(geometry_msgs::msg::PoseStamped & object_po
     const double yaw = tf2::getYaw(target_pose.pose.orientation);
     target_pose.pose.position.x += cos(yaw) * backward_projection;
     target_pose.pose.position.y += sin(yaw) * backward_projection;
-
-    // Make sure that the target pose is pointing at the robot when moving backwards
-    // This is to ensure that the robot doesn't try to dock from the wrong side
-    if (backwards_) {
-      target_pose.pose.orientation = nav2_util::geometry_utils::orientationAroundZAxis(
-        tf2::getYaw(target_pose.pose.orientation) + M_PI);
-    }
-
     tf2_buffer_->transform(target_pose, target_pose, base_frame_);
+
+    // If the object is behind the robot, we reverse the control
+    auto robot_pose = getRobotPoseInFrame(target_pose.header.frame_id);
+    const double dist = std::hypot(
+      robot_pose.pose.position.x - target_pose.pose.position.x,
+      robot_pose.pose.position.y - target_pose.pose.position.y);
+    bool reversing = allow_backward_ &&
+      dist < desired_distance_ && target_pose.pose.position.x < robot_pose.pose.position.x;
 
     // Compute and publish controls
     auto command = std::make_unique<geometry_msgs::msg::TwistStamped>();
     command->header.stamp = now();
-    if (!controller_->computeVelocityCommand(target_pose.pose, command->twist, true, backwards_)) {
+    if (!controller_->computeVelocityCommand(target_pose.pose, command->twist, true, reversing)) {
       throw opennav_following::FailedToControl("Failed to get control");
     }
     vel_publisher_->publish(std::move(command));
@@ -515,7 +515,9 @@ FollowingServer::dynamicParametersCallback(std::vector<rclcpp::Parameter> parame
         fixed_frame_ = parameter.as_string();
       }
     } else if (type == ParameterType::PARAMETER_BOOL) {
-      if (name == "skip_orientation") {
+      if (name == "allow_backward") {
+        allow_backward_ = parameter.as_bool();
+      } else if (name == "skip_orientation") {
         skip_orientation_ = parameter.as_bool();
       }
     }
