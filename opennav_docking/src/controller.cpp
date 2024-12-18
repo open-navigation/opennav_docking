@@ -177,6 +177,13 @@ bool Controller::isTrajectoryCollisionFree(
       trajectory_pub_->publish(trajectory);
       return false;
     }
+
+    // Avoid generating trajectories beyond the target pose
+    const double resolution = v_linear_max_ * simulation_time_step_; 
+    double distance = nav2_util::geometry_utils::euclidean_distance(target_pose, next_pose.pose);
+    if (distance < resolution){
+      break;
+    }
   }
 
   trajectory_pub_->publish(trajectory);
