@@ -66,6 +66,8 @@ TEST(SimpleChargingDockTests, BatteryState)
 
   dock->configure(node, "my_dock", nullptr);
   dock->activate();
+  geometry_msgs::msg::PoseStamped pose;
+  EXPECT_TRUE(dock->getRefinedPose(pose));
 
   // Below threshold
   sensor_msgs::msg::BatteryState msg;
@@ -225,14 +227,14 @@ TEST(SimpleChargingDockTests, RefinedPoseTest)
   detected_pose.header.stamp = node->now();
   detected_pose.header.frame_id = "my_frame";
   detected_pose.pose.position.x = 0.1;
-  detected_pose.pose.position.y = -0.1;
+  detected_pose.pose.position.y = -0.5;
   pub->publish(detected_pose);
   rclcpp::spin_some(node->get_node_base_interface());
 
   pose.header.frame_id = "my_frame";
   EXPECT_TRUE(dock->getRefinedPose(pose));
   EXPECT_NEAR(pose.pose.position.x, 0.1, 0.01);
-  EXPECT_NEAR(pose.pose.position.y, -0.1, 0.01);
+  EXPECT_NEAR(pose.pose.position.y, -0.3, 0.01);  // Applies external_detection_translation_x, +0.2
 
   dock->deactivate();
   dock->cleanup();
