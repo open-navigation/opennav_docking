@@ -67,6 +67,13 @@ public:
     const geometry_msgs::msg::Pose & pose, geometry_msgs::msg::Twist & cmd, bool is_docking,
     bool backward = false);
 
+  /**
+   * @brief Perform a command for in-place rotation.
+   * @param angle_to_target Angle to target in radians.
+   * @returns TwistStamped command.
+   */
+  geometry_msgs::msg::Twist computeRotateToHeadingCommand(double angle_to_target);
+
 protected:
   /**
    * @brief Check if a trajectory is collision free.

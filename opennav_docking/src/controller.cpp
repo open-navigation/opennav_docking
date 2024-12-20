@@ -190,6 +190,19 @@ bool Controller::isTrajectoryCollisionFree(
   return true;
 }
 
+geometry_msgs::msg::Twist Controller::computeRotateToHeadingCommand(double angle_to_target)
+{
+  // TODO(ajtudela): Replace with param
+  const double rotation_scaling_factor = 0.75;
+  const double v_angular_min_in_place = 0.25;
+  geometry_msgs::msg::Twist vel;
+  vel.linear.x = 0.0;
+  vel.angular.z = rotation_scaling_factor * angle_to_target * v_angular_max_;
+  vel.angular.z =
+    std::copysign(1.0, vel.angular.z) * std::min(abs(vel.angular.z), v_angular_min_in_place);
+  return vel;
+}
+
 void Controller::configureCollisionChecker(
   const rclcpp_lifecycle::LifecycleNode::SharedPtr & node,
   std::string costmap_topic, std::string footprint_topic, double transform_tolerance)

@@ -277,7 +277,14 @@ void FollowingServer::followObject()
         }
         RCLCPP_WARN(get_logger(), "Following failed, will retry: %s", e.what());
 
-        // TODO(ajtudela): Add a rotate strategy here
+        // Perform an in-place rotation to find the object again
+        if (!rotateToObject(object_pose)) {
+          // Cancelled, preempted, or shutting down
+          publishZeroVelocity();
+          following_action_server_->terminate_all(result);
+          return;
+        }
+        RCLCPP_INFO(get_logger(), "Rotated to find object again");
       }
     }
   } catch (const tf2::TransformException & e) {
@@ -380,6 +387,57 @@ bool FollowingServer::approachObject(geometry_msgs::msg::PoseStamped & object_po
       throw opennav_following::FailedToControl("Failed to get control");
     }
     vel_publisher_->publish(std::move(command));
+
+    loop_rate.sleep();
+  }
+  return false;
+}
+
+bool FollowingServer::rotateToObject(geometry_msgs::msg::PoseStamped & object_pose)
+{
+  rclcpp::Rate loop_rate(controller_frequency_);
+  // TODO(ajtudela): Must be a parameter?
+  const double angle_to_rotate = 2 * M_PI;
+  auto robot_pose = getRobotPoseInFrame(object_pose.header.frame_id);
+  double initial_yaw = tf2::getYaw(robot_pose.pose.orientation);
+  double relative_yaw = 0.0;
+  while (rclcpp::ok()) {
+    publishFollowingFeedback(FollowObject::Feedback::INITIAL_PERCEPTION);
+
+    // Stop if cancelled/preempted
+    if (checkAndWarnIfCancelled(following_action_server_, "follow_object") ||
+      checkAndWarnIfPreempted(following_action_server_, "follow_object"))
+    {
+      return false;
+    }
+
+    // Update the angular distance
+    robot_pose = getRobotPoseInFrame(object_pose.header.frame_id);
+    const double current_yaw = tf2::getYaw(robot_pose.pose.orientation);
+    double delta_yaw = current_yaw - initial_yaw;
+    if (abs(delta_yaw) > M_PI) {
+      delta_yaw = copysign(2 * M_PI - abs(delta_yaw), initial_yaw);
+    }
+
+    relative_yaw += delta_yaw;
+    initial_yaw = current_yaw;
+
+    // Determine if we find the object
+    if (getRefinedPose(object_pose)) {
+      return true;
+    }
+
+    // Rotate to object
+    auto command = std::make_unique<geometry_msgs::msg::TwistStamped>();
+    command->header.stamp = now();
+    command->header.frame_id = base_frame_;
+    command->twist = controller_->computeRotateToHeadingCommand(angle_to_rotate);
+    vel_publisher_->publish(std::move(command));
+
+    double remaining_angle = angle_to_rotate - relative_yaw;
+    if (abs(remaining_angle) < angular_tolerance_) {
+      throw opennav_following::FailedToControl("Failed to rotate to object");
+    }
 
     loop_rate.sleep();
   }

@@ -77,6 +77,13 @@ public:
   bool approachObject(geometry_msgs::msg::PoseStamped & object_pose);
 
   /**
+   * @brief Rotate the robot to find the object again.
+   * @param object_pose The last known object pose.
+   * @returns True if successful.
+   */
+  bool rotateToObject(geometry_msgs::msg::PoseStamped & object_pose);
+
+  /**
    * @brief Get the robot pose (aka base_frame pose) in another frame.
    * @param frame The frame_id to get the robot pose in.
    * @returns Computed robot pose, throws TF2 error if failure.
