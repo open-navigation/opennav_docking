@@ -36,9 +36,6 @@ target_include_directories(${library_name}
 target_link_libraries(${library_name} PUBLIC
   angles::angles
   ${geometry_msgs_TARGETS}
-  nav2_util::nav2_util_core
-  opennav_docking::controller
-  opennav_docking::pose_filter
   ${opennav_following_msgs_TARGETS}
   rclcpp::rclcpp
   rclcpp_action::rclcpp_action
@@ -50,6 +47,7 @@ target_link_libraries(${library_name} PRIVATE
   rclcpp_components::component
   tf2_geometry_msgs::tf2_geometry_msgs
 )
+ament_target_dependencies(${library_name} PUBLIC nav2_util opennav_docking) # TODO(ajtudela): Fix this in jazzy
 
 add_executable(${executable_name}
   src/main.cpp

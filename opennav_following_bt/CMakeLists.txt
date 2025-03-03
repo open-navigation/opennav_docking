@@ -25,9 +25,9 @@ target_compile_definitions(opennav_follow_action_bt_node PRIVATE BT_PLUGIN_EXPOR
 target_link_libraries(opennav_follow_action_bt_node PUBLIC
   behaviortree_cpp::behaviortree_cpp
   ${geometry_msgs_TARGETS}
-  nav2_behavior_tree::nav2_behavior_tree
   ${opennav_following_msgs_TARGETS}
 )
+ament_target_dependencies(opennav_follow_action_bt_node PUBLIC nav2_behavior_tree nav2_util) # TODO(ajtudela): Fix this in kilted
 
 install(TARGETS opennav_follow_action_bt_node
   EXPORT ${PROJECT_NAME}
