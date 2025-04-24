@@ -402,7 +402,7 @@ bool FollowingServer::rotateToObject(geometry_msgs::msg::PoseStamped & object_po
   double initial_yaw = tf2::getYaw(robot_pose.pose.orientation);
   double relative_yaw = 0.0;
   while (rclcpp::ok()) {
-    publishFollowingFeedback(FollowObject::Feedback::INITIAL_PERCEPTION);
+    publishFollowingFeedback(FollowObject::Feedback::RETRY);
 
     // Stop if cancelled/preempted
     if (checkAndWarnIfCancelled(following_action_server_, "follow_object") ||
