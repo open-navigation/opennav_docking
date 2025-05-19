@@ -24,6 +24,7 @@
 #include "nav2_util/lifecycle_node.hpp"
 #include "nav2_util/node_utils.hpp"
 #include "nav2_util/simple_action_server.hpp"
+#include "nav_2d_utils/odom_subscriber.hpp"
 #include "opennav_docking/controller.hpp"
 #include "opennav_docking/utils.hpp"
 #include "opennav_docking/types.hpp"
@@ -89,6 +90,12 @@ public:
    *          any internal error, will throw.
    */
   bool approachDock(Dock * dock, geometry_msgs::msg::PoseStamped & dock_pose);
+
+/**
+   * @brief Perform a pure rotation to dock orientation.
+   * @param dock_pose The target pose that will be used to rotate.
+   */
+  void rotateToDock(const geometry_msgs::msg::PoseStamped & dock_pose);
 
   /**
    * @brief Wait for charging to begin.
@@ -231,6 +238,8 @@ protected:
   double wait_charge_timeout_;
   // Timeout to approach into the dock and reset its approach is retrying
   double dock_approach_timeout_;
+  // Timeout to rotate to the dock
+  double rotate_to_dock_timeout_;
   // When undocking, these are the tolerances for arriving at the staging pose
   double undock_linear_tolerance_, undock_angular_tolerance_;
   // Maximum number of times the robot will return to staging pose and retry docking
@@ -241,13 +250,18 @@ protected:
   std::string fixed_frame_;
   // Does the robot drive backwards onto the dock? Default is forwards
   bool dock_backwards_;
+  // Whether to rotate to the dock before docking
+  bool rotate_to_dock_;
   // The tolerance to the dock's staging pose not requiring navigation
   double dock_prestaging_tolerance_;
+  // Angular tolerance to exit the rotation loop when rotate_to_dock is enabled
+  double rotation_angular_tolerance_;
 
   // This is a class member so it can be accessed in publish feedback
   rclcpp::Time action_start_time_;
 
   rclcpp_lifecycle::LifecyclePublisher<geometry_msgs::msg::Twist>::SharedPtr vel_publisher_;
+  std::unique_ptr<nav_2d_utils::OdomSubscriber> odom_sub_;
 
   std::unique_ptr<DockingActionServer> docking_action_server_;
   std::unique_ptr<UndockingActionServer> undocking_action_server_;
