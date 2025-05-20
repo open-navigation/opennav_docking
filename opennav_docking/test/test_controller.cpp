@@ -557,10 +557,10 @@ TEST(ControllerTests, RotateToHeading) {
   float rotate_to_heading_max_angular_accel = 3.2;
   nav2_util::declare_parameter_if_not_declared(
     node, "controller.rotate_to_heading_angular_vel",
-      rclcpp::ParameterValue(rotate_to_heading_angular_vel));
+    rclcpp::ParameterValue(rotate_to_heading_angular_vel));
   nav2_util::declare_parameter_if_not_declared(
     node, "controller.rotate_to_heading_max_angular_accel",
-      rclcpp::ParameterValue(rotate_to_heading_max_angular_accel));
+    rclcpp::ParameterValue(rotate_to_heading_max_angular_accel));
 
   auto controller = std::make_unique<opennav_docking::Controller>(
     node, nullptr, "test_base_frame", "test_base_frame");
@@ -593,8 +593,9 @@ TEST(ControllerTests, RotateToHeading) {
   cmd_vel =
     controller->computeRotateToHeadingCommand(angular_distance_to_heading, current_velocity, dt);
   EXPECT_DOUBLE_EQ(cmd_vel.linear.x, 0.0);
-  EXPECT_DOUBLE_EQ(cmd_vel.angular.z,
-      current_velocity.angular.z + rotate_to_heading_max_angular_accel * dt);
+  EXPECT_DOUBLE_EQ(
+    cmd_vel.angular.z,
+    current_velocity.angular.z + rotate_to_heading_max_angular_accel * dt);
 
   // Case 4: Negative angular distance, exceeding max feasible speed
   angular_distance_to_heading = -1.0;
@@ -602,8 +603,9 @@ TEST(ControllerTests, RotateToHeading) {
   cmd_vel =
     controller->computeRotateToHeadingCommand(angular_distance_to_heading, current_velocity, dt);
   EXPECT_DOUBLE_EQ(cmd_vel.linear.x, 0.0);
-  EXPECT_DOUBLE_EQ(cmd_vel.angular.z,
-      current_velocity.angular.z - rotate_to_heading_max_angular_accel * dt);
+  EXPECT_DOUBLE_EQ(
+    cmd_vel.angular.z,
+    current_velocity.angular.z - rotate_to_heading_max_angular_accel * dt);
 
   // Case 5: Zero angular distance
   angular_distance_to_heading = 0.0;

@@ -100,8 +100,8 @@ Controller::Controller(
   }
 
   node->get_parameter("controller.rotate_to_heading_angular_vel", rotate_to_heading_angular_vel_);
-  node->get_parameter("controller.rotate_to_heading_max_angular_accel",
-    rotate_to_heading_max_angular_accel_);
+  node->get_parameter(
+    "controller.rotate_to_heading_max_angular_accel", rotate_to_heading_max_angular_accel_);
 
   trajectory_pub_ =
     node->create_publisher<nav_msgs::msg::Path>("docking_trajectory", 1);
