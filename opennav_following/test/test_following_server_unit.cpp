@@ -52,14 +52,12 @@ public:
     return geometry_msgs::msg::PoseStamped();
   }
 
-  virtual void doInitialPerception(geometry_msgs::msg::PoseStamped &)
+  virtual bool approachObject(geometry_msgs::msg::PoseStamped &)
   {
     std::string exception;
     this->get_parameter("exception_to_throw", exception);
     if (exception == "TransformException") {
       throw tf2::TransformException("TransformException");
-    } else if (exception == "ObjectNotValid") {
-      throw opennav_following::ObjectNotValid("ObjectNotValid");
     } else if (exception == "FailedToDetectObject") {
       throw opennav_following::FailedToDetectObject("FailedToDetectObject");
     } else if (exception == "FailedToControl") {
@@ -69,11 +67,17 @@ public:
     } else if (exception == "exception") {
       throw std::exception();
     }
+    return true;
   }
 
   virtual bool getRefinedPose(geometry_msgs::msg::PoseStamped & pose)
   {
     return FollowingServer::getRefinedPose(pose);
+  }
+
+  virtual bool rotateToObject(geometry_msgs::msg::PoseStamped &)
+  {
+    return true;
   }
 
   geometry_msgs::msg::PoseStamped getPoseAtDistance(
@@ -124,9 +128,9 @@ TEST(FollowingServerTests, ErrorExceptions)
 
   // Error codes following
   std::vector<std::string> error_ids{
-    "TransformException", "ObjectNotValid", "FailedToDetectObject", "FailedToControl",
+    "TransformException", "FailedToDetectObject", "FailedToControl",
     "FollowingException", "exception"};
-  std::vector<int> error_codes{1002, 1003, 1004, 1005, 1000, 1000};
+  std::vector<int> error_codes{1001, 1002, 1003, 1000, 1000};
 
   // Call action, check error code
   for (unsigned int i = 0; i != error_ids.size(); i++) {
@@ -286,7 +290,6 @@ TEST(FollowingServerTests, DynamicParams)
   // Set parameters
   auto results = params->set_parameters_atomically(
     {rclcpp::Parameter("controller_frequency", 1.0),
-      rclcpp::Parameter("initial_perception_timeout", 2.0),
       rclcpp::Parameter("detection_timeout", 3.0),
       rclcpp::Parameter("desired_distance", 4.0),
       rclcpp::Parameter("linear_tolerance", 5.0),
@@ -294,14 +297,15 @@ TEST(FollowingServerTests, DynamicParams)
       rclcpp::Parameter("base_frame", std::string("test_base_frame")),
       rclcpp::Parameter("fixed_frame", std::string("test_fixed_frame")),
       rclcpp::Parameter("allow_backward", false),
-      rclcpp::Parameter("skip_orientation", false)});
+      rclcpp::Parameter("skip_orientation", false),
+      rclcpp::Parameter("transform_tolerance", 0.5)
+    });
 
   // Spin
   rclcpp::spin_until_future_complete(node->get_node_base_interface(), results);
 
   // Check parameters
   EXPECT_EQ(node->get_parameter("controller_frequency").as_double(), 1.0);
-  EXPECT_EQ(node->get_parameter("initial_perception_timeout").as_double(), 2.0);
   EXPECT_EQ(node->get_parameter("detection_timeout").as_double(), 3.0);
   EXPECT_EQ(node->get_parameter("desired_distance").as_double(), 4.0);
   EXPECT_EQ(node->get_parameter("linear_tolerance").as_double(), 5.0);
@@ -310,6 +314,7 @@ TEST(FollowingServerTests, DynamicParams)
   EXPECT_EQ(node->get_parameter("fixed_frame").as_string(), "test_fixed_frame");
   EXPECT_EQ(node->get_parameter("allow_backward").as_bool(), false);
   EXPECT_EQ(node->get_parameter("skip_orientation").as_bool(), false);
+  EXPECT_EQ(node->get_parameter("transform_tolerance").as_double(), 0.5);
 }
 
 }  // namespace opennav_following

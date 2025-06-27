@@ -33,7 +33,6 @@ FollowingServer::FollowingServer(const rclcpp::NodeOptions & options)
   RCLCPP_INFO(get_logger(), "Creating %s", get_name());
 
   declare_parameter("controller_frequency", 50.0);
-  declare_parameter("initial_perception_timeout", 5.0);
   declare_parameter("detection_timeout", 2.0);
   declare_parameter("rotate_to_object_timeout", 10.0);
   declare_parameter("linear_tolerance", 0.15);
@@ -56,7 +55,6 @@ FollowingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
   auto node = shared_from_this();
 
   get_parameter("controller_frequency", controller_frequency_);
-  get_parameter("initial_perception_timeout", initial_perception_timeout_);
   get_parameter("detection_timeout", detection_timeout_);
   get_parameter("rotate_to_object_timeout", rotate_to_object_timeout_);
   get_parameter("linear_tolerance", linear_tolerance_);
@@ -239,10 +237,6 @@ void FollowingServer::followObject()
       "Attempting to follow object at position (%0.2f, %0.2f).",
       goal->object_pose.pose.position.x, goal->object_pose.pose.position.y);
 
-    // Get initial detection of the object before proceeding to move
-    doInitialPerception(object_pose);
-    RCLCPP_INFO(get_logger(), "Successful initial object detection");
-
     // Following control loop: while not timeout, run controller
     auto start = this->now();
     rclcpp::Duration max_duration = goal->max_duration;
@@ -294,9 +288,6 @@ void FollowingServer::followObject()
   } catch (const tf2::TransformException & e) {
     RCLCPP_ERROR(get_logger(), "Transform error: %s", e.what());
     result->error_code = FollowObject::Result::TF_ERROR;
-  } catch (opennav_following::ObjectNotValid & e) {
-    RCLCPP_ERROR(get_logger(), "%s", e.what());
-    result->error_code = FollowObject::Result::OBJECT_NOT_VALID;
   } catch (opennav_following::FailedToDetectObject & e) {
     RCLCPP_ERROR(get_logger(), "%s", e.what());
     result->error_code = FollowObject::Result::FAILED_TO_DETECT_OBJECT;
@@ -315,27 +306,6 @@ void FollowingServer::followObject()
   result->num_retries = num_retries_;
   publishZeroVelocity();
   following_action_server_->terminate_current(result);
-}
-
-void FollowingServer::doInitialPerception(geometry_msgs::msg::PoseStamped & dock_pose)
-{
-  publishFollowingFeedback(FollowObject::Feedback::INITIAL_PERCEPTION);
-  rclcpp::Rate loop_rate(controller_frequency_);
-  auto start = this->now();
-  auto timeout = rclcpp::Duration::from_seconds(initial_perception_timeout_);
-  while (!getRefinedPose(dock_pose)) {
-    if (this->now() - start > timeout) {
-      throw opennav_following::FailedToDetectObject("Failed initial object detection");
-    }
-
-    if (checkAndWarnIfCancelled<FollowObject>(following_action_server_, "follow_object") ||
-      checkAndWarnIfPreempted<FollowObject>(following_action_server_, "follow_object"))
-    {
-      return;
-    }
-
-    loop_rate.sleep();
-  }
 }
 
 bool FollowingServer::approachObject(geometry_msgs::msg::PoseStamped & object_pose)
@@ -561,8 +531,6 @@ FollowingServer::dynamicParametersCallback(std::vector<rclcpp::Parameter> parame
     if (type == ParameterType::PARAMETER_DOUBLE) {
       if (name == "controller_frequency") {
         controller_frequency_ = parameter.as_double();
-      } else if (name == "initial_perception_timeout") {
-        initial_perception_timeout_ = parameter.as_double();
       } else if (name == "detection_timeout") {
         detection_timeout_ = parameter.as_double();
       } else if (name == "linear_tolerance") {
@@ -571,6 +539,8 @@ FollowingServer::dynamicParametersCallback(std::vector<rclcpp::Parameter> parame
         angular_tolerance_ = parameter.as_double();
       } else if (name == "desired_distance") {
         desired_distance_ = parameter.as_double();
+      } else if (name == "transform_tolerance") {
+        transform_tolerance_ = parameter.as_double();
       }
     } else if (type == ParameterType::PARAMETER_STRING) {
       if (name == "base_frame") {

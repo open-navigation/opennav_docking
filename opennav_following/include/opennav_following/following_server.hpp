@@ -64,25 +64,19 @@ public:
   void publishFollowingFeedback(uint16_t state);
 
   /**
-   * @brief Do initial perception, up to a timeout.
-   * @param object_pose Initial object pose, will be refined by perception.
-   */
-  virtual void doInitialPerception(geometry_msgs::msg::PoseStamped & object_pose);
-
-  /**
    * @brief Use control law and perception to approach the object.
    * @param object_pose Initial object pose, will be refined by perception.
    * @returns True if successfully approached, False if cancelled. For
    *          any internal error, will throw.
    */
-  bool approachObject(geometry_msgs::msg::PoseStamped & object_pose);
+  virtual bool approachObject(geometry_msgs::msg::PoseStamped & object_pose);
 
   /**
    * @brief Rotate the robot to find the object again.
    * @param object_pose The last known object pose.
    * @returns True if successful.
    */
-  bool rotateToObject(geometry_msgs::msg::PoseStamped & object_pose);
+  virtual bool rotateToObject(geometry_msgs::msg::PoseStamped & object_pose);
 
   /**
    * @brief Get the robot pose (aka base_frame pose) in another frame.
@@ -210,8 +204,6 @@ protected:
 
   // Frequency to run control loops
   double controller_frequency_;
-  // Timeout for initially detecting the object
-  double initial_perception_timeout_;
   // Timeout to detect the object while rotating to it
   double rotate_to_object_timeout_;
   // Tolerance for transforming coordinates

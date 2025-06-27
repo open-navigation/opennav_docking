@@ -34,17 +34,6 @@ public:
 };
 
 /**
- * @class ObjectNotValid
- * @brief Action was invalid
- */
-class ObjectNotValid : public FollowingException
-{
-public:
-  explicit ObjectNotValid(const std::string & description)
-  : FollowingException(description) {}
-};
-
-/**
  * @class FailedToDetectObject
  * @brief Failed to detect the object
  */

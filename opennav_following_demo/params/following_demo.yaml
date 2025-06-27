@@ -1,7 +1,6 @@
 following_server:
   ros__parameters:
     controller_frequency: 50.0
-    initial_perception_timeout: 15.0
     detection_timeout: 5.0
     linear_tolerance: 0.15
     angular_tolerance: 0.15
@@ -12,6 +11,7 @@ following_server:
     desired_distance: 0.75
     skip_orientation: true
     filter_coef: 0.1
+    transform_tolerance: 0.1
     controller:
       k_phi: 1.0
       k_delta: 2.0
