@@ -12,12 +12,12 @@
   <depend>behaviortree_cpp</depend>
   <depend>geometry_msgs</depend>
   <depend>nav2_behavior_tree</depend>
-  <depend>nav2_util</depend>
   <depend>nav2_core</depend>
   <depend>nav2_msgs</depend>
+  <depend>nav2_ros_common</depend>
   <depend>nav_msgs</depend>
-  <depend>rclcpp</depend>
   <depend>opennav_following_msgs</depend>
+  <depend>rclcpp</depend>
   <depend>rclcpp_action</depend>
 
   <test_depend>ament_lint_common</test_depend>

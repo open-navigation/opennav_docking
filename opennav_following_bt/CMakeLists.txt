@@ -7,7 +7,7 @@ find_package(geometry_msgs REQUIRED)
 find_package(nav2_behavior_tree REQUIRED)
 find_package(nav2_common REQUIRED)
 find_package(nav2_core REQUIRED)
-find_package(nav2_util REQUIRED)
+find_package(nav2_ros_common REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(opennav_following_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
@@ -20,14 +20,15 @@ target_include_directories(opennav_follow_action_bt_node
   PUBLIC
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
     "$<INSTALL_INTERFACE:include/${PROJECT_NAME}>"
+    "$<BUILD_INTERFACE:${nav2_ros_common_INCLUDE_DIRS}>"
 )
 target_compile_definitions(opennav_follow_action_bt_node PRIVATE BT_PLUGIN_EXPORT)
 target_link_libraries(opennav_follow_action_bt_node PUBLIC
   behaviortree_cpp::behaviortree_cpp
   ${geometry_msgs_TARGETS}
+  nav2_behavior_tree::nav2_behavior_tree
   ${opennav_following_msgs_TARGETS}
 )
-ament_target_dependencies(opennav_follow_action_bt_node PUBLIC nav2_behavior_tree nav2_util) # TODO(ajtudela): Fix this in kilted
 
 install(TARGETS opennav_follow_action_bt_node
   EXPORT ${PROJECT_NAME}
@@ -53,6 +54,7 @@ ament_export_dependencies(
   behaviortree_cpp
   geometry_msgs
   nav2_behavior_tree
+  nav2_ros_common
   opennav_following_msgs
 )
 ament_export_targets(${PROJECT_NAME})

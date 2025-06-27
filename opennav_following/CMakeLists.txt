@@ -7,6 +7,7 @@ find_package(geometry_msgs REQUIRED)
 find_package(nav2_common REQUIRED)
 find_package(nav2_graceful_controller REQUIRED)
 find_package(nav2_util REQUIRED)
+find_package(nav2_ros_common REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(opennav_docking REQUIRED)
 find_package(opennav_following_msgs REQUIRED)
@@ -30,13 +31,17 @@ add_library(${library_name} SHARED
 )
 target_include_directories(${library_name}
   PUBLIC
-    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
-    "$<INSTALL_INTERFACE:include/${PROJECT_NAME}>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+  "$<INSTALL_INTERFACE:include/${PROJECT_NAME}>"
+  "$<BUILD_INTERFACE:${nav2_ros_common_INCLUDE_DIRS}>"
 )
 target_link_libraries(${library_name} PUBLIC
   angles::angles
   ${geometry_msgs_TARGETS}
   ${opennav_following_msgs_TARGETS}
+  nav2_util::nav2_util_core
+  opennav_docking::controller
+  opennav_docking::pose_filter
   rclcpp::rclcpp
   rclcpp_action::rclcpp_action
   rclcpp_lifecycle::rclcpp_lifecycle
@@ -47,15 +52,14 @@ target_link_libraries(${library_name} PRIVATE
   rclcpp_components::component
   tf2_geometry_msgs::tf2_geometry_msgs
 )
-ament_target_dependencies(${library_name} PUBLIC nav2_util opennav_docking) # TODO(ajtudela): Fix this in jazzy
 
 add_executable(${executable_name}
   src/main.cpp
 )
 target_include_directories(${executable_name}
   PUBLIC
-    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
-    "$<INSTALL_INTERFACE:include/${PROJECT_NAME}>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+  "$<INSTALL_INTERFACE:include/${PROJECT_NAME}>"
 )
 target_link_libraries(${executable_name} PRIVATE ${library_name} rclcpp::rclcpp)
 
@@ -92,6 +96,7 @@ ament_export_libraries(${library_name})
 ament_export_dependencies(
   geometry_msgs
   nav2_graceful_controller
+  nav2_ros_common
   nav2_util
   opennav_docking
   opennav_following_msgs

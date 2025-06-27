@@ -20,8 +20,8 @@
 #include "geometry_msgs/msg/twist.hpp"
 #include "opennav_following/following_exceptions.hpp"
 #include "opennav_following/following_server.hpp"
-#include "nav2_util/node_thread.hpp"
-#include "tf2/utils.h"
+#include "nav2_ros_common/node_thread.hpp"
+#include "tf2/utils.hpp"
 
 // Testing unit functions in following server, smoke/system tests in python file
 
@@ -112,7 +112,7 @@ TEST(FollowingServerTests, ObjectLifecycle)
 TEST(FollowingServerTests, ErrorExceptions)
 {
   auto node = std::make_shared<FollowingServerShim>();
-  auto node_thread = nav2_util::NodeThread(node);
+  auto node_thread = nav2::NodeThread(node);
   auto node2 = std::make_shared<rclcpp::Node>("client_node");
 
   node->on_configure(rclcpp_lifecycle::State());
