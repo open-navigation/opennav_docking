@@ -27,6 +27,7 @@
 #include "nav2_ros_common/node_utils.hpp"
 #include "nav2_ros_common/simple_action_server.hpp"
 #include "nav2_util/twist_publisher.hpp"
+#include "nav_2d_utils/odom_subscriber.hpp"
 #include "opennav_docking/controller.hpp"
 #include "opennav_docking/pose_filter.hpp"
 #include "opennav_following_msgs/action/follow_object.hpp"
@@ -211,6 +212,8 @@ protected:
   double controller_frequency_;
   // Timeout for initially detecting the object
   double initial_perception_timeout_;
+  // Timeout to detect the object while rotating to it
+  double rotate_to_object_timeout_;
   // Tolerance for transforming coordinates
   double transform_tolerance_;
   // Timeout to approach into the dock and reset its approach is retrying
@@ -251,6 +254,7 @@ protected:
   double detection_timeout_;
 
   std::unique_ptr<nav2_util::TwistPublisher> vel_publisher_;
+  std::unique_ptr<nav_2d_utils::OdomSubscriber> odom_sub_;
   typename FollowingActionServer::SharedPtr following_action_server_;
 
   std::unique_ptr<opennav_docking::Controller> controller_;

@@ -35,6 +35,7 @@ FollowingServer::FollowingServer(const rclcpp::NodeOptions & options)
   declare_parameter("controller_frequency", 50.0);
   declare_parameter("initial_perception_timeout", 5.0);
   declare_parameter("detection_timeout", 2.0);
+  declare_parameter("rotate_to_object_timeout", 10.0);
   declare_parameter("linear_tolerance", 0.15);
   declare_parameter("angular_tolerance", 0.15);
   declare_parameter("max_retries", 3);
@@ -44,6 +45,7 @@ FollowingServer::FollowingServer(const rclcpp::NodeOptions & options)
   declare_parameter("filter_coef", 0.1);
   declare_parameter("desired_distance", 1.0);
   declare_parameter("skip_orientation", true);
+  declare_parameter("odom_topic", "odom");
 }
 
 nav2::CallbackReturn
@@ -55,6 +57,7 @@ FollowingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
   get_parameter("controller_frequency", controller_frequency_);
   get_parameter("initial_perception_timeout", initial_perception_timeout_);
   get_parameter("detection_timeout", detection_timeout_);
+  get_parameter("rotate_to_object_timeout", rotate_to_object_timeout_);
   get_parameter("linear_tolerance", linear_tolerance_);
   get_parameter("angular_tolerance", angular_tolerance_);
   get_parameter("max_retries", max_retries_);
@@ -67,6 +70,11 @@ FollowingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
 
   vel_publisher_ = std::make_unique<nav2_util::TwistPublisher>(node, "cmd_vel");
   tf2_buffer_ = std::make_shared<tf2_ros::Buffer>(node->get_clock());
+
+  // Create odom subscriber for backward blind docking
+  std::string odom_topic;
+  get_parameter("odom_topic", odom_topic);
+  odom_sub_ = std::make_unique<nav_2d_utils::OdomSubscriber>(node, odom_topic);
 
   // Create the action server for dynamic following
   following_action_server_ = node->create_action_server<FollowObject>(
@@ -91,7 +99,7 @@ FollowingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
     "detected_dynamic_pose",
     [this](const geometry_msgs::msg::PoseStamped::SharedPtr pose) {
       detected_dynamic_pose_ = *pose;
-    }, nav2::qos::StandardTopicQoS(1)); // Only want the most recent pose
+    }, nav2::qos::StandardTopicQoS(1));  // Only want the most recent pose
 
   // And publish the filtered pose for debugging
   filtered_dynamic_pose_pub_ =
@@ -150,6 +158,7 @@ FollowingServer::on_cleanup(const rclcpp_lifecycle::State & /*state*/)
   controller_.reset();
   vel_publisher_.reset();
   filtered_dynamic_pose_pub_.reset();
+  odom_sub_.reset();
   return nav2::CallbackReturn::SUCCESS;
 }
 
@@ -388,12 +397,15 @@ bool FollowingServer::approachObject(geometry_msgs::msg::PoseStamped & object_po
 
 bool FollowingServer::rotateToObject(geometry_msgs::msg::PoseStamped & object_pose)
 {
+  const double dt = 1.0 / controller_frequency_;
+  auto target_pose = object_pose;
+  target_pose.pose.orientation = nav2_util::geometry_utils::orientationAroundZAxis(
+    tf2::getYaw(target_pose.pose.orientation) + M_PI);
+
   rclcpp::Rate loop_rate(controller_frequency_);
-  // TODO(ajtudela): Must be a parameter?
-  const double angle_to_rotate = 2 * M_PI;
-  auto robot_pose = getRobotPoseInFrame(object_pose.header.frame_id);
-  double initial_yaw = tf2::getYaw(robot_pose.pose.orientation);
-  double relative_yaw = 0.0;
+  auto start = this->now();
+  auto timeout = rclcpp::Duration::from_seconds(rotate_to_object_timeout_);
+
   while (rclcpp::ok()) {
     publishFollowingFeedback(FollowObject::Feedback::RETRY);
 
@@ -404,37 +416,35 @@ bool FollowingServer::rotateToObject(geometry_msgs::msg::PoseStamped & object_po
       return false;
     }
 
-    // Update the angular distance
-    robot_pose = getRobotPoseInFrame(object_pose.header.frame_id);
-    const double current_yaw = tf2::getYaw(robot_pose.pose.orientation);
-    double delta_yaw = current_yaw - initial_yaw;
-    if (abs(delta_yaw) > M_PI) {
-      delta_yaw = copysign(2 * M_PI - abs(delta_yaw), initial_yaw);
+    auto robot_pose = getRobotPoseInFrame(object_pose.header.frame_id);
+    auto angular_distance_to_heading = angles::shortest_angular_distance(
+      tf2::getYaw(robot_pose.pose.orientation), tf2::getYaw(target_pose.pose.orientation));
+    if (fabs(angular_distance_to_heading) < angular_tolerance_) {
+      throw opennav_following::FailedToControl("Failed to rotate to object");
     }
-
-    relative_yaw += delta_yaw;
-    initial_yaw = current_yaw;
 
     // Determine if we find the object
     if (getRefinedPose(object_pose)) {
       return true;
     }
 
-    // Rotate to object
+    auto current_vel = std::make_unique<geometry_msgs::msg::TwistStamped>();
+    current_vel->twist.angular.z = odom_sub_->getTwist().theta;
+
     auto command = std::make_unique<geometry_msgs::msg::TwistStamped>();
-    command->header.stamp = now();
-    command->header.frame_id = base_frame_;
-    // TODO(ajtudela): Fix this to use the new controller
-    // command->twist = controller_->computeRotateToHeadingCommand(angle_to_rotate);
+    command->header = robot_pose.header;
+    command->twist = controller_->computeRotateToHeadingCommand(
+      angular_distance_to_heading, current_vel->twist, dt);
+
     vel_publisher_->publish(std::move(command));
 
-    double remaining_angle = angle_to_rotate - relative_yaw;
-    if (abs(remaining_angle) < angular_tolerance_) {
-      throw opennav_following::FailedToControl("Failed to rotate to object");
+    if (this->now() - start > timeout) {
+      throw opennav_following::FailedToControl("Timed out rotating to object");
     }
 
     loop_rate.sleep();
   }
+
   return false;
 }
 

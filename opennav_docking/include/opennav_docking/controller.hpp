@@ -69,10 +69,15 @@ public:
 
   /**
    * @brief Perform a command for in-place rotation.
-   * @param angle_to_target Angle to target in radians.
-   * @returns TwistStamped command.
+   * @param angular_distance_to_heading Angular distance to goal.
+   * @param current_velocity Current angular velocity.
+   * @param dt Control loop duration [s].
+   * @returns TwistStamped command for in-place rotation.
    */
-  geometry_msgs::msg::Twist computeRotateToHeadingCommand(double angle_to_target);
+  geometry_msgs::msg::Twist computeRotateToHeadingCommand(
+    const double & angular_distance_to_heading,
+    const geometry_msgs::msg::Twist & current_velocity,
+    const double & dt);
 
 protected:
   /**
