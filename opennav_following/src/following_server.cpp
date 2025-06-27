@@ -46,6 +46,7 @@ FollowingServer::FollowingServer(const rclcpp::NodeOptions & options)
   declare_parameter("desired_distance", 1.0);
   declare_parameter("skip_orientation", true);
   declare_parameter("odom_topic", "odom");
+  declare_parameter("transform_tolerance", 0.1);
 }
 
 nav2::CallbackReturn
@@ -66,6 +67,7 @@ FollowingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
   get_parameter("allow_backward", allow_backward_);
   get_parameter("desired_distance", desired_distance_);
   get_parameter("skip_orientation", skip_orientation_);
+  get_parameter("transform_tolerance", transform_tolerance_);
   RCLCPP_INFO(get_logger(), "Controller frequency set to %.4fHz", controller_frequency_);
 
   vel_publisher_ = std::make_unique<nav2_util::TwistPublisher>(node, "cmd_vel");
@@ -226,15 +228,16 @@ void FollowingServer::followObject()
   num_retries_ = 0;
 
   try {
+    // Construct initial estimate of where the object is located in fixed_frame
+    auto object_pose = goal->object_pose;
+    object_pose.header.stamp = this->now();
+    tf2_buffer_->transform(object_pose, object_pose, fixed_frame_,
+        tf2::durationFromSec(transform_tolerance_));
+
     RCLCPP_INFO(
       get_logger(),
       "Attempting to follow object at position (%0.2f, %0.2f).",
       goal->object_pose.pose.position.x, goal->object_pose.pose.position.y);
-
-    // Construct initial estimate of where the object is located in fixed_frame
-    auto object_pose = goal->object_pose;
-    object_pose.header.stamp = rclcpp::Time(0);
-    tf2_buffer_->transform(object_pose, object_pose, fixed_frame_);
 
     // Get initial detection of the object before proceeding to move
     doInitialPerception(object_pose);
