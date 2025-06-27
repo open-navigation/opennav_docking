@@ -10,11 +10,10 @@ builtin_interfaces/Duration max_duration
 # Note: The expected priority order of the errors should match the message order
 uint16 NONE=0
 uint16 UNKNOWN=1000
-uint16 TIMEOUT=1001
-uint16 TF_ERROR=1002
-uint16 OBJECT_NOT_VALID=1003
-uint16 FAILED_TO_DETECT_OBJECT=1004
-uint16 FAILED_TO_CONTROL=1005
+uint16 TF_ERROR=1001
+uint16 OBJECT_NOT_VALID=1002
+uint16 FAILED_TO_DETECT_OBJECT=1003
+uint16 FAILED_TO_CONTROL=1004
 
 builtin_interfaces/Duration total_elapsed_time
 uint16 error_code 0  # Contextual error code, if any

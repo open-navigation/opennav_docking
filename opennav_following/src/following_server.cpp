@@ -252,7 +252,6 @@ void FollowingServer::followObject()
         if (this->now() - start > max_duration && max_duration.seconds() > 0.0) {
           RCLCPP_INFO(get_logger(), "Exceeded max duration. Stopping.");
           result->total_elapsed_time = this->now() - action_start_time_;
-          result->error_code = FollowObject::Result::TIMEOUT;
           result->num_retries = num_retries_;
           publishZeroVelocity();
           following_action_server_->succeeded_current(result);
