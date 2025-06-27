@@ -13,8 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef OPENNAV_FOLLOWING_BT__FOLLOW_OBJECT_HPP_
-#define OPENNAV_FOLLOWING_BT__FOLLOW_OBJECT_HPP_
+#ifndef OPENNAV_FOLLOWING_BT__FOLLOW_OBJECT_ACTION_HPP_
+#define OPENNAV_FOLLOWING_BT__FOLLOW_OBJECT_ACTION_HPP_
 
 #include <string>
 #include <memory>
@@ -31,8 +31,7 @@ namespace opennav_following_bt
  * @brief nav2_behavior_tree::BtActionNode class that wraps opennav_following_msgs/FollowObject
  */
 class FollowObjectAction
-  : public nav2_behavior_tree::BtActionNode<
-    opennav_following_msgs::action::FollowObject>
+  : public nav2_behavior_tree::BtActionNode<opennav_following_msgs::action::FollowObject>
 {
   using Action = opennav_following_msgs::action::FollowObject;
   using ActionResult = Action::Result;
@@ -97,4 +96,4 @@ public:
 
 }  // namespace opennav_following_bt
 
-#endif  // OPENNAV_FOLLOWING_BT__FOLLOW_OBJECT_HPP_
+#endif  // OPENNAV_FOLLOWING_BT__FOLLOW_OBJECT_ACTION_HPP_

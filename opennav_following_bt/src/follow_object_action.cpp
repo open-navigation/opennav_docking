@@ -16,7 +16,7 @@
 #include <memory>
 #include <string>
 
-#include "opennav_following_bt/follow_object.hpp"
+#include "opennav_following_bt/follow_object_action.hpp"
 
 namespace opennav_following_bt
 {

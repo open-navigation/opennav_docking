@@ -1,5 +1,9 @@
 # Following test
-ament_add_gtest(test_follow_object test_follow_object.cpp)
-target_link_libraries(test_follow_object opennav_follow_action_bt_node)
-ament_target_dependencies(test_follow_object ${dependencies})
+ament_add_gtest(test_follow_object_action test_follow_object_action.cpp)
+target_link_libraries(test_follow_object_action opennav_follow_action_bt_node)
+ament_target_dependencies(test_follow_object_action ${dependencies})
 
+# Following cancel test
+ament_add_gtest(test_follow_object_cancel_node test_follow_object_cancel_node.cpp)
+target_link_libraries(test_follow_object_cancel_node opennav_follow_cancel_bt_node)
+ament_target_dependencies(test_follow_object_cancel_node ${dependencies})

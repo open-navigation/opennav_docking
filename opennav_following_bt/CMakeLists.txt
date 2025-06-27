@@ -15,12 +15,12 @@ find_package(rclcpp_action REQUIRED)
 
 nav2_package()
 
-add_library(opennav_follow_action_bt_node SHARED src/follow_object.cpp)
+add_library(opennav_follow_action_bt_node SHARED src/follow_object_action.cpp)
 target_include_directories(opennav_follow_action_bt_node
   PUBLIC
-    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
-    "$<INSTALL_INTERFACE:include/${PROJECT_NAME}>"
-    "$<BUILD_INTERFACE:${nav2_ros_common_INCLUDE_DIRS}>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+  "$<INSTALL_INTERFACE:include/${PROJECT_NAME}>"
+  "$<BUILD_INTERFACE:${nav2_ros_common_INCLUDE_DIRS}>"
 )
 target_compile_definitions(opennav_follow_action_bt_node PRIVATE BT_PLUGIN_EXPORT)
 target_link_libraries(opennav_follow_action_bt_node PUBLIC
@@ -30,7 +30,22 @@ target_link_libraries(opennav_follow_action_bt_node PUBLIC
   ${opennav_following_msgs_TARGETS}
 )
 
-install(TARGETS opennav_follow_action_bt_node
+add_library(opennav_follow_cancel_bt_node SHARED src/follow_object_cancel_node.cpp)
+target_include_directories(opennav_follow_cancel_bt_node
+  PUBLIC
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+  "$<INSTALL_INTERFACE:include/${PROJECT_NAME}>"
+  "$<BUILD_INTERFACE:${nav2_ros_common_INCLUDE_DIRS}>"
+)
+target_compile_definitions(opennav_follow_cancel_bt_node PRIVATE BT_PLUGIN_EXPORT)
+target_link_libraries(opennav_follow_cancel_bt_node PUBLIC
+  behaviortree_cpp::behaviortree_cpp
+  ${geometry_msgs_TARGETS}
+  nav2_behavior_tree::nav2_behavior_tree
+  ${opennav_following_msgs_TARGETS}
+)
+
+install(TARGETS opennav_follow_action_bt_node opennav_follow_cancel_bt_node
   EXPORT ${PROJECT_NAME}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
@@ -49,7 +64,7 @@ if(BUILD_TESTING)
 endif()
 
 ament_export_include_directories(include/${PROJECT_NAME})
-ament_export_libraries(opennav_follow_action_bt_node)
+ament_export_libraries(opennav_follow_action_bt_node follow_object_cancel_node)
 ament_export_dependencies(
   behaviortree_cpp
   geometry_msgs

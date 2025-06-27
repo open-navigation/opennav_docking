@@ -23,7 +23,7 @@
 #include "behaviortree_cpp/bt_factory.h"
 
 #include "nav2_behavior_tree/utils/test_action_server.hpp"
-#include "opennav_following_bt/follow_object.hpp"
+#include "opennav_following_bt/follow_object_action.hpp"
 
 class FollowObjectActionServer
   : public TestActionServer<opennav_following_msgs::action::FollowObject>
