@@ -1,6 +1,5 @@
 #goal definition
 
-geometry_msgs/PoseStamped object_pose
 builtin_interfaces/Duration max_duration
 
 ---

@@ -100,6 +100,11 @@ public:
   {
     skip_orientation_ = skip_orientation;
   }
+
+  void setFixedFrame(const std::string & fixed_frame)
+  {
+    fixed_frame_ = fixed_frame;
+  }
 };
 
 TEST(FollowingServerTests, ObjectLifecycle)
@@ -142,8 +147,6 @@ TEST(FollowingServerTests, ErrorExceptions)
       RCLCPP_ERROR(node2->get_logger(), "Action server not available after waiting");
     }
     auto goal_msg = FollowObject::Goal();
-    goal_msg.object_pose.header.frame_id = "test_frame";
-
     auto future_goal_handle = client->async_send_goal(goal_msg);
 
     if (rclcpp::spin_until_future_complete(
@@ -244,7 +247,7 @@ TEST(FollowingServerTests, RefinedPoseTest)
   pub->publish(detected_pose);
   rclcpp::spin_some(node->get_node_base_interface());
 
-  pose.header.frame_id = "my_frame";
+  node->setFixedFrame("my_frame");
   EXPECT_TRUE(node->getRefinedPose(pose));
   EXPECT_NEAR(pose.pose.position.x, 0.1, 0.01);
   EXPECT_NEAR(pose.pose.position.y, -0.1, 0.01);

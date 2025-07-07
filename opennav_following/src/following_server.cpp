@@ -46,6 +46,7 @@ FollowingServer::FollowingServer(const rclcpp::NodeOptions & options)
   declare_parameter("skip_orientation", true);
   declare_parameter("odom_topic", "odom");
   declare_parameter("transform_tolerance", 0.1);
+  declare_parameter("pose_topic", "detected_dynamic_pose");
 }
 
 nav2::CallbackReturn
@@ -66,6 +67,7 @@ FollowingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
   get_parameter("desired_distance", desired_distance_);
   get_parameter("skip_orientation", skip_orientation_);
   get_parameter("transform_tolerance", transform_tolerance_);
+  get_parameter("pose_topic", pose_topic_);
   RCLCPP_INFO(get_logger(), "Controller frequency set to %.4fHz", controller_frequency_);
 
   vel_publisher_ = std::make_unique<nav2_util::TwistPublisher>(node, "cmd_vel");
@@ -96,7 +98,7 @@ FollowingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
   // Subscribe to dynamic pose
   dynamic_pose_.header.stamp = rclcpp::Time(0);
   dynamic_pose_sub_ = create_subscription<geometry_msgs::msg::PoseStamped>(
-    "detected_dynamic_pose",
+    pose_topic_,
     [this](const geometry_msgs::msg::PoseStamped::SharedPtr pose) {
       detected_dynamic_pose_ = *pose;
     }, nav2::qos::StandardTopicQoS(1));  // Only want the most recent pose
@@ -226,18 +228,8 @@ void FollowingServer::followObject()
   num_retries_ = 0;
 
   try {
-    // Construct initial estimate of where the object is located in fixed_frame
-    auto object_pose = goal->object_pose;
-    object_pose.header.stamp = this->now();
-    tf2_buffer_->transform(object_pose, object_pose, fixed_frame_,
-        tf2::durationFromSec(transform_tolerance_));
-
-    RCLCPP_INFO(
-      get_logger(),
-      "Attempting to follow object at position (%0.2f, %0.2f).",
-      goal->object_pose.pose.position.x, goal->object_pose.pose.position.y);
-
     // Following control loop: while not timeout, run controller
+    geometry_msgs::msg::PoseStamped object_pose;
     auto start = this->now();
     rclcpp::Duration max_duration = goal->max_duration;
     while (rclcpp::ok()) {
@@ -457,19 +449,11 @@ bool FollowingServer::getRefinedPose(geometry_msgs::msg::PoseStamped & pose)
     return false;
   }
 
-  // Transform detected pose into fixed frame. Note that the argument pose
-  // is the output of detection, but also acts as the initial estimate
-  // and contains the frame_id of the detection.
-  if (detected.header.frame_id != pose.header.frame_id) {
+  // Transform detected pose into fixed frame
+  if (detected.header.frame_id != fixed_frame_) {
     try {
-      if (!tf2_buffer_->canTransform(
-          pose.header.frame_id, detected.header.frame_id,
-          detected.header.stamp, rclcpp::Duration::from_seconds(0.2)))
-      {
-        RCLCPP_WARN(this->get_logger(), "Failed to transform detected object pose");
-        return false;
-      }
-      tf2_buffer_->transform(detected, detected, pose.header.frame_id);
+      tf2_buffer_->transform(detected, detected, fixed_frame_,
+          tf2::durationFromSec(transform_tolerance_));
     } catch (const tf2::TransformException & ex) {
       RCLCPP_WARN(this->get_logger(), "Failed to transform detected object pose");
       return false;

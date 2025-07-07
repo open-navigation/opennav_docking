@@ -27,17 +27,18 @@ class FollowObjectTester(Node):
 
     def __init__(self):
         super().__init__(node_name='follow_object_tester')
-        self.subscription = self.create_subscription(
-            PoseStamped, 'detected_dynamic_pose', self.pose_callback, 10)
+        # Create a one-shot timer to call the action server after a short delay (2 seconds)
+        self.timer = self.node.create_timer(2, self.timer_callback)
         # self.subscription  # prevent unused variable warning
         self.follow_action_client = ActionClient(self, FollowObject, 'follow_object')
-        self.first_message_received = False
 
-    def pose_callback(self, msg):
-        """Subscribes to the pose topic and calls the action server with the first pose."""
-        if not self.first_message_received:
-            self.first_message_received = True
-            self.send_goal(msg)
+    def timer_callback(self):
+        """Callback for the timer to send the goal to the action server."""
+        if self.send_goal():
+            self.get_logger().info('Goal sent successfully.')
+            self.timer.cancel()  # Cancel the timer after sending the goal
+        else:
+            self.get_logger().error('Failed to send goal to follow object action server.')
 
     def action_feedback_callback(self, msg):
         """Prints the feedback message from the action server."""
@@ -50,24 +51,13 @@ class FollowObjectTester(Node):
         elif msg.feedback.state == msg.feedback.RETRY:
             self.get_logger().info('Retrying to follow the object.')
 
-    def send_goal(self, pose):
-        """Sends the pose to the action server."""
-        self.get_logger().info('Sending the pose to follow.')
+    def send_goal(self):
+        """Calls the action server."""
+        self.get_logger().info('Calling the follow object action.')
         while not self.follow_action_client.wait_for_server(timeout_sec=1.0):
             self.get_logger().info('"FollowObject" action server not available, waiting...')
 
         goal_msg = FollowObject.Goal()
-        goal_msg.object_pose = pose
-        orientation_q = pose.pose.orientation
-        orientation_list = [orientation_q.x, orientation_q.y, orientation_q.z, orientation_q.w]
-
-        # Print the pose in (x,y) format
-        self.get_logger().info(
-            'Pose received in frame ' + pose.header.frame_id +
-            ': x=' + str(pose.pose.position.x) +
-            ', y=' + str(pose.pose.position.y)
-        )
-
         future = self.follow_action_client.send_goal_async(
             goal_msg, feedback_callback=self.action_feedback_callback)
         self.goal_handle = future.result()

@@ -33,7 +33,6 @@ void FollowObjectAction::on_tick()
 {
   // Get core inputs about what to perform
   double max_duration;
-  getInput("object_pose", goal_.object_pose);
   getInput("max_duration", max_duration);
 
   // Populate the input message

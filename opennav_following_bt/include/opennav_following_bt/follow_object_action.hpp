@@ -81,8 +81,6 @@ public:
   {
     return providedBasicPorts(
       {
-        BT::InputPort<geometry_msgs::msg::PoseStamped>(
-          "object_pose", "The object pose to follow"),
         BT::InputPort<float>(
           "max_duration", 0.0, "The maximum duration to follow the object (Optional)"),
 

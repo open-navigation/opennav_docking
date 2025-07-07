@@ -52,6 +52,7 @@ def generate_test_description() -> LaunchDescription:
                          'detection_timeout': 0.1,
                          'linear_tolerance': 0.05,
                          'angular_tolerance': 0.05,
+                         'transform_tolerance': 0.5,
                          'controller': {
                              'use_collision_detection': False,
                              'transform_tolerance': 0.5,
@@ -178,10 +179,6 @@ class TestFollowingServer(unittest.TestCase):
             'follow_object service not available'
 
         goal = FollowObject.Goal()
-        goal.object_pose.header.frame_id = 'odom'
-        goal.object_pose.header.stamp = self.node.get_clock().now().to_msg()
-        goal.object_pose.pose.position.x = 1.75
-        goal.object_pose.pose.position.y = 0.0
         goal.max_duration = rclpy.time.Duration(seconds=5.0).to_msg()
         future = self.follow_action_client.send_goal_async(
             goal, feedback_callback=self.action_feedback_callback)
@@ -246,7 +243,6 @@ class TestFollowingServer(unittest.TestCase):
         self.assertIsNotNone(self.action_result[2])
         if self.action_result[2] is not None:
             self.assertEqual(self.action_result[2].status, GoalStatus.STATUS_SUCCEEDED)
-            self.assertTrue(self.action_result[2].result, FollowObject.Result.TIMEOUT)
             self.assertEqual(self.action_result[2].result.num_retries, 2)
             self.assertTrue(self.at_distance)
 

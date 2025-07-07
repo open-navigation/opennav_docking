@@ -115,7 +115,7 @@ TEST_F(FollowObjectActionTestFixture, test_tick)
     R"(
       <root main_tree_to_execute = "MainTree" >
         <BehaviorTree ID="MainTree">
-            <FollowObject object_pose="{goal}"/>
+            <FollowObject/>
         </BehaviorTree>
       </root>)";
 
@@ -130,22 +130,10 @@ TEST_F(FollowObjectActionTestFixture, test_tick)
 
   // the goal should have reached our server
   EXPECT_EQ(tree_->rootNode()->status(), BT::NodeStatus::SUCCESS);
-  EXPECT_EQ(action_server_->getCurrentGoal()->object_pose, pose);
 
   // halt node so another goal can be sent
   tree_->haltTree();
   EXPECT_EQ(tree_->rootNode()->status(), BT::NodeStatus::IDLE);
-
-  // set new goal
-  pose.pose.position.x = -2.5;
-  pose.pose.orientation.x = 1.0;
-  config_->blackboard->set("object_pose", pose);
-
-  while (tree_->rootNode()->status() != BT::NodeStatus::SUCCESS) {
-    tree_->rootNode()->executeTick();
-  }
-
-  EXPECT_EQ(tree_->rootNode()->status(), BT::NodeStatus::SUCCESS);
 }
 
 int main(int argc, char ** argv)
