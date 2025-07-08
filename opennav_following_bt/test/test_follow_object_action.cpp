@@ -108,6 +108,32 @@ BT::NodeConfiguration * FollowObjectActionTestFixture::config_ = nullptr;
 std::shared_ptr<BT::BehaviorTreeFactory> FollowObjectActionTestFixture::factory_ = nullptr;
 std::shared_ptr<BT::Tree> FollowObjectActionTestFixture::tree_ = nullptr;
 
+TEST_F(FollowObjectActionTestFixture, test_ports)
+{
+  std::string xml_txt =
+    R"(
+      <root BTCPP_format="4">
+        <BehaviorTree ID="MainTree">
+            <FollowObject />
+        </BehaviorTree>
+      </root>)";
+
+  tree_ = std::make_shared<BT::Tree>(factory_->createTreeFromText(xml_txt, config_->blackboard));
+  EXPECT_EQ(tree_->rootNode()->getInput<double>("max_duration"), 0.0);
+
+  xml_txt =
+    R"(
+      <root BTCPP_format="4">
+        <BehaviorTree ID="MainTree">
+            <FollowObject max_duration="20" frame_id="test_frame"/>
+        </BehaviorTree>
+      </root>)";
+
+  tree_ = std::make_shared<BT::Tree>(factory_->createTreeFromText(xml_txt, config_->blackboard));
+  EXPECT_EQ(tree_->rootNode()->getInput<double>("max_duration"), 20.0);
+  EXPECT_EQ(tree_->rootNode()->getInput<std::string>("frame_id"), "test_frame");
+}
+
 TEST_F(FollowObjectActionTestFixture, test_tick)
 {
   // create tree
@@ -115,7 +141,7 @@ TEST_F(FollowObjectActionTestFixture, test_tick)
     R"(
       <root main_tree_to_execute = "MainTree" >
         <BehaviorTree ID="MainTree">
-            <FollowObject/>
+            <FollowObject />
         </BehaviorTree>
       </root>)";
 

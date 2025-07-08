@@ -228,6 +228,11 @@ void FollowingServer::followObject()
   num_retries_ = 0;
 
   try {
+    auto target_frame = goal->frame_id;
+    if (!target_frame.empty()) {
+      RCLCPP_INFO(get_logger(), "Following frame: %s instead of pose", target_frame.c_str());
+    }
+
     // Following control loop: while not timeout, run controller
     geometry_msgs::msg::PoseStamped object_pose;
     auto start = this->now();
@@ -245,7 +250,7 @@ void FollowingServer::followObject()
         }
 
         // Approach the object using control law
-        if (approachObject(object_pose)) {
+        if (approachObject(object_pose, target_frame)) {
           // We have reached the object, maintain position
           RCLCPP_INFO_THROTTLE(
             get_logger(), *get_clock(), 1000,
@@ -300,7 +305,8 @@ void FollowingServer::followObject()
   following_action_server_->terminate_current(result);
 }
 
-bool FollowingServer::approachObject(geometry_msgs::msg::PoseStamped & object_pose)
+bool FollowingServer::approachObject(
+  geometry_msgs::msg::PoseStamped & object_pose, const std::string & target_frame)
 {
   rclcpp::Rate loop_rate(controller_frequency_);
   while (rclcpp::ok()) {
@@ -313,9 +319,17 @@ bool FollowingServer::approachObject(geometry_msgs::msg::PoseStamped & object_po
       return false;
     }
 
-    // Update perception
-    if (!getRefinedPose(object_pose)) {
-      throw opennav_following::FailedToDetectObject("Failed object detection");
+    // If we have a target frame_id from the goal, use that instead of pose detection
+    if (!target_frame.empty()) {
+      if (!getFramePose(target_frame, object_pose)) {
+        throw opennav_following::FailedToDetectObject(
+          "Failed to get pose in target frame: " + target_frame);
+      }
+    } else {
+      // Otherwise, use the traditional pose detection from topic
+      if (!getRefinedPose(object_pose)) {
+        throw opennav_following::FailedToDetectObject("Failed object detection");
+      }
     }
 
     // Get the pose at the distance we want to maintain from the object
@@ -474,6 +488,36 @@ bool FollowingServer::getRefinedPose(geometry_msgs::msg::PoseStamped & pose)
 
   // Filter the detected pose
   dynamic_pose_ = filter_->update(detected);
+  filtered_dynamic_pose_pub_->publish(dynamic_pose_);
+
+  // Return dynamic pose for debugging purposes
+  pose = dynamic_pose_;
+  return true;
+}
+
+bool FollowingServer::getFramePose(
+  const std::string & frame_id, geometry_msgs::msg::PoseStamped & pose)
+{
+  try {
+    // Get the transform from the target frame to the fixed frame
+    auto transform = tf2_buffer_->lookupTransform(
+      fixed_frame_, frame_id, tf2::TimePointZero, tf2::durationFromSec(transform_tolerance_));
+
+    // Convert transform to pose
+    pose.header.frame_id = fixed_frame_;
+    pose.header.stamp = transform.header.stamp;
+    pose.pose.position.x = transform.transform.translation.x;
+    pose.pose.position.y = transform.transform.translation.y;
+    pose.pose.position.z = transform.transform.translation.z;
+    pose.pose.orientation = transform.transform.rotation;
+  } catch (const tf2::TransformException & ex) {
+    RCLCPP_WARN(get_logger(),
+      "Failed to get transform for frame %s: %s", frame_id.c_str(), ex.what());
+    return false;
+  }
+
+  // Filter the detected pose
+  dynamic_pose_ = filter_->update(pose);
   filtered_dynamic_pose_pub_->publish(dynamic_pose_);
 
   // Return dynamic pose for debugging purposes

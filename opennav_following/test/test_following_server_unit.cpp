@@ -22,6 +22,7 @@
 #include "opennav_following/following_server.hpp"
 #include "nav2_ros_common/node_thread.hpp"
 #include "tf2/utils.hpp"
+#include "tf2_ros/transform_broadcaster.h"
 
 // Testing unit functions in following server, smoke/system tests in python file
 
@@ -52,7 +53,7 @@ public:
     return geometry_msgs::msg::PoseStamped();
   }
 
-  virtual bool approachObject(geometry_msgs::msg::PoseStamped &)
+  virtual bool approachObject(geometry_msgs::msg::PoseStamped &, const std::string &)
   {
     std::string exception;
     this->get_parameter("exception_to_throw", exception);
@@ -73,6 +74,11 @@ public:
   virtual bool getRefinedPose(geometry_msgs::msg::PoseStamped & pose)
   {
     return FollowingServer::getRefinedPose(pose);
+  }
+
+  virtual bool getFramePose(const std::string & frame_id, geometry_msgs::msg::PoseStamped & pose)
+  {
+    return FollowingServer::getFramePose(frame_id, pose);
   }
 
   virtual bool rotateToObject(geometry_msgs::msg::PoseStamped &)
@@ -218,7 +224,7 @@ TEST(FollowingServerTests, IsGoalReached)
   node.reset();
 }
 
-TEST(FollowingServerTests, RefinedPoseTest)
+TEST(FollowingServerTests, RefinedPose)
 {
   auto node = std::make_shared<opennav_following::FollowingServerShim>();
   auto pub = node->create_publisher<geometry_msgs::msg::PoseStamped>(
@@ -272,6 +278,46 @@ TEST(FollowingServerTests, RefinedPoseTest)
   EXPECT_NEAR(filtered_pose.pose.position.x, 0.1, 0.01);
   EXPECT_NEAR(filtered_pose.pose.position.y, -0.1, 0.01);
   EXPECT_NEAR(tf2::getYaw(filtered_pose.pose.orientation), -0.785, 0.01);
+
+  node->on_deactivate(rclcpp_lifecycle::State());
+  node->on_cleanup(rclcpp_lifecycle::State());
+  node->on_shutdown(rclcpp_lifecycle::State());
+  node.reset();
+}
+
+TEST(FollowingServerTests, GetFramePose)
+{
+  auto node = std::make_shared<opennav_following::FollowingServerShim>();
+
+  // Set filter coefficient to 0, so no filtering is done
+  node->set_parameter(rclcpp::Parameter("filter_coef", rclcpp::ParameterValue(0.0)));
+
+  node->on_configure(rclcpp_lifecycle::State());
+  node->on_activate(rclcpp_lifecycle::State());
+
+  geometry_msgs::msg::PoseStamped pose;
+
+  // Not frame set, should return false
+  auto frame_test = std::string("my_frame");
+  node->setFixedFrame("fixed_frame_test");
+  EXPECT_FALSE(node->getFramePose(frame_test, pose));
+
+  // Set transform between my_frame and fixed_frame_test
+  auto tf_broadcaster = std::make_unique<tf2_ros::TransformBroadcaster>(node);
+  geometry_msgs::msg::TransformStamped frame_to_fixed;
+  frame_to_fixed.header.frame_id = "fixed_frame_test";
+  frame_to_fixed.header.stamp = node->get_clock()->now();
+  frame_to_fixed.child_frame_id = "my_frame";
+  frame_to_fixed.transform.translation.x = 1.0;
+  frame_to_fixed.transform.translation.y = 2.0;
+  frame_to_fixed.transform.translation.z = 3.0;
+  tf_broadcaster->sendTransform(frame_to_fixed);
+
+  // Now, we should be able to get the pose in my_frame
+  EXPECT_TRUE(node->getFramePose(frame_test, pose));
+  EXPECT_EQ(pose.pose.position.x, 1.0);
+  EXPECT_EQ(pose.pose.position.y, 2.0);
+  EXPECT_EQ(pose.pose.position.z, 3.0);
 
   node->on_deactivate(rclcpp_lifecycle::State());
   node->on_cleanup(rclcpp_lifecycle::State());

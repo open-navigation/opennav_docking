@@ -81,6 +81,7 @@ public:
   {
     return providedBasicPorts(
       {
+        BT::InputPort<std::string>("frame_id", "Target frame to follow (Optional)"),
         BT::InputPort<float>(
           "max_duration", 0.0, "The maximum duration to follow the object (Optional)"),
 

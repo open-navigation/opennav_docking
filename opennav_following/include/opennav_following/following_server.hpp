@@ -66,10 +66,13 @@ public:
   /**
    * @brief Use control law and perception to approach the object.
    * @param object_pose Initial object pose, will be refined by perception.
+   * @param target_frame The frame to be tracked instead of the pose.
    * @returns True if successfully approached, False if cancelled. For
    *          any internal error, will throw.
    */
-  virtual bool approachObject(geometry_msgs::msg::PoseStamped & object_pose);
+  virtual bool approachObject(
+    geometry_msgs::msg::PoseStamped & object_pose,
+    const std::string & target_frame = std::string(""));
 
   /**
    * @brief Rotate the robot to find the object again.
@@ -170,6 +173,14 @@ protected:
    *        which will be updated with the refined pose.
    */
   virtual bool getRefinedPose(geometry_msgs::msg::PoseStamped & pose);
+
+  /**
+   * @brief Get the pose of a specific frame in the fixed frame
+   * @param frame_id The frame to get the pose for
+   * @param pose The output pose
+   * @return true if successful, false otherwise
+   */
+  virtual bool getFramePose(const std::string & frame_id, geometry_msgs::msg::PoseStamped & pose);
 
   /**
    * @brief Get the pose at a distance in front of the input pose

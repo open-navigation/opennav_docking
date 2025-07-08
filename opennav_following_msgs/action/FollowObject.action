@@ -1,5 +1,6 @@
 #goal definition
 
+string frame_id  # Target frame to follow (Optional)
 builtin_interfaces/Duration max_duration
 
 ---
