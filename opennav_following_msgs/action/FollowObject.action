@@ -17,7 +17,7 @@ uint16 FAILED_TO_CONTROL=1003
 builtin_interfaces/Duration total_elapsed_time
 uint16 error_code 0  # Contextual error code, if any
 uint16 num_retries 0  # Number of retries attempted
-
+string error_msg  # Error message, if any
 ---
 #feedback definition
 

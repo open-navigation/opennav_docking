@@ -44,6 +44,7 @@ BT::NodeStatus FollowObjectAction::on_success()
 {
   setOutput("total_elapsed_time", result_.result->total_elapsed_time);
   setOutput("error_code_id", ActionResult::NONE);
+  setOutput("error_msg", "");
   return BT::NodeStatus::SUCCESS;
 }
 
@@ -51,12 +52,14 @@ BT::NodeStatus FollowObjectAction::on_aborted()
 {
   setOutput("total_elapsed_time", result_.result->total_elapsed_time);
   setOutput("error_code_id", result_.result->error_code);
+  setOutput("error_msg", result_.result->error_msg);
   return BT::NodeStatus::FAILURE;
 }
 
 BT::NodeStatus FollowObjectAction::on_cancelled()
 {
   setOutput("error_code_id", ActionResult::NONE);
+  setOutput("error_msg", "");
   return BT::NodeStatus::SUCCESS;
 }
 
