@@ -22,7 +22,9 @@
 #include <mutex>
 #include <functional>
 
+#include "geometry_msgs/msg/pose_stamped.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include "rclcpp_lifecycle/lifecycle_publisher.hpp"
 #include "nav2_ros_common/lifecycle_node.hpp"
 #include "nav2_ros_common/node_utils.hpp"
 #include "nav2_ros_common/simple_action_server.hpp"

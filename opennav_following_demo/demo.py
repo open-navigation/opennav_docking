@@ -28,7 +28,7 @@ class FollowObjectTester(Node):
     def __init__(self):
         super().__init__(node_name='follow_object_tester')
         # Create a one-shot timer to call the action server after a short delay (2 seconds)
-        self.timer = self.node.create_timer(2, self.timer_callback)
+        self.timer = self.create_timer(2, self.timer_callback)
         # self.subscription  # prevent unused variable warning
         self.follow_action_client = ActionClient(self, FollowObject, 'follow_object')
 

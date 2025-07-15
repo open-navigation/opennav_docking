@@ -18,7 +18,7 @@
 #include "rclcpp/rclcpp.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "geometry_msgs/msg/twist.hpp"
-#include "opennav_following/following_exceptions.hpp"
+#include "opennav_docking_core/docking_exceptions.hpp"
 #include "opennav_following/following_server.hpp"
 #include "nav2_ros_common/node_thread.hpp"
 #include "tf2/utils.hpp"
@@ -60,11 +60,11 @@ public:
     if (exception == "TransformException") {
       throw tf2::TransformException("TransformException");
     } else if (exception == "FailedToDetectObject") {
-      throw opennav_following::FailedToDetectObject("FailedToDetectObject");
+      throw opennav_docking_core::FailedToDetectDock("FailedToDetectObject");
     } else if (exception == "FailedToControl") {
-      throw opennav_following::FailedToControl("FailedToControl");
-    } else if (exception == "FollowingException") {
-      throw opennav_following::FollowingException("FollowingException");
+      throw opennav_docking_core::FailedToControl("FailedToControl");
+    } else if (exception == "DockingException") {
+      throw opennav_docking_core::DockingException("DockingException");
     } else if (exception == "exception") {
       throw std::exception();
     }
@@ -140,8 +140,8 @@ TEST(FollowingServerTests, ErrorExceptions)
   // Error codes following
   std::vector<std::string> error_ids{
     "TransformException", "FailedToDetectObject", "FailedToControl",
-    "FollowingException", "exception"};
-  std::vector<int> error_codes{1001, 1002, 1003, 1000, 1000};
+    "DockingException", "exception"};
+  std::vector<int> error_codes{901, 902, 903, 999, 999};
 
   // Call action, check error code
   for (unsigned int i = 0; i != error_ids.size(); i++) {

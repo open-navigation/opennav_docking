@@ -5,18 +5,14 @@ find_package(ament_cmake REQUIRED)
 find_package(angles REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nav2_common REQUIRED)
-find_package(nav2_graceful_controller REQUIRED)
-find_package(nav2_util REQUIRED)
 find_package(nav2_ros_common REQUIRED)
-find_package(nav_msgs REQUIRED)
+find_package(nav2_util REQUIRED)
 find_package(opennav_docking REQUIRED)
+find_package(opennav_docking_core REQUIRED)
 find_package(opennav_following_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
-find_package(rclcpp_action REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
-find_package(rcl_interfaces REQUIRED)
-find_package(sensor_msgs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
@@ -36,17 +32,17 @@ target_include_directories(${library_name}
   "$<BUILD_INTERFACE:${nav2_ros_common_INCLUDE_DIRS}>"
 )
 target_link_libraries(${library_name} PUBLIC
-  angles::angles
   ${geometry_msgs_TARGETS}
-  ${opennav_following_msgs_TARGETS}
   nav2_util::nav2_util_core
   opennav_docking::controller
   opennav_docking::pose_filter
+  ${opennav_following_msgs_TARGETS}
   rclcpp::rclcpp
-  rclcpp_action::rclcpp_action
   rclcpp_lifecycle::rclcpp_lifecycle
-  ${rcl_interfaces_TARGETS}
   tf2_ros::tf2_ros
+  PRIVATE
+  angles::angles
+  opennav_docking_core::opennav_docking_core
 )
 target_link_libraries(${library_name} PRIVATE
   rclcpp_components::component
@@ -95,15 +91,13 @@ ament_export_include_directories(include/${PROJECT_NAME})
 ament_export_libraries(${library_name})
 ament_export_dependencies(
   geometry_msgs
-  nav2_graceful_controller
   nav2_ros_common
   nav2_util
   opennav_docking
+  opennav_docking_core
   opennav_following_msgs
   rclcpp
-  rclcpp_action
   rclcpp_lifecycle
-  rcl_interfaces
   tf2_ros
 )
 ament_export_targets(${PROJECT_NAME})

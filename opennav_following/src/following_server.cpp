@@ -14,7 +14,7 @@
 // limitations under the License.
 
 #include "angles/angles.h"
-#include "opennav_following/following_exceptions.hpp"
+#include "opennav_docking_core/docking_exceptions.hpp"
 #include "opennav_following/following_server.hpp"
 #include "nav2_util/geometry_utils.hpp"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
@@ -265,7 +265,7 @@ void FollowingServer::followObject()
         publishZeroVelocity();
         following_action_server_->terminate_all(result);
         return;
-      } catch (opennav_following::FollowingException & e) {
+      } catch (opennav_docking_core::DockingException & e) {
         if (++num_retries_ > max_retries_) {
           RCLCPP_ERROR(get_logger(), "Failed to follow, all retries have been used");
           throw;
@@ -286,15 +286,15 @@ void FollowingServer::followObject()
     result->error_msg = std::string("Transform error: ") + e.what();
     RCLCPP_ERROR(get_logger(), result->error_msg.c_str());
     result->error_code = FollowObject::Result::TF_ERROR;
-  } catch (opennav_following::FailedToDetectObject & e) {
+  } catch (opennav_docking_core::FailedToDetectDock & e) {
     result->error_msg = e.what();
     RCLCPP_ERROR(get_logger(), result->error_msg.c_str());
     result->error_code = FollowObject::Result::FAILED_TO_DETECT_OBJECT;
-  } catch (opennav_following::FailedToControl & e) {
+  } catch (opennav_docking_core::FailedToControl & e) {
     result->error_msg = e.what();
     RCLCPP_ERROR(get_logger(), result->error_msg.c_str());
     result->error_code = FollowObject::Result::FAILED_TO_CONTROL;
-  } catch (opennav_following::FollowingException & e) {
+  } catch (opennav_docking_core::DockingException & e) {
     result->error_msg = e.what();
     RCLCPP_ERROR(get_logger(), result->error_msg.c_str());
     result->error_code = FollowObject::Result::UNKNOWN;
@@ -327,13 +327,13 @@ bool FollowingServer::approachObject(
     // If we have a target frame_id from the goal, use that instead of pose detection
     if (!target_frame.empty()) {
       if (!getFramePose(target_frame, object_pose)) {
-        throw opennav_following::FailedToDetectObject(
+        throw opennav_docking_core::FailedToDetectDock(
           "Failed to get pose in target frame: " + target_frame);
       }
     } else {
       // Otherwise, use the traditional pose detection from topic
       if (!getRefinedPose(object_pose)) {
-        throw opennav_following::FailedToDetectObject("Failed object detection");
+        throw opennav_docking_core::FailedToDetectDock("Failed object detection");
       }
     }
 
@@ -369,7 +369,7 @@ bool FollowingServer::approachObject(
     auto command = std::make_unique<geometry_msgs::msg::TwistStamped>();
     command->header.stamp = now();
     if (!controller_->computeVelocityCommand(target_pose.pose, command->twist, true, reversing)) {
-      throw opennav_following::FailedToControl("Failed to get control");
+      throw opennav_docking_core::FailedToControl("Failed to get control");
     }
     vel_publisher_->publish(std::move(command));
 
@@ -403,7 +403,7 @@ bool FollowingServer::rotateToObject(geometry_msgs::msg::PoseStamped & object_po
     auto angular_distance_to_heading = angles::shortest_angular_distance(
       tf2::getYaw(robot_pose.pose.orientation), tf2::getYaw(target_pose.pose.orientation));
     if (fabs(angular_distance_to_heading) < angular_tolerance_) {
-      throw opennav_following::FailedToControl("Failed to rotate to object");
+      throw opennav_docking_core::FailedToControl("Failed to rotate to object");
     }
 
     // Determine if we find the object
@@ -422,7 +422,7 @@ bool FollowingServer::rotateToObject(geometry_msgs::msg::PoseStamped & object_po
     vel_publisher_->publish(std::move(command));
 
     if (this->now() - start > timeout) {
-      throw opennav_following::FailedToControl("Timed out rotating to object");
+      throw opennav_docking_core::FailedToControl("Timed out rotating to object");
     }
 
     loop_rate.sleep();
