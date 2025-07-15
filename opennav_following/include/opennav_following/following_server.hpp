@@ -213,7 +213,7 @@ protected:
   rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr dyn_params_handler_;
 
   // Mutex for dynamic parameters
-  std::shared_ptr<std::mutex> dynamic_params_lock_;
+  std::mutex dynamic_params_lock_;
 
   // Frequency to run control loops
   double controller_frequency_;

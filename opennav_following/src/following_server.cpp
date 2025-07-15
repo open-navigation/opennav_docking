@@ -86,7 +86,6 @@ FollowingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
     true);
 
   // Create composed utilities
-  dynamic_params_lock_ = std::make_shared<std::mutex>();
   controller_ =
     std::make_unique<opennav_docking::Controller>(node, tf2_buffer_, fixed_frame_, base_frame_);
 
@@ -207,7 +206,7 @@ bool FollowingServer::checkAndWarnIfPreempted(
 
 void FollowingServer::followObject()
 {
-  std::lock_guard<std::mutex> lock(*dynamic_params_lock_);
+  std::lock_guard<std::mutex> lock(dynamic_params_lock_);
   action_start_time_ = this->now();
   rclcpp::Rate loop_rate(controller_frequency_);
 
@@ -554,7 +553,7 @@ bool FollowingServer::isGoalReached(const geometry_msgs::msg::PoseStamped & goal
 rcl_interfaces::msg::SetParametersResult
 FollowingServer::dynamicParametersCallback(std::vector<rclcpp::Parameter> parameters)
 {
-  std::lock_guard<std::mutex> lock(*dynamic_params_lock_);
+  std::lock_guard<std::mutex> lock(dynamic_params_lock_);
 
   rcl_interfaces::msg::SetParametersResult result;
   for (auto parameter : parameters) {
