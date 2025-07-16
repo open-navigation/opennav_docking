@@ -234,6 +234,7 @@ void FollowingServer::followObject()
 
     // Following control loop: while not timeout, run controller
     geometry_msgs::msg::PoseStamped object_pose;
+    rclcpp::Rate main_loop_rate(controller_frequency_);
     auto start = this->now();
     rclcpp::Duration max_duration = goal->max_duration;
     while (rclcpp::ok()) {
@@ -256,14 +257,13 @@ void FollowingServer::followObject()
             "Reached object. Stopping until goal is moved again.");
           publishFollowingFeedback(FollowObject::Feedback::STOPPING);
           publishZeroVelocity();
-          continue;
+        } else {
+          // Cancelled, preempted, or shutting down (recoverable errors throw FollowingException)
+          result->total_elapsed_time = this->now() - action_start_time_;
+          publishZeroVelocity();
+          following_action_server_->terminate_all(result);
+          return;
         }
-
-        // Cancelled, preempted, or shutting down (recoverable errors throw FollowingException)
-        result->total_elapsed_time = this->now() - action_start_time_;
-        publishZeroVelocity();
-        following_action_server_->terminate_all(result);
-        return;
       } catch (opennav_docking_core::DockingException & e) {
         if (++num_retries_ > max_retries_) {
           RCLCPP_ERROR(get_logger(), "Failed to follow, all retries have been used");
@@ -280,6 +280,7 @@ void FollowingServer::followObject()
         }
         RCLCPP_INFO(get_logger(), "Rotated to find object again");
       }
+      main_loop_rate.sleep();
     }
   } catch (const tf2::TransformException & e) {
     result->error_msg = std::string("Transform error: ") + e.what();
