@@ -339,15 +339,17 @@ TEST(FollowingServerTests, DynamicParams)
   // Set parameters
   auto results = params->set_parameters_atomically(
     {rclcpp::Parameter("controller_frequency", 1.0),
-      rclcpp::Parameter("detection_timeout", 3.0),
-      rclcpp::Parameter("desired_distance", 4.0),
-      rclcpp::Parameter("linear_tolerance", 5.0),
-      rclcpp::Parameter("angular_tolerance", 6.0),
+      rclcpp::Parameter("detection_timeout", 2.0),
+      rclcpp::Parameter("rotate_to_object_timeout", 3.0),
+      rclcpp::Parameter("static_object_timeout", 4.0),
+      rclcpp::Parameter("desired_distance", 5.0),
+      rclcpp::Parameter("linear_tolerance", 6.0),
+      rclcpp::Parameter("angular_tolerance", 7.0),
       rclcpp::Parameter("base_frame", std::string("test_base_frame")),
       rclcpp::Parameter("fixed_frame", std::string("test_fixed_frame")),
       rclcpp::Parameter("allow_backward", false),
       rclcpp::Parameter("skip_orientation", false),
-      rclcpp::Parameter("transform_tolerance", 0.5)
+      rclcpp::Parameter("transform_tolerance", 8.0)
     });
 
   // Spin
@@ -355,15 +357,17 @@ TEST(FollowingServerTests, DynamicParams)
 
   // Check parameters
   EXPECT_EQ(node->get_parameter("controller_frequency").as_double(), 1.0);
-  EXPECT_EQ(node->get_parameter("detection_timeout").as_double(), 3.0);
-  EXPECT_EQ(node->get_parameter("desired_distance").as_double(), 4.0);
-  EXPECT_EQ(node->get_parameter("linear_tolerance").as_double(), 5.0);
-  EXPECT_EQ(node->get_parameter("angular_tolerance").as_double(), 6.0);
+  EXPECT_EQ(node->get_parameter("detection_timeout").as_double(), 2.0);
+  EXPECT_EQ(node->get_parameter("rotate_to_object_timeout").as_double(), 3.0);
+  EXPECT_EQ(node->get_parameter("static_object_timeout").as_double(), 4.0);
+  EXPECT_EQ(node->get_parameter("desired_distance").as_double(), 5.0);
+  EXPECT_EQ(node->get_parameter("linear_tolerance").as_double(), 6.0);
+  EXPECT_EQ(node->get_parameter("angular_tolerance").as_double(), 7.0);
   EXPECT_EQ(node->get_parameter("base_frame").as_string(), "test_base_frame");
   EXPECT_EQ(node->get_parameter("fixed_frame").as_string(), "test_fixed_frame");
   EXPECT_EQ(node->get_parameter("allow_backward").as_bool(), false);
   EXPECT_EQ(node->get_parameter("skip_orientation").as_bool(), false);
-  EXPECT_EQ(node->get_parameter("transform_tolerance").as_double(), 0.5);
+  EXPECT_EQ(node->get_parameter("transform_tolerance").as_double(), 8.0);
 }
 
 }  // namespace opennav_following

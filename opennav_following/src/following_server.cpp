@@ -35,6 +35,7 @@ FollowingServer::FollowingServer(const rclcpp::NodeOptions & options)
   declare_parameter("controller_frequency", 50.0);
   declare_parameter("detection_timeout", 2.0);
   declare_parameter("rotate_to_object_timeout", 10.0);
+  declare_parameter("static_object_timeout", -1.0);
   declare_parameter("linear_tolerance", 0.15);
   declare_parameter("angular_tolerance", 0.15);
   declare_parameter("max_retries", 3);
@@ -58,6 +59,7 @@ FollowingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
   get_parameter("controller_frequency", controller_frequency_);
   get_parameter("detection_timeout", detection_timeout_);
   get_parameter("rotate_to_object_timeout", rotate_to_object_timeout_);
+  get_parameter("static_object_timeout", static_object_timeout_);
   get_parameter("linear_tolerance", linear_tolerance_);
   get_parameter("angular_tolerance", angular_tolerance_);
   get_parameter("max_retries", max_retries_);
@@ -105,6 +107,10 @@ FollowingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
   // And publish the filtered pose for debugging
   filtered_dynamic_pose_pub_ =
     create_publisher<geometry_msgs::msg::PoseStamped>("filtered_dynamic_pose");
+
+  // Initialize static object detection variables
+  static_timer_initialized_ = false;
+  static_object_start_time_ = rclcpp::Time(0);
 
   return nav2::CallbackReturn::SUCCESS;
 }
@@ -225,6 +231,7 @@ void FollowingServer::followObject()
 
   getPreemptedGoalIfRequested<FollowObject>(goal, following_action_server_);
   num_retries_ = 0;
+  static_timer_initialized_ = false;
 
   try {
     auto target_frame = goal->frame_id;
@@ -250,14 +257,36 @@ void FollowingServer::followObject()
 
         // Approach the object using control law
         if (approachObject(object_pose, target_frame)) {
+          // Initialize static timer on first entry
+          if (!static_timer_initialized_) {
+            static_object_start_time_ = this->now();
+            static_timer_initialized_ = true;
+          }
+
           // We have reached the object, maintain position
           RCLCPP_INFO_THROTTLE(
             get_logger(), *get_clock(), 1000,
             "Reached object. Stopping until goal is moved again.");
           publishFollowingFeedback(FollowObject::Feedback::STOPPING);
           publishZeroVelocity();
+
+          // Stop if the object has been static for some time
+          if (static_object_timeout_ > 0.0) {
+            auto static_duration = this->now() - static_object_start_time_;
+            if (static_duration.seconds() > static_object_timeout_) {
+              RCLCPP_INFO(get_logger(),
+                "Object has been static for %.2f seconds (timeout: %.2f), stopping.",
+                static_duration.seconds(), static_object_timeout_);
+              result->total_elapsed_time = this->now() - action_start_time_;
+              result->num_retries = num_retries_;
+              publishZeroVelocity();
+              following_action_server_->succeeded_current(result);
+              return;
+            }
+          }
         } else {
           // Cancelled, preempted, or shutting down (recoverable errors throw DockingException)
+          static_timer_initialized_ = false;
           result->total_elapsed_time = this->now() - action_start_time_;
           publishZeroVelocity();
           following_action_server_->terminate_all(result);
@@ -583,6 +612,10 @@ FollowingServer::dynamicParametersCallback(std::vector<rclcpp::Parameter> parame
         controller_frequency_ = parameter.as_double();
       } else if (name == "detection_timeout") {
         detection_timeout_ = parameter.as_double();
+      } else if (name == "rotate_to_object_timeout") {
+        rotate_to_object_timeout_ = parameter.as_double();
+      } else if (name == "static_object_timeout") {
+        static_object_timeout_ = parameter.as_double();
       } else if (name == "linear_tolerance") {
         linear_tolerance_ = parameter.as_double();
       } else if (name == "angular_tolerance") {

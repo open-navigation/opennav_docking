@@ -219,6 +219,12 @@ protected:
   double controller_frequency_;
   // Timeout to detect the object while rotating to it
   double rotate_to_object_timeout_;
+  // Timeout after which a static object is considered as goal reached
+  double static_object_timeout_;
+  // Time when object became static
+  rclcpp::Time static_object_start_time_;
+  // Flag to track if we've initialized the static timer
+  bool static_timer_initialized_;
   // Tolerance for transforming coordinates
   double transform_tolerance_;
   // Tolerances for arriving at the safe_distance pose
