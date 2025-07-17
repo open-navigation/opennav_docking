@@ -235,12 +235,11 @@ void FollowingServer::followObject()
     // Following control loop: while not timeout, run controller
     geometry_msgs::msg::PoseStamped object_pose;
     rclcpp::Rate main_loop_rate(controller_frequency_);
-    auto start = this->now();
     rclcpp::Duration max_duration = goal->max_duration;
     while (rclcpp::ok()) {
       try {
         // Check if we have run out of time
-        if (this->now() - start > max_duration && max_duration.seconds() > 0.0) {
+        if (this->now() - action_start_time_ > max_duration && max_duration.seconds() > 0.0) {
           RCLCPP_INFO(get_logger(), "Exceeded max duration. Stopping.");
           result->total_elapsed_time = this->now() - action_start_time_;
           result->num_retries = num_retries_;
@@ -258,7 +257,7 @@ void FollowingServer::followObject()
           publishFollowingFeedback(FollowObject::Feedback::STOPPING);
           publishZeroVelocity();
         } else {
-          // Cancelled, preempted, or shutting down (recoverable errors throw FollowingException)
+          // Cancelled, preempted, or shutting down (recoverable errors throw DockingException)
           result->total_elapsed_time = this->now() - action_start_time_;
           publishZeroVelocity();
           following_action_server_->terminate_all(result);
@@ -305,6 +304,7 @@ void FollowingServer::followObject()
   }
 
   // Stop the robot and report
+  result->total_elapsed_time = this->now() - action_start_time_;
   result->num_retries = num_retries_;
   publishZeroVelocity();
   following_action_server_->terminate_current(result);
@@ -315,6 +315,9 @@ bool FollowingServer::approachObject(
 {
   rclcpp::Rate loop_rate(controller_frequency_);
   while (rclcpp::ok()) {
+    // Update the iteration start time, used for get robot position, transformation and control
+    iteration_start_time_ = this->now();
+
     publishFollowingFeedback(FollowObject::Feedback::CONTROLLING);
 
     // Stop if cancelled/preempted
@@ -340,7 +343,6 @@ bool FollowingServer::approachObject(
     // Get the pose at the distance we want to maintain from the object
     // and transform the target_pose into base_frame
     auto target_pose = getPoseAtDistance(object_pose, desired_distance_);
-    target_pose.header.stamp = rclcpp::Time(0);
 
     // Stop and report success if goal is reached
     if (isGoalReached(target_pose)) {
@@ -355,7 +357,13 @@ bool FollowingServer::approachObject(
     const double yaw = tf2::getYaw(target_pose.pose.orientation);
     target_pose.pose.position.x += cos(yaw) * backward_projection;
     target_pose.pose.position.y += sin(yaw) * backward_projection;
-    tf2_buffer_->transform(target_pose, target_pose, base_frame_);
+    try {
+      tf2_buffer_->transform(
+        target_pose, target_pose, base_frame_, tf2::durationFromSec(transform_tolerance_));
+    } catch (const tf2::TransformException & ex) {
+      RCLCPP_WARN(get_logger(), "Failed to transform target pose: %s", ex.what());
+      return false;
+    }
 
     // If the object is behind the robot, we reverse the control
     auto robot_pose = getRobotPoseInFrame(target_pose.header.frame_id);
@@ -390,6 +398,9 @@ bool FollowingServer::rotateToObject(geometry_msgs::msg::PoseStamped & object_po
   auto timeout = rclcpp::Duration::from_seconds(rotate_to_object_timeout_);
 
   while (rclcpp::ok()) {
+    // Update the iteration start time, used for get robot position, transformation and control
+    iteration_start_time_ = this->now();
+
     publishFollowingFeedback(FollowObject::Feedback::RETRY);
 
     // Stop if cancelled/preempted
@@ -399,6 +410,7 @@ bool FollowingServer::rotateToObject(geometry_msgs::msg::PoseStamped & object_po
       return false;
     }
 
+    // If we completed a full rotation and did not find the object, we stop
     auto robot_pose = getRobotPoseInFrame(object_pose.header.frame_id);
     auto angular_distance_to_heading = angles::shortest_angular_distance(
       tf2::getYaw(robot_pose.pose.orientation), tf2::getYaw(target_pose.pose.orientation));
@@ -434,9 +446,14 @@ bool FollowingServer::rotateToObject(geometry_msgs::msg::PoseStamped & object_po
 geometry_msgs::msg::PoseStamped FollowingServer::getRobotPoseInFrame(const std::string & frame)
 {
   geometry_msgs::msg::PoseStamped robot_pose;
-  robot_pose.header.frame_id = base_frame_;
-  robot_pose.header.stamp = rclcpp::Time(0);
-  tf2_buffer_->transform(robot_pose, robot_pose, frame);
+  try {
+    robot_pose.header.frame_id = base_frame_;
+    robot_pose.header.stamp = iteration_start_time_;
+    tf2_buffer_->transform(
+      robot_pose, robot_pose, frame, tf2::durationFromSec(transform_tolerance_));
+  } catch (const tf2::TransformException & ex) {
+    RCLCPP_WARN(this->get_logger(), "Failed to transform robot pose: %s", ex.what());
+  }
   return robot_pose;
 }
 
@@ -451,7 +468,7 @@ void FollowingServer::publishFollowingFeedback(uint16_t state)
 {
   auto feedback = std::make_shared<FollowObject::Feedback>();
   feedback->state = state;
-  feedback->following_time = this->now() - action_start_time_;
+  feedback->following_time = iteration_start_time_ - action_start_time_;
   feedback->num_retries = num_retries_;
   following_action_server_->publish_feedback(feedback);
 }
@@ -471,8 +488,8 @@ bool FollowingServer::getRefinedPose(geometry_msgs::msg::PoseStamped & pose)
   // Transform detected pose into fixed frame
   if (detected.header.frame_id != fixed_frame_) {
     try {
-      tf2_buffer_->transform(detected, detected, fixed_frame_,
-          tf2::durationFromSec(transform_tolerance_));
+      tf2_buffer_->transform(
+        detected, detected, fixed_frame_, tf2::durationFromSec(transform_tolerance_));
     } catch (const tf2::TransformException & ex) {
       RCLCPP_WARN(this->get_logger(), "Failed to transform detected object pose");
       return false;
@@ -506,7 +523,7 @@ bool FollowingServer::getFramePose(
   try {
     // Get the transform from the target frame to the fixed frame
     auto transform = tf2_buffer_->lookupTransform(
-      fixed_frame_, frame_id, tf2::TimePointZero, tf2::durationFromSec(transform_tolerance_));
+      fixed_frame_, frame_id, iteration_start_time_, tf2::durationFromSec(transform_tolerance_));
 
     // Convert transform to pose
     pose.header.frame_id = fixed_frame_;

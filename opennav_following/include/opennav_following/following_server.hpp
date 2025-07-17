@@ -221,8 +221,6 @@ protected:
   double rotate_to_object_timeout_;
   // Tolerance for transforming coordinates
   double transform_tolerance_;
-  // Timeout to approach into the dock and reset its approach is retrying
-  // double dock_approach_timeout_;
   // Tolerances for arriving at the safe_distance pose
   double linear_tolerance_, angular_tolerance_;
   // Maximum number of times the robot will retry to approach the object
@@ -237,6 +235,9 @@ protected:
   double desired_distance_;
   // Skip perception orientation
   bool skip_orientation_;
+
+  // Timestamp of the last time a iteration was started
+  rclcpp::Time iteration_start_time_;
 
   // This is a class member so it can be accessed in publish feedback
   rclcpp::Time action_start_time_;
