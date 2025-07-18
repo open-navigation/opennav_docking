@@ -45,6 +45,7 @@ FollowingServer::FollowingServer(const rclcpp::NodeOptions & options)
   declare_parameter("filter_coef", 0.1);
   declare_parameter("desired_distance", 1.0);
   declare_parameter("skip_orientation", true);
+  declare_parameter("search_by_rotating", false);
   declare_parameter("odom_topic", "odom");
   declare_parameter("transform_tolerance", 0.1);
   declare_parameter("pose_topic", "detected_dynamic_pose");
@@ -68,6 +69,7 @@ FollowingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
   get_parameter("allow_backward", allow_backward_);
   get_parameter("desired_distance", desired_distance_);
   get_parameter("skip_orientation", skip_orientation_);
+  get_parameter("search_by_rotating", search_by_rotating_);
   get_parameter("transform_tolerance", transform_tolerance_);
   get_parameter("pose_topic", pose_topic_);
   RCLCPP_INFO(get_logger(), "Controller frequency set to %.4fHz", controller_frequency_);
@@ -300,13 +302,17 @@ void FollowingServer::followObject()
         RCLCPP_WARN(get_logger(), "Following failed, will retry: %s", e.what());
 
         // Perform an in-place rotation to find the object again
-        if (!rotateToObject(object_pose)) {
-          // Cancelled, preempted, or shutting down
-          publishZeroVelocity();
-          following_action_server_->terminate_all(result);
-          return;
+        if (search_by_rotating_) {
+          RCLCPP_INFO(get_logger(), "Rotating to find object again");
+          if (!rotateToObject(object_pose)) {
+            // Cancelled, preempted, or shutting down
+            publishZeroVelocity();
+            following_action_server_->terminate_all(result);
+            return;
+          }
+        } else {
+          RCLCPP_INFO(get_logger(), "Using last known heading to find object again");
         }
-        RCLCPP_INFO(get_logger(), "Rotated to find object again");
       }
       main_loop_rate.sleep();
     }
@@ -638,6 +644,8 @@ FollowingServer::dynamicParametersCallback(std::vector<rclcpp::Parameter> parame
         allow_backward_ = parameter.as_bool();
       } else if (name == "skip_orientation") {
         skip_orientation_ = parameter.as_bool();
+      } else if (name == "search_by_rotating") {
+        search_by_rotating_ = parameter.as_bool();
       }
     }
   }

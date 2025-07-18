@@ -241,6 +241,8 @@ protected:
   double desired_distance_;
   // Skip perception orientation
   bool skip_orientation_;
+  // Should the robot search for the object by rotating or go to last known heading
+  bool search_by_rotating_;
 
   // Timestamp of the last time a iteration was started
   rclcpp::Time iteration_start_time_;
