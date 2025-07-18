@@ -97,6 +97,11 @@ public:
     return FollowingServer::isGoalReached(goal_pose);
   }
 
+  void setDynamicPose(const geometry_msgs::msg::PoseStamped & pose)
+  {
+    detected_dynamic_pose_ = pose;
+  }
+
   geometry_msgs::msg::PoseStamped getFilteredPose()
   {
     return dynamic_pose_;
@@ -130,6 +135,12 @@ TEST(FollowingServerTests, ErrorExceptions)
   auto node_thread = nav2::NodeThread(node);
   auto node2 = std::make_shared<rclcpp::Node>("client_node");
 
+  auto pub = node2->create_publisher<geometry_msgs::msg::PoseStamped>(
+    "dynamic_pose", rclcpp::QoS(1));
+
+  geometry_msgs::msg::PoseStamped detected_pose;
+  rclcpp::spin_some(node2->get_node_base_interface());
+
   node->on_configure(rclcpp_lifecycle::State());
   node->on_activate(rclcpp_lifecycle::State());
 
@@ -153,7 +164,9 @@ TEST(FollowingServerTests, ErrorExceptions)
       RCLCPP_ERROR(node2->get_logger(), "Action server not available after waiting");
     }
     auto goal_msg = FollowObject::Goal();
+    goal_msg.pose_topic = "dynamic_pose";
     auto future_goal_handle = client->async_send_goal(goal_msg);
+    pub->publish(detected_pose);
 
     if (rclcpp::spin_until_future_complete(
         node2, future_goal_handle, 2s) == rclcpp::FutureReturnCode::SUCCESS)
@@ -227,9 +240,6 @@ TEST(FollowingServerTests, IsGoalReached)
 TEST(FollowingServerTests, RefinedPose)
 {
   auto node = std::make_shared<opennav_following::FollowingServerShim>();
-  auto pub = node->create_publisher<geometry_msgs::msg::PoseStamped>(
-    "detected_dynamic_pose", rclcpp::QoS(1));
-  pub->on_activate();
 
   // Set filter coefficient to 0, so no filtering is done
   node->set_parameter(rclcpp::Parameter("filter_coef", rclcpp::ParameterValue(0.0)));
@@ -237,21 +247,20 @@ TEST(FollowingServerTests, RefinedPose)
   node->on_configure(rclcpp_lifecycle::State());
   node->on_activate(rclcpp_lifecycle::State());
 
-  geometry_msgs::msg::PoseStamped pose;
-
   // Timestamps are outdated; this is after timeout
+  geometry_msgs::msg::PoseStamped pose;
   EXPECT_FALSE(node->getRefinedPose(pose));
 
   // Set skip orientation to false
   node->setSkipOrientation(false);
 
+  // Set the detected pose
   geometry_msgs::msg::PoseStamped detected_pose;
   detected_pose.header.stamp = node->now();
   detected_pose.header.frame_id = "my_frame";
   detected_pose.pose.position.x = 0.1;
   detected_pose.pose.position.y = -0.1;
-  pub->publish(detected_pose);
-  rclcpp::spin_some(node->get_node_base_interface());
+  node->setDynamicPose(detected_pose);
 
   node->setFixedFrame("my_frame");
   EXPECT_TRUE(node->getRefinedPose(pose));
@@ -267,8 +276,7 @@ TEST(FollowingServerTests, RefinedPose)
   node->setSkipOrientation(true);
 
   detected_pose.header.stamp = node->now();
-  pub->publish(detected_pose);
-  rclcpp::spin_some(node->get_node_base_interface());
+  node->setDynamicPose(detected_pose);
 
   EXPECT_TRUE(node->getRefinedPose(pose));
   EXPECT_NEAR(pose.pose.position.x, 0.1, 0.01);

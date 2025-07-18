@@ -125,13 +125,14 @@ TEST_F(FollowObjectActionTestFixture, test_ports)
     R"(
       <root BTCPP_format="4">
         <BehaviorTree ID="MainTree">
-            <FollowObject max_duration="20" frame_id="test_frame"/>
+            <FollowObject pose_topic="test_topic" max_duration="20.0" tracked_frame="test_frame"/>
         </BehaviorTree>
       </root>)";
 
   tree_ = std::make_shared<BT::Tree>(factory_->createTreeFromText(xml_txt, config_->blackboard));
+  EXPECT_EQ(tree_->rootNode()->getInput<std::string>("pose_topic"), "test_topic");
   EXPECT_EQ(tree_->rootNode()->getInput<double>("max_duration"), 20.0);
-  EXPECT_EQ(tree_->rootNode()->getInput<std::string>("frame_id"), "test_frame");
+  EXPECT_EQ(tree_->rootNode()->getInput<std::string>("tracked_frame"), "test_frame");
 }
 
 TEST_F(FollowObjectActionTestFixture, test_tick)
@@ -141,7 +142,7 @@ TEST_F(FollowObjectActionTestFixture, test_tick)
     R"(
       <root main_tree_to_execute = "MainTree" >
         <BehaviorTree ID="MainTree">
-            <FollowObject />
+            <FollowObject pose_topic="test_topic"/>
         </BehaviorTree>
       </root>)";
 

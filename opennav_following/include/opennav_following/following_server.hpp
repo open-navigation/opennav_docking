@@ -251,7 +251,6 @@ protected:
   rclcpp::Time action_start_time_;
 
   // Subscribe to the dynamic pose
-  std::string pose_topic_;
   nav2::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr dynamic_pose_sub_;
 
   // Publish the filtered dynamic pose

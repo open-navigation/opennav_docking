@@ -161,7 +161,7 @@ class TestFollowingServer(unittest.TestCase):
         # Create publisher for the object pose used in the perception
         self.object_pose_pub = self.node.create_publisher(
             PoseStamped,
-            'detected_dynamic_pose',
+            'tested_pose',
             10
         )
 
@@ -179,6 +179,7 @@ class TestFollowingServer(unittest.TestCase):
             'follow_object service not available'
 
         goal = FollowObject.Goal()
+        goal.pose_topic = 'tested_pose'
         goal.max_duration = rclpy.time.Duration(seconds=5.0).to_msg()
         future = self.follow_action_client.send_goal_async(
             goal, feedback_callback=self.action_feedback_callback)

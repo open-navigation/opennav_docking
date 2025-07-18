@@ -32,9 +32,10 @@ FollowObjectAction::FollowObjectAction(
 void FollowObjectAction::on_tick()
 {
   // Get core inputs about what to perform
+  getInput("pose_topic", goal_.pose_topic);
+  getInput("tracked_frame", goal_.tracked_frame);
   double max_duration;
   getInput("max_duration", max_duration);
-  getInput("frame_id", goal_.frame_id);
 
   // Populate the input message
   goal_.max_duration = rclcpp::Duration::from_seconds(max_duration);

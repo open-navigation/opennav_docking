@@ -48,7 +48,6 @@ FollowingServer::FollowingServer(const rclcpp::NodeOptions & options)
   declare_parameter("search_by_rotating", false);
   declare_parameter("odom_topic", "odom");
   declare_parameter("transform_tolerance", 0.1);
-  declare_parameter("pose_topic", "detected_dynamic_pose");
 }
 
 nav2::CallbackReturn
@@ -71,7 +70,6 @@ FollowingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
   get_parameter("skip_orientation", skip_orientation_);
   get_parameter("search_by_rotating", search_by_rotating_);
   get_parameter("transform_tolerance", transform_tolerance_);
-  get_parameter("pose_topic", pose_topic_);
   RCLCPP_INFO(get_logger(), "Controller frequency set to %.4fHz", controller_frequency_);
 
   vel_publisher_ = std::make_unique<nav2_util::TwistPublisher>(node, "cmd_vel");
@@ -97,14 +95,6 @@ FollowingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
   double filter_coef;
   get_parameter("filter_coef", filter_coef);
   filter_ = std::make_unique<opennav_docking::PoseFilter>(filter_coef, detection_timeout_);
-
-  // Subscribe to dynamic pose
-  dynamic_pose_.header.stamp = rclcpp::Time(0);
-  dynamic_pose_sub_ = create_subscription<geometry_msgs::msg::PoseStamped>(
-    pose_topic_,
-    [this](const geometry_msgs::msg::PoseStamped::SharedPtr pose) {
-      detected_dynamic_pose_ = *pose;
-    }, nav2::qos::StandardTopicQoS(1));  // Only want the most recent pose
 
   // And publish the filtered pose for debugging
   filtered_dynamic_pose_pub_ =
@@ -236,8 +226,27 @@ void FollowingServer::followObject()
   static_timer_initialized_ = false;
 
   try {
-    auto target_frame = goal->frame_id;
-    if (!target_frame.empty()) {
+    auto pose_topic = goal->pose_topic;
+    auto target_frame = goal->tracked_frame;
+    if (target_frame.empty()) {
+      if (pose_topic.empty()) {
+        RCLCPP_ERROR(get_logger(),
+          "Both pose topic and target frame are empty. Cannot follow object.");
+        result->error_code = FollowObject::Result::FAILED_TO_DETECT_OBJECT;
+        result->error_msg = "No pose topic or target frame provided.";
+        following_action_server_->terminate_all(result);
+        return;
+      } else {
+        RCLCPP_INFO(get_logger(), "Subscribing to pose topic: %s", pose_topic.c_str());
+        dynamic_pose_sub_ = create_subscription<geometry_msgs::msg::PoseStamped>(
+          pose_topic,
+          [this](const geometry_msgs::msg::PoseStamped::SharedPtr pose) {
+            detected_dynamic_pose_ = *pose;
+            RCLCPP_DEBUG(get_logger(), "Received dynamic pose");
+          },
+          nav2::qos::StandardTopicQoS(1));  // Only want the most recent pose
+      }
+    } else {
       RCLCPP_INFO(get_logger(), "Following frame: %s instead of pose", target_frame.c_str());
     }
 
@@ -254,6 +263,7 @@ void FollowingServer::followObject()
           result->num_retries = num_retries_;
           publishZeroVelocity();
           following_action_server_->succeeded_current(result);
+          dynamic_pose_sub_.reset();
           return;
         }
 
@@ -292,6 +302,7 @@ void FollowingServer::followObject()
           result->total_elapsed_time = this->now() - action_start_time_;
           publishZeroVelocity();
           following_action_server_->terminate_all(result);
+          dynamic_pose_sub_.reset();
           return;
         }
       } catch (opennav_docking_core::DockingException & e) {
@@ -343,6 +354,7 @@ void FollowingServer::followObject()
   result->num_retries = num_retries_;
   publishZeroVelocity();
   following_action_server_->terminate_current(result);
+  dynamic_pose_sub_.reset();
 }
 
 bool FollowingServer::approachObject(
