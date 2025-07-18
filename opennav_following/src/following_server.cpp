@@ -370,22 +370,21 @@ bool FollowingServer::approachObject(
     }
 
     // Get the pose at the distance we want to maintain from the object
-    // and transform the target_pose into base_frame
-    auto target_pose = getPoseAtDistance(object_pose, desired_distance_);
-
     // Stop and report success if goal is reached
+    auto target_pose = getPoseAtDistance(object_pose, desired_distance_);
     if (isGoalReached(target_pose)) {
       return true;
     }
 
     // The control law can get jittery when close to the end when atan2's can explode.
-    // Thus, we backward project the controller's target pose a little bit after the
-    // dock so that the robot never gets to the end of the spiral before its in contact
-    // with the dock to stop the docking procedure.
+    // Thus, we reduce the desired distance by a small amount so that the robot never
+    // gets to the end of the spiral before its at the desired distance to stop the
+    // following procedure.
     const double backward_projection = 0.25;
-    const double yaw = tf2::getYaw(target_pose.pose.orientation);
-    target_pose.pose.position.x += cos(yaw) * backward_projection;
-    target_pose.pose.position.y += sin(yaw) * backward_projection;
+    const double effective_distance = desired_distance_ - backward_projection;
+    target_pose = getPoseAtDistance(object_pose, effective_distance);
+
+    // ... and transform the target_pose into base_frame
     try {
       tf2_buffer_->transform(
         target_pose, target_pose, base_frame_, tf2::durationFromSec(transform_tolerance_));
@@ -579,10 +578,13 @@ bool FollowingServer::getFramePose(
 geometry_msgs::msg::PoseStamped FollowingServer::getPoseAtDistance(
   const geometry_msgs::msg::PoseStamped & pose, double distance)
 {
+  geometry_msgs::msg::PoseStamped robot_pose = getRobotPoseInFrame(pose.header.frame_id);
+  double dx = pose.pose.position.x - robot_pose.pose.position.x;
+  double dy = pose.pose.position.y - robot_pose.pose.position.y;
+  const double dist = std::hypot(dx, dy);
   geometry_msgs::msg::PoseStamped forward_pose = pose;
-  const double yaw = tf2::getYaw(forward_pose.pose.orientation);
-  forward_pose.pose.position.x -= distance * cos(yaw);
-  forward_pose.pose.position.y -= distance * sin(yaw);
+  forward_pose.pose.position.x -= distance * (dx / dist);
+  forward_pose.pose.position.y -= distance * (dy / dist);
   return forward_pose;
 }
 
