@@ -29,12 +29,12 @@
 #include "nav2_ros_common/node_utils.hpp"
 #include "nav2_ros_common/simple_action_server.hpp"
 #include "nav2_util/twist_publisher.hpp"
-#include "nav_2d_utils/odom_subscriber.hpp"
+#include "nav2_util/odometry_utils.hpp"
 #include "opennav_docking/controller.hpp"
 #include "opennav_docking/pose_filter.hpp"
 #include "opennav_following_msgs/action/follow_object.hpp"
-#include "tf2_ros/buffer.h"
-#include "tf2_ros/transform_listener.h"
+#include "tf2_ros/buffer.hpp"
+#include "tf2_ros/transform_listener.hpp"
 
 namespace opennav_following
 {
@@ -268,7 +268,7 @@ protected:
   double detection_timeout_;
 
   std::unique_ptr<nav2_util::TwistPublisher> vel_publisher_;
-  std::unique_ptr<nav_2d_utils::OdomSubscriber> odom_sub_;
+  std::unique_ptr<nav2_util::OdomSmoother> odom_sub_;
   typename FollowingActionServer::SharedPtr following_action_server_;
 
   std::unique_ptr<opennav_docking::Controller> controller_;

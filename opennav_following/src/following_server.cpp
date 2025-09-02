@@ -47,6 +47,7 @@ FollowingServer::FollowingServer(const rclcpp::NodeOptions & options)
   declare_parameter("skip_orientation", true);
   declare_parameter("search_by_rotating", false);
   declare_parameter("odom_topic", "odom");
+  declare_parameter("odom_duration", 0.3);
   declare_parameter("transform_tolerance", 0.1);
 }
 
@@ -78,7 +79,9 @@ FollowingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
   // Create odom subscriber for backward blind docking
   std::string odom_topic;
   get_parameter("odom_topic", odom_topic);
-  odom_sub_ = std::make_unique<nav_2d_utils::OdomSubscriber>(node, odom_topic);
+  double odom_duration;
+  get_parameter("odom_duration", odom_duration);
+  odom_sub_ = std::make_unique<nav2_util::OdomSmoother>(node, odom_duration, odom_topic);
 
   // Create the action server for dynamic following
   following_action_server_ = node->create_action_server<FollowObject>(
@@ -470,7 +473,7 @@ bool FollowingServer::rotateToObject(geometry_msgs::msg::PoseStamped & object_po
     }
 
     auto current_vel = std::make_unique<geometry_msgs::msg::TwistStamped>();
-    current_vel->twist.angular.z = odom_sub_->getTwist().theta;
+    current_vel->twist.angular.z = odom_sub_->getRawTwist().angular.z;
 
     auto command = std::make_unique<geometry_msgs::msg::TwistStamped>();
     command->header = robot_pose.header;
