@@ -1,7 +1,7 @@
 #goal definition
 
 string pose_topic  # Topic to publish the pose of the object to follow
-string tracked_frame  # Target frame to follow (Optional)
+string tracked_frame  # Target frame to follow (Optional, used if pose_topic is not set)
 builtin_interfaces/Duration max_duration
 
 ---
