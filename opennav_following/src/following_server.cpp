@@ -17,6 +17,7 @@
 #include "opennav_docking_core/docking_exceptions.hpp"
 #include "opennav_following/following_server.hpp"
 #include "nav2_util/geometry_utils.hpp"
+#include "nav2_util/robot_utils.hpp"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 #include "tf2/utils.hpp"
 
@@ -415,7 +416,14 @@ bool FollowingServer::approachObject(
     }
 
     // If the object is behind the robot, we reverse the control
-    auto robot_pose = getRobotPoseInFrame(target_pose.header.frame_id);
+    geometry_msgs::msg::PoseStamped robot_pose;
+    if (!nav2_util::getCurrentPose(
+        robot_pose, *tf2_buffer_, target_pose.header.frame_id, base_frame_, transform_tolerance_,
+        iteration_start_time_))
+    {
+      RCLCPP_WARN(get_logger(), "Failed to get current robot pose");
+      return false;
+    }
     const double dist = std::hypot(
       robot_pose.pose.position.x - target_pose.pose.position.x,
       robot_pose.pose.position.y - target_pose.pose.position.y);
@@ -461,7 +469,14 @@ bool FollowingServer::rotateToObject(
     }
 
     // If we completed a full rotation and did not find the object, we stop
-    auto robot_pose = getRobotPoseInFrame(object_pose.header.frame_id);
+    geometry_msgs::msg::PoseStamped robot_pose;
+    if (!nav2_util::getCurrentPose(
+        robot_pose, *tf2_buffer_, object_pose.header.frame_id, base_frame_, transform_tolerance_,
+        iteration_start_time_))
+    {
+      RCLCPP_WARN(get_logger(), "Failed to get current robot pose");
+      return false;
+    }
     auto angular_distance_to_heading = angles::shortest_angular_distance(
       tf2::getYaw(robot_pose.pose.orientation), tf2::getYaw(target_pose.pose.orientation));
     if (fabs(angular_distance_to_heading) < angular_tolerance_) {
@@ -499,20 +514,6 @@ bool FollowingServer::rotateToObject(
   }
 
   return false;
-}
-
-geometry_msgs::msg::PoseStamped FollowingServer::getRobotPoseInFrame(const std::string & frame)
-{
-  geometry_msgs::msg::PoseStamped robot_pose;
-  try {
-    robot_pose.header.frame_id = base_frame_;
-    robot_pose.header.stamp = iteration_start_time_;
-    tf2_buffer_->transform(
-      robot_pose, robot_pose, frame, tf2::durationFromSec(transform_tolerance_));
-  } catch (const tf2::TransformException & ex) {
-    RCLCPP_WARN(this->get_logger(), "Failed to transform robot pose: %s", ex.what());
-  }
-  return robot_pose;
 }
 
 void FollowingServer::publishZeroVelocity()
@@ -559,7 +560,14 @@ bool FollowingServer::getRefinedPose(geometry_msgs::msg::PoseStamped & pose)
   // Then, we skip the target orientation by pointing it
   // in the same orientation than the vector from the robot to the object.
   if (skip_orientation_) {
-    auto robot_pose = getRobotPoseInFrame(detected.header.frame_id);
+    geometry_msgs::msg::PoseStamped robot_pose;
+    if (!nav2_util::getCurrentPose(
+        robot_pose, *tf2_buffer_, detected.header.frame_id, base_frame_, transform_tolerance_,
+        iteration_start_time_))
+    {
+      RCLCPP_WARN(get_logger(), "Failed to get current robot pose");
+      return false;
+    }
     double dx = detected.pose.position.x - robot_pose.pose.position.x;
     double dy = detected.pose.position.y - robot_pose.pose.position.y;
     double angle_to_target = std::atan2(dy, dx);
@@ -608,7 +616,15 @@ bool FollowingServer::getFramePose(
 geometry_msgs::msg::PoseStamped FollowingServer::getPoseAtDistance(
   const geometry_msgs::msg::PoseStamped & pose, double distance)
 {
-  geometry_msgs::msg::PoseStamped robot_pose = getRobotPoseInFrame(pose.header.frame_id);
+  geometry_msgs::msg::PoseStamped robot_pose;
+  if (!nav2_util::getCurrentPose(
+      robot_pose, *tf2_buffer_, pose.header.frame_id, base_frame_, transform_tolerance_,
+      iteration_start_time_))
+  {
+    RCLCPP_WARN(get_logger(), "Failed to get current robot pose");
+    // Return original pose as fallback
+    return pose;
+  }
   double dx = pose.pose.position.x - robot_pose.pose.position.x;
   double dy = pose.pose.position.y - robot_pose.pose.position.y;
   const double dist = std::hypot(dx, dy);
@@ -620,7 +636,14 @@ geometry_msgs::msg::PoseStamped FollowingServer::getPoseAtDistance(
 
 bool FollowingServer::isGoalReached(const geometry_msgs::msg::PoseStamped & goal_pose)
 {
-  geometry_msgs::msg::PoseStamped robot_pose = getRobotPoseInFrame(goal_pose.header.frame_id);
+  geometry_msgs::msg::PoseStamped robot_pose;
+  if (!nav2_util::getCurrentPose(
+      robot_pose, *tf2_buffer_, goal_pose.header.frame_id, base_frame_, transform_tolerance_,
+      iteration_start_time_))
+  {
+    RCLCPP_WARN(get_logger(), "Failed to get current robot pose");
+    return false;
+  }
   const double dist = std::hypot(
     robot_pose.pose.position.x - goal_pose.pose.position.x,
     robot_pose.pose.position.y - goal_pose.pose.position.y);

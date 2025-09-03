@@ -47,10 +47,9 @@ public:
   FollowingServerShim()
   : FollowingServer() {}
 
-  // Bypass TF
-  virtual geometry_msgs::msg::PoseStamped getRobotPoseInFrame(const std::string &)
+  void setUsingDedicatedThread()
   {
-    return geometry_msgs::msg::PoseStamped();
+    tf2_buffer_->setUsingDedicatedThread(true);  // One-thread broadcasting-listening model
   }
 
   virtual bool approachObject(geometry_msgs::msg::PoseStamped &, const std::string &)
@@ -197,7 +196,9 @@ TEST(FollowingServerTests, ErrorExceptions)
 TEST(FollowingServerTests, GetPoseAtDistance)
 {
   auto node = std::make_shared<opennav_following::FollowingServerShim>();
+  node->set_parameter(rclcpp::Parameter("base_frame", rclcpp::ParameterValue("my_frame")));
   node->on_configure(rclcpp_lifecycle::State());
+  node->setUsingDedicatedThread();
 
   geometry_msgs::msg::PoseStamped pose;
   pose.header.stamp = node->now();
@@ -206,8 +207,8 @@ TEST(FollowingServerTests, GetPoseAtDistance)
   pose.pose.position.y = -1.0;
 
   auto new_pose = node->getPoseAtDistance(pose, 0.2);
-  EXPECT_NEAR(new_pose.pose.position.x, 0.8, 0.01);
-  EXPECT_NEAR(new_pose.pose.position.y, -1.0, 0.01);
+  EXPECT_NEAR(new_pose.pose.position.x, 0.8585, 0.01);
+  EXPECT_NEAR(new_pose.pose.position.y, -0.8585, 0.01);
 
   node->on_cleanup(rclcpp_lifecycle::State());
   node->on_shutdown(rclcpp_lifecycle::State());
@@ -217,7 +218,9 @@ TEST(FollowingServerTests, GetPoseAtDistance)
 TEST(FollowingServerTests, IsGoalReached)
 {
   auto node = std::make_shared<opennav_following::FollowingServerShim>();
+  node->set_parameter(rclcpp::Parameter("base_frame", rclcpp::ParameterValue("my_frame")));
   node->on_configure(rclcpp_lifecycle::State());
+  node->setUsingDedicatedThread();
 
   geometry_msgs::msg::PoseStamped pose;
   pose.header.stamp = node->now();
@@ -243,7 +246,7 @@ TEST(FollowingServerTests, RefinedPose)
 
   // Set filter coefficient to 0, so no filtering is done
   node->set_parameter(rclcpp::Parameter("filter_coef", rclcpp::ParameterValue(0.0)));
-
+  node->set_parameter(rclcpp::Parameter("base_frame", rclcpp::ParameterValue("my_frame")));
   node->on_configure(rclcpp_lifecycle::State());
   node->on_activate(rclcpp_lifecycle::State());
 

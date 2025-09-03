@@ -87,13 +87,6 @@ public:
     const std::string & target_frame = std::string(""));
 
   /**
-   * @brief Get the robot pose (aka base_frame pose) in another frame.
-   * @param frame The frame_id to get the robot pose in.
-   * @returns Computed robot pose, throws TF2 error if failure.
-   */
-  virtual geometry_msgs::msg::PoseStamped getRobotPoseInFrame(const std::string & frame);
-
-  /**
    * @brief Gets a preempted goal if immediately requested
    * @param Goal goal to check or replace if required with preemption
    * @param action_server Action server to check for preemptions on
