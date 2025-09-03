@@ -519,6 +519,7 @@ bool FollowingServer::rotateToObject(
 void FollowingServer::publishZeroVelocity()
 {
   auto cmd_vel = std::make_unique<geometry_msgs::msg::TwistStamped>();
+  cmd_vel->header.frame_id = base_frame_;
   cmd_vel->header.stamp = now();
   vel_publisher_->publish(std::move(cmd_vel));
 }
