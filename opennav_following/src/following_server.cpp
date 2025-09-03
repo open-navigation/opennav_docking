@@ -481,13 +481,13 @@ bool FollowingServer::rotateToObject(
       }
     }
 
-    auto current_vel = std::make_unique<geometry_msgs::msg::TwistStamped>();
-    current_vel->twist.angular.z = odom_sub_->getRawTwist().angular.z;
+    geometry_msgs::msg::Twist current_vel;
+    current_vel.angular.z = odom_sub_->getRawTwist().angular.z;
 
     auto command = std::make_unique<geometry_msgs::msg::TwistStamped>();
     command->header = robot_pose.header;
     command->twist = controller_->computeRotateToHeadingCommand(
-      angular_distance_to_heading, current_vel->twist, dt);
+      angular_distance_to_heading, current_vel, dt);
 
     vel_publisher_->publish(std::move(command));
 
