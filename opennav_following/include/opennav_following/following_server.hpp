@@ -256,9 +256,6 @@ protected:
   // Latest message
   geometry_msgs::msg::PoseStamped detected_dynamic_pose_;
 
-  // This is the actual dynamic pose once it has been filtered
-  geometry_msgs::msg::PoseStamped dynamic_pose_;
-
   // Filtering of detected poses
   std::unique_ptr<opennav_docking::PoseFilter> filter_;
   double detection_timeout_;

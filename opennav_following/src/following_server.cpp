@@ -576,11 +576,11 @@ bool FollowingServer::getRefinedPose(geometry_msgs::msg::PoseStamped & pose)
   }
 
   // Filter the detected pose
-  dynamic_pose_ = filter_->update(detected);
-  filtered_dynamic_pose_pub_->publish(dynamic_pose_);
+  auto pose_filtered = filter_->update(detected);
+  filtered_dynamic_pose_pub_->publish(pose_filtered);
 
-  // Return dynamic pose for debugging purposes
-  pose = dynamic_pose_;
+  // Return filtered pose for debugging purposes
+  pose = pose_filtered;
   return true;
 }
 
@@ -606,11 +606,11 @@ bool FollowingServer::getFramePose(
   }
 
   // Filter the detected pose
-  dynamic_pose_ = filter_->update(pose);
-  filtered_dynamic_pose_pub_->publish(dynamic_pose_);
+  auto filtered_pose = filter_->update(pose);
+  filtered_dynamic_pose_pub_->publish(filtered_pose);
 
-  // Return dynamic pose for debugging purposes
-  pose = dynamic_pose_;
+  // Return filtered pose for debugging purposes
+  pose = filtered_pose;
   return true;
 }
 

@@ -101,11 +101,6 @@ public:
     detected_dynamic_pose_ = pose;
   }
 
-  geometry_msgs::msg::PoseStamped getFilteredPose()
-  {
-    return dynamic_pose_;
-  }
-
   void setSkipOrientation(bool skip_orientation)
   {
     skip_orientation_ = skip_orientation;
@@ -270,11 +265,6 @@ TEST(FollowingServerTests, RefinedPose)
   EXPECT_NEAR(pose.pose.position.x, 0.1, 0.01);
   EXPECT_NEAR(pose.pose.position.y, -0.1, 0.01);
 
-  auto filtered_pose = node->getFilteredPose();
-  EXPECT_NEAR(filtered_pose.pose.position.x, 0.1, 0.01);
-  EXPECT_NEAR(filtered_pose.pose.position.y, -0.1, 0.01);
-  EXPECT_DOUBLE_EQ(tf2::getYaw(pose.pose.orientation), tf2::getYaw(filtered_pose.pose.orientation));
-
   // Now, set skip orientation to true
   node->setSkipOrientation(true);
 
@@ -284,11 +274,6 @@ TEST(FollowingServerTests, RefinedPose)
   EXPECT_TRUE(node->getRefinedPose(pose));
   EXPECT_NEAR(pose.pose.position.x, 0.1, 0.01);
   EXPECT_NEAR(pose.pose.position.y, -0.1, 0.01);
-
-  filtered_pose = node->getFilteredPose();
-  EXPECT_NEAR(filtered_pose.pose.position.x, 0.1, 0.01);
-  EXPECT_NEAR(filtered_pose.pose.position.y, -0.1, 0.01);
-  EXPECT_NEAR(tf2::getYaw(filtered_pose.pose.orientation), -0.785, 0.01);
 
   node->on_deactivate(rclcpp_lifecycle::State());
   node->on_cleanup(rclcpp_lifecycle::State());
