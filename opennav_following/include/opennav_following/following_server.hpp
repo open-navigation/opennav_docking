@@ -79,9 +79,12 @@ public:
   /**
    * @brief Rotate the robot to find the object again.
    * @param object_pose The last known object pose.
+   * @param target_frame The frame to be tracked instead of the pose.
    * @returns True if successful.
    */
-  virtual bool rotateToObject(geometry_msgs::msg::PoseStamped & object_pose);
+  virtual bool rotateToObject(
+    geometry_msgs::msg::PoseStamped & object_pose,
+    const std::string & target_frame = std::string(""));
 
   /**
    * @brief Get the robot pose (aka base_frame pose) in another frame.

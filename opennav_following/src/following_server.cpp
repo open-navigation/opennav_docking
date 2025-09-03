@@ -117,7 +117,7 @@ FollowingServer::on_activate(const rclcpp_lifecycle::State & /*state*/)
 
   auto node = shared_from_this();
 
-  tf2_listener_ = std::make_unique<tf2_ros::TransformListener>(*tf2_buffer_);
+  tf2_listener_ = std::make_unique<tf2_ros::TransformListener>(*tf2_buffer_, this, true);
   vel_publisher_->on_activate();
   filtered_dynamic_pose_pub_->on_activate();
   following_action_server_->activate();
@@ -318,7 +318,7 @@ void FollowingServer::followObject()
         // Perform an in-place rotation to find the object again
         if (search_by_rotating_) {
           RCLCPP_INFO(get_logger(), "Rotating to find object again");
-          if (!rotateToObject(object_pose)) {
+          if (!rotateToObject(object_pose, target_frame)) {
             // Cancelled, preempted, or shutting down
             publishZeroVelocity();
             following_action_server_->terminate_all(result);
@@ -435,7 +435,8 @@ bool FollowingServer::approachObject(
   return false;
 }
 
-bool FollowingServer::rotateToObject(geometry_msgs::msg::PoseStamped & object_pose)
+bool FollowingServer::rotateToObject(
+  geometry_msgs::msg::PoseStamped & object_pose, const std::string & target_frame)
 {
   const double dt = 1.0 / controller_frequency_;
   auto target_pose = object_pose;
@@ -468,8 +469,16 @@ bool FollowingServer::rotateToObject(geometry_msgs::msg::PoseStamped & object_po
     }
 
     // Determine if we find the object
-    if (getRefinedPose(object_pose)) {
-      return true;
+    if (!target_frame.empty()) {
+      if (!getFramePose(target_frame, object_pose)) {
+        throw opennav_docking_core::FailedToDetectDock(
+          "Failed to get pose in target frame: " + target_frame);
+      }
+    } else {
+      // Otherwise, use the traditional pose detection from topic
+      if (!getRefinedPose(object_pose)) {
+        throw opennav_docking_core::FailedToDetectDock("Failed object detection");
+      }
     }
 
     auto current_vel = std::make_unique<geometry_msgs::msg::TwistStamped>();
