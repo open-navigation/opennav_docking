@@ -59,6 +59,7 @@ BT::NodeStatus FollowObjectAction::on_aborted()
 
 BT::NodeStatus FollowObjectAction::on_cancelled()
 {
+  setOutput("total_elapsed_time", result_.result->total_elapsed_time);
   setOutput("error_code_id", ActionResult::NONE);
   setOutput("error_msg", "");
   return BT::NodeStatus::SUCCESS;

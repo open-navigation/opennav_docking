@@ -20,9 +20,10 @@
 #include <memory>
 #include <vector>
 
-#include "opennav_following_msgs/action/follow_object.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "nav2_behavior_tree/bt_action_node.hpp"
+#include "opennav_following_msgs/action/follow_object.hpp"
+
 
 namespace opennav_following_bt
 {
@@ -82,9 +83,9 @@ public:
     return providedBasicPorts(
       {
         BT::InputPort<std::string>(
-          "pose_topic", "Topic to publish the pose of the object to follow"),
+          "pose_topic", "/dynamic_pose", "Topic to publish the pose of the object to follow"),
         BT::InputPort<std::string>(
-          "tracked_frame", "Target frame to follow (Optional)"),
+          "tracked_frame", "Target frame to follow (Optional, used if pose_topic is not set)"),
         BT::InputPort<float>(
           "max_duration", 0.0, "The maximum duration to follow the object (Optional)"),
 
