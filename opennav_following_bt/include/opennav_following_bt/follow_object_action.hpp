@@ -83,7 +83,7 @@ public:
     return providedBasicPorts(
       {
         BT::InputPort<std::string>(
-          "pose_topic", "/dynamic_pose", "Topic to publish the pose of the object to follow"),
+          "pose_topic", "dynamic_pose", "Topic to publish the pose of the object to follow"),
         BT::InputPort<std::string>(
           "tracked_frame", "Target frame to follow (Optional, used if pose_topic is not set)"),
         BT::InputPort<float>(
