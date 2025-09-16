@@ -65,11 +65,6 @@ BT::NodeStatus FollowObjectAction::on_cancelled()
   return BT::NodeStatus::SUCCESS;
 }
 
-void FollowObjectAction::halt()
-{
-  BtActionNode::halt();
-}
-
 }  // namespace opennav_following_bt
 
 #include "behaviortree_cpp/bt_factory.h"
