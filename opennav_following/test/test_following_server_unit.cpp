@@ -343,7 +343,6 @@ TEST(FollowingServerTests, DynamicParams)
       rclcpp::Parameter("angular_tolerance", 7.0),
       rclcpp::Parameter("base_frame", std::string("test_base_frame")),
       rclcpp::Parameter("fixed_frame", std::string("test_fixed_frame")),
-      rclcpp::Parameter("allow_backward", false),
       rclcpp::Parameter("skip_orientation", false),
       rclcpp::Parameter("search_by_rotating", true),
       rclcpp::Parameter("transform_tolerance", 8.0)
@@ -362,7 +361,6 @@ TEST(FollowingServerTests, DynamicParams)
   EXPECT_EQ(node->get_parameter("angular_tolerance").as_double(), 7.0);
   EXPECT_EQ(node->get_parameter("base_frame").as_string(), "test_base_frame");
   EXPECT_EQ(node->get_parameter("fixed_frame").as_string(), "test_fixed_frame");
-  EXPECT_EQ(node->get_parameter("allow_backward").as_bool(), false);
   EXPECT_EQ(node->get_parameter("skip_orientation").as_bool(), false);
   EXPECT_EQ(node->get_parameter("search_by_rotating").as_bool(), true);
   EXPECT_EQ(node->get_parameter("transform_tolerance").as_double(), 8.0);
