@@ -169,16 +169,26 @@ protected:
    * @brief Method to obtain the refined dynamic pose.
    * @param pose The initial estimate of the dynamic pose
    *        which will be updated with the refined pose.
+   * @return true if successful, false otherwise
    */
   virtual bool getRefinedPose(geometry_msgs::msg::PoseStamped & pose);
 
   /**
-   * @brief Get the pose of a specific frame in the fixed frame
-   * @param frame_id The frame to get the pose for
-   * @param pose The output pose
+   * @brief Get the pose of a specific frame in the fixed frame.
+   * @param pose The output pose.
+   * @param frame_id The frame to get the pose for.
    * @return true if successful, false otherwise
    */
-  virtual bool getFramePose(const std::string & frame_id, geometry_msgs::msg::PoseStamped & pose);
+  virtual bool getFramePose(geometry_msgs::msg::PoseStamped & pose, const std::string & frame_id);
+
+  /**
+   * @brief Get the tracking pose based on the current tracking mode.
+   * @param pose The output pose.
+   * @param frame_id The frame to get the pose for.
+   * @return true if successful, false otherwise.
+   */
+  virtual bool getTrackingPose(
+    geometry_msgs::msg::PoseStamped & pose, const std::string & frame_id);
 
   /**
    * @brief Get the pose at a distance in front of the input pose

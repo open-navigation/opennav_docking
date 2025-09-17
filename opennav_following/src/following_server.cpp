@@ -376,18 +376,8 @@ bool FollowingServer::approachObject(
       return false;
     }
 
-    // If we have a target frame_id from the goal, use that instead of pose detection
-    if (!target_frame.empty()) {
-      if (!getFramePose(target_frame, object_pose)) {
-        throw opennav_docking_core::FailedToDetectDock(
-          "Failed to get pose in target frame: " + target_frame);
-      }
-    } else {
-      // Otherwise, use the traditional pose detection from topic
-      if (!getRefinedPose(object_pose)) {
-        throw opennav_docking_core::FailedToDetectDock("Failed object detection");
-      }
-    }
+    // Get the tracking pose from topic or frame
+    getTrackingPose(object_pose, target_frame);
 
     // Get the pose at the distance we want to maintain from the object
     // Stop and report success if goal is reached
@@ -422,9 +412,6 @@ bool FollowingServer::approachObject(
       RCLCPP_WARN(get_logger(), "Failed to get current robot pose");
       return false;
     }
-    const double dist = std::hypot(
-      robot_pose.pose.position.x - target_pose.pose.position.x,
-      robot_pose.pose.position.y - target_pose.pose.position.y);
 
     // Compute and publish controls
     auto command = std::make_unique<geometry_msgs::msg::TwistStamped>();
@@ -479,18 +466,8 @@ bool FollowingServer::rotateToObject(
       throw opennav_docking_core::FailedToControl("Failed to rotate to object");
     }
 
-    // Determine if we find the object
-    if (!target_frame.empty()) {
-      if (!getFramePose(target_frame, object_pose)) {
-        throw opennav_docking_core::FailedToDetectDock(
-          "Failed to get pose in target frame: " + target_frame);
-      }
-    } else {
-      // Otherwise, use the traditional pose detection from topic
-      if (!getRefinedPose(object_pose)) {
-        throw opennav_docking_core::FailedToDetectDock("Failed object detection");
-      }
-    }
+    // Get the tracking pose from topic or frame
+    getTrackingPose(object_pose, target_frame);
 
     geometry_msgs::msg::Twist current_vel;
     current_vel.angular.z = odom_sub_->getRawTwist().angular.z;
@@ -575,13 +552,12 @@ bool FollowingServer::getRefinedPose(geometry_msgs::msg::PoseStamped & pose)
   auto pose_filtered = filter_->update(detected);
   filtered_dynamic_pose_pub_->publish(pose_filtered);
 
-  // Return filtered pose for debugging purposes
   pose = pose_filtered;
   return true;
 }
 
 bool FollowingServer::getFramePose(
-  const std::string & frame_id, geometry_msgs::msg::PoseStamped & pose)
+  geometry_msgs::msg::PoseStamped & pose, const std::string & frame_id)
 {
   try {
     // Get the transform from the target frame to the fixed frame
@@ -605,8 +581,25 @@ bool FollowingServer::getFramePose(
   auto filtered_pose = filter_->update(pose);
   filtered_dynamic_pose_pub_->publish(filtered_pose);
 
-  // Return filtered pose for debugging purposes
   pose = filtered_pose;
+  return true;
+}
+
+bool FollowingServer::getTrackingPose(
+  geometry_msgs::msg::PoseStamped & pose, const std::string & frame_id)
+{
+  // Use frame tracking if we have a target frame, otherwise use topic tracking
+  if (!frame_id.empty()) {
+    if (!getFramePose(pose, frame_id)) {
+      throw opennav_docking_core::FailedToDetectDock(
+        "Failed to get pose in target frame: " + frame_id);
+    }
+  } else {
+    // Use the traditional pose detection from topic
+    if (!getRefinedPose(pose)) {
+      throw opennav_docking_core::FailedToDetectDock("Failed object detection");
+    }
+  }
   return true;
 }
 

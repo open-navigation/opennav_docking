@@ -75,9 +75,14 @@ public:
     return FollowingServer::getRefinedPose(pose);
   }
 
-  virtual bool getFramePose(const std::string & frame_id, geometry_msgs::msg::PoseStamped & pose)
+  virtual bool getFramePose(geometry_msgs::msg::PoseStamped & pose, const std::string & frame_id)
   {
-    return FollowingServer::getFramePose(frame_id, pose);
+    return FollowingServer::getFramePose(pose, frame_id);
+  }
+
+  virtual bool getTrackingPose(geometry_msgs::msg::PoseStamped & pose, const std::string & frame_id)
+  {
+    return FollowingServer::getTrackingPose(pose, frame_id);
   }
 
   virtual bool rotateToObject(geometry_msgs::msg::PoseStamped &)
@@ -298,7 +303,7 @@ TEST(FollowingServerTests, GetFramePose)
   // Not frame set, should return false
   auto frame_test = std::string("my_frame");
   node->setFixedFrame("fixed_frame_test");
-  EXPECT_FALSE(node->getFramePose(frame_test, pose));
+  EXPECT_FALSE(node->getFramePose(pose, frame_test));
 
   // Set transform between my_frame and fixed_frame_test
   auto tf_broadcaster = std::make_unique<tf2_ros::TransformBroadcaster>(node);
@@ -312,7 +317,7 @@ TEST(FollowingServerTests, GetFramePose)
   tf_broadcaster->sendTransform(frame_to_fixed);
 
   // Now, we should be able to get the pose in my_frame
-  EXPECT_TRUE(node->getFramePose(frame_test, pose));
+  EXPECT_TRUE(node->getFramePose(pose, frame_test));
   EXPECT_EQ(pose.pose.position.x, 1.0);
   EXPECT_EQ(pose.pose.position.y, 2.0);
   EXPECT_EQ(pose.pose.position.z, 3.0);
