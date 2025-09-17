@@ -206,7 +206,7 @@ bool FollowingServer::checkAndWarnIfPreempted(
 
 void FollowingServer::followObject()
 {
-  std::lock_guard<std::mutex> lock(dynamic_params_lock_);
+  std::unique_lock<std::mutex> lock(dynamic_params_lock_);
   action_start_time_ = this->now();
   rclcpp::Rate loop_rate(controller_frequency_);
 
@@ -228,6 +228,7 @@ void FollowingServer::followObject()
   static_timer_initialized_ = false;
 
   try {
+    lock.unlock();
     auto pose_topic = goal->pose_topic;
     auto target_frame = goal->tracked_frame;
     if (target_frame.empty()) {
@@ -251,10 +252,10 @@ void FollowingServer::followObject()
     } else {
       RCLCPP_INFO(get_logger(), "Following frame: %s instead of pose", target_frame.c_str());
     }
+    lock.lock();
 
     // Following control loop: while not timeout, run controller
     geometry_msgs::msg::PoseStamped object_pose;
-    rclcpp::Rate main_loop_rate(controller_frequency_);
     rclcpp::Duration max_duration = goal->max_duration;
     while (rclcpp::ok()) {
       try {
@@ -327,7 +328,7 @@ void FollowingServer::followObject()
           RCLCPP_INFO(get_logger(), "Using last known heading to find object again");
         }
       }
-      main_loop_rate.sleep();
+      loop_rate.sleep();
     }
   } catch (const tf2::TransformException & e) {
     result->error_msg = std::string("Transform error: ") + e.what();
