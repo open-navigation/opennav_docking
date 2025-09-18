@@ -98,7 +98,7 @@ FollowingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
   get_parameter("filter_coef", filter_coef);
   filter_ = std::make_unique<opennav_docking::PoseFilter>(filter_coef, detection_timeout_);
 
-  // And publish the filtered pose for debugging
+  // And publish the filtered pose
   filtered_dynamic_pose_pub_ =
     create_publisher<geometry_msgs::msg::PoseStamped>("filtered_dynamic_pose");
 
@@ -245,7 +245,6 @@ void FollowingServer::followObject()
           pose_topic,
           [this](const geometry_msgs::msg::PoseStamped::SharedPtr pose) {
             detected_dynamic_pose_ = *pose;
-            RCLCPP_DEBUG(get_logger(), "Received dynamic pose");
           },
           nav2::qos::StandardTopicQoS(1));  // Only want the most recent pose
       }

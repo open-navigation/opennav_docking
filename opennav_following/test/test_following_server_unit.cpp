@@ -133,14 +133,11 @@ TEST(FollowingServerTests, ErrorExceptions)
   auto node = std::make_shared<FollowingServerShim>();
   auto node_thread = nav2::NodeThread(node);
   auto node2 = std::make_shared<rclcpp::Node>("client_node");
-  rclcpp::executors::SingleThreadedExecutor executor;
-  executor.add_node(node->get_node_base_interface());
 
   auto pub = node2->create_publisher<geometry_msgs::msg::PoseStamped>(
     "dynamic_pose", rclcpp::QoS(1));
 
   geometry_msgs::msg::PoseStamped detected_pose;
-  executor.spin_some();
 
   node->on_configure(rclcpp_lifecycle::State());
   node->on_activate(rclcpp_lifecycle::State());
