@@ -227,6 +227,9 @@ void FollowingServer::followObject()
   num_retries_ = 0;
   static_timer_initialized_ = false;
 
+  // Reset the last detected dynamic pose timestamp so we start fresh for this action
+  detected_dynamic_pose_.header.stamp = rclcpp::Time(0);
+
   try {
     lock.unlock();
     auto pose_topic = goal->pose_topic;
@@ -510,6 +513,25 @@ bool FollowingServer::getRefinedPose(geometry_msgs::msg::PoseStamped & pose)
 {
   // Get current detections and transform to frame
   geometry_msgs::msg::PoseStamped detected = detected_dynamic_pose_;
+
+  // If we haven't received any detection yet, wait up to detection_timeout_ for one to arrive.
+  if (detected.header.stamp == rclcpp::Time(0)) {
+    auto start = this->now();
+    auto timeout = rclcpp::Duration::from_seconds(detection_timeout_);
+    rclcpp::Rate wait_rate(controller_frequency_);
+    while (this->now() - start < timeout) {
+      // Check if a new detection arrived
+      if (detected_dynamic_pose_.header.stamp != rclcpp::Time(0)) {
+        detected = detected_dynamic_pose_;
+        break;
+      }
+      wait_rate.sleep();
+    }
+    if (detected.header.stamp == rclcpp::Time(0)) {
+      RCLCPP_WARN(this->get_logger(), "No detection received within timeout period");
+      return false;
+    }
+  }
 
   // Validate that external pose is new enough
   auto timeout = rclcpp::Duration::from_seconds(detection_timeout_);
