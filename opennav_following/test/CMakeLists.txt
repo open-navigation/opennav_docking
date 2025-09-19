@@ -12,4 +12,17 @@ target_link_libraries(test_following_server_unit
 )
 
 # Test following server (smoke)
-ament_add_pytest_test("test_following_server" test_following_server.py)
+ament_add_pytest_test(test_following_server_topic test_following_server.py
+  ENV
+  FOLLOWING_MODE=topic
+)
+
+ament_add_pytest_test(test_following_server_frame test_following_server.py
+  ENV
+  FOLLOWING_MODE=frame
+)
+
+ament_add_pytest_test(test_following_server_skip_pose test_following_server.py
+  ENV
+  FOLLOWING_MODE=skip_pose
+)

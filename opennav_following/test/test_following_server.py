@@ -14,6 +14,7 @@
 # limitations under the License.
 
 from math import cos, sin
+import os
 import threading
 import time
 from typing import Callable
@@ -60,6 +61,7 @@ def generate_test_description() -> LaunchDescription:
                          'linear_tolerance': 0.05,
                          'angular_tolerance': 0.05,
                          'transform_tolerance': 0.5,
+                         'static_object_timeout': 0.5,
                          'controller': {
                              'use_collision_detection': False,
                              'transform_tolerance': 0.5,
@@ -78,24 +80,40 @@ def generate_test_description() -> LaunchDescription:
     ])
 
 
-class ObjectPosePublisher:
+class ObjectPublisher:
     """
-    A class that continuously publishes the tested object pose at a fixed rate.
+    A class that continuously publishes the tested object pose or frame at a fixed rate.
 
     The publisher runs in a separate thread and stops publishing when the provided
     at_distance_getter callable returns True.
     """
 
-    def __init__(self, topic: str, rate_hz: float, at_distance_getter: Callable[[], bool]):
+    def __init__(
+        self,
+        topic_name: str,
+        frame_name: str,
+        rate_hz: float,
+        at_distance_getter: Callable[[], bool],
+        mode: str = 'topic',
+    ):
         # Create a dedicated node and executor so timers and clocks behave correctly
         self._node = rclpy.create_node('test_object_pose_publisher')
-        self._pub = self._node.create_publisher(PoseStamped, topic, 10)
+        self._pub = self._node.create_publisher(PoseStamped, topic_name, 10)
         self._at_distance_getter = at_distance_getter
+        self._mode = mode
+        self._frame_name = frame_name
+
+        # Timer will drive publishing for both modes
         self._timer = self._node.create_timer(1.0 / rate_hz, self._timer_cb)
 
         # Use a single-threaded executor to spin this node in the background
         self._executor = SingleThreadedExecutor()
         self._executor.add_node(self._node)
+
+        # If in frame mode, create a TransformBroadcaster for publishing TF
+        self._tf_broadcaster: TransformBroadcaster | None = None
+        if self._mode == 'frame':
+            self._tf_broadcaster = TransformBroadcaster(self._node)
 
         self._stop_event = threading.Event()
         self._thread = threading.Thread(target=self._spin, daemon=True)
@@ -103,7 +121,9 @@ class ObjectPosePublisher:
 
     def _timer_cb(self) -> None:
         # Called in executor context at the configured rate
-        if not self._at_distance_getter():
+        if self._at_distance_getter():
+            return
+        if self._mode == 'topic':
             p = PoseStamped()
             p.header.stamp = self._node.get_clock().now().to_msg()
             p.header.frame_id = 'map'
@@ -111,6 +131,19 @@ class ObjectPosePublisher:
             p.pose.position.y = 0.0
             self._pub.publish(p)
             self._node.get_logger().debug('Publishing pose')
+        elif self._mode == 'frame':
+            # Publish a TF map -> object_frame
+            t = TransformStamped()
+            t.header.stamp = self._node.get_clock().now().to_msg()
+            t.header.frame_id = 'map'
+            t.child_frame_id = self._frame_name
+            t.transform.translation.x = 1.75
+            t.transform.translation.y = 0.0
+            t.transform.rotation.x = 0.0
+            t.transform.rotation.y = 0.0
+            t.transform.rotation.z = 0.0
+            t.transform.rotation.w = 1.0
+            self._tf_broadcaster.sendTransform(t)
 
     def _spin(self) -> None:
         # Spin until stop event is set
@@ -159,8 +192,14 @@ class TestFollowingServer(unittest.TestCase):
         self.node = rclpy.create_node('test_following_server')
         self.tf_buffer = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self.node)
-        # Create and store the publisher instance
-        self.object_publisher = ObjectPosePublisher('tested_pose', 20.0, lambda: self.at_distance)
+        # Determine test mode from environment: 'topic' or 'frame'
+        self.object_publisher = ObjectPublisher(
+            'tested_pose',
+            'object_frame',
+            20.0,
+            lambda: self.at_distance,
+            os.getenv('FOLLOWING_MODE', 'topic'),
+        )
 
     def wait_for_node_to_be_active(self, node_name, timeout_sec=10.0):
         """Wait for a managed node to become active."""
@@ -181,11 +220,7 @@ class TestFollowingServer(unittest.TestCase):
         self.fail(f'Node {node_name} did not become active within {timeout_sec} seconds.')
 
     def tearDown(self) -> None:
-        # Shutdown the separate object pose publisher first
-        try:
-            self.object_publisher.shutdown()
-        except Exception:
-            pass
+        self.object_publisher.shutdown()
         self.node.destroy_node()
 
     def command_velocity_callback(self, msg: TwistStamped) -> None:
@@ -229,10 +264,8 @@ class TestFollowingServer(unittest.TestCase):
         # Force the following action to run a full recovery loop when
         # the robot is at distance
         if msg.feedback.state == msg.feedback.STOPPING:
-            self.node.get_logger().info('Setting at_distance True')
             self.at_distance = True
         elif msg.feedback.state == msg.feedback.RETRY:
-            self.node.get_logger().info('Setting at_distance False and retry_state True')
             self.at_distance = False
             self.retry_state = True
 
@@ -281,8 +314,12 @@ class TestFollowingServer(unittest.TestCase):
 
         # Create the goal
         goal = FollowObject.Goal()
-        goal.pose_topic = 'tested_pose'
-        goal.max_duration = rclpy.time.Duration(seconds=5.0).to_msg()
+        if os.getenv('FOLLOWING_MODE') == 'topic':
+            goal.pose_topic = 'tested_pose'
+            goal.max_duration = rclpy.time.Duration(seconds=10.0).to_msg()
+        elif os.getenv('FOLLOWING_MODE') == 'frame':
+            goal.tracked_frame = 'object_frame'
+            goal.max_duration = rclpy.time.Duration(seconds=4.0).to_msg()
 
         # Send a goal
         self.node.get_logger().info('Sending first goal')
@@ -349,9 +386,10 @@ class TestFollowingServer(unittest.TestCase):
 
         self.assertIsNotNone(self.action_result[2])
         if self.action_result[2] is not None:
-            self.assertEqual(self.action_result[2].status, GoalStatus.STATUS_SUCCEEDED)
-            self.assertEqual(self.action_result[2].result.num_retries, 0)
-            self.assertTrue(self.at_distance)
+            if os.getenv('FOLLOWING_MODE') != 'skip_pose':
+                self.assertEqual(self.action_result[2].status, GoalStatus.STATUS_SUCCEEDED)
+                self.assertEqual(self.action_result[2].result.num_retries, 0)
+                self.assertTrue(self.at_distance)
 
 
 @launch_testing.post_shutdown_test()  # type: ignore[no-untyped-call]
