@@ -106,7 +106,7 @@ class ObjectPosePublisher:
         if not self._at_distance_getter():
             p = PoseStamped()
             p.header.stamp = self._node.get_clock().now().to_msg()
-            p.header.frame_id = 'odom'
+            p.header.frame_id = 'map'
             p.pose.position.x = 1.75
             p.pose.position.y = 0.0
             self._pub.publish(p)
@@ -212,13 +212,27 @@ class TestFollowingServer(unittest.TestCase):
         t.transform.rotation.z = sin(self.theta / 2.0)
         t.transform.rotation.w = cos(self.theta / 2.0)
         self.tf_broadcaster.sendTransform(t)
+        # Also publish map->odom transform so object pose in 'map' can be transformed
+        m = TransformStamped()
+        m.header.stamp = self.node.get_clock().now().to_msg()
+        m.header.frame_id = 'map'
+        m.child_frame_id = 'odom'
+        m.transform.translation.x = 0.0
+        m.transform.translation.y = 0.0
+        m.transform.rotation.x = 0.0
+        m.transform.rotation.y = 0.0
+        m.transform.rotation.z = 0.0
+        m.transform.rotation.w = 1.0
+        self.tf_broadcaster.sendTransform(m)
 
     def action_feedback_callback(self, msg: FollowObject.Feedback) -> None:
         # Force the following action to run a full recovery loop when
         # the robot is at distance
         if msg.feedback.state == msg.feedback.STOPPING:
+            self.node.get_logger().info('Setting at_distance True')
             self.at_distance = True
         elif msg.feedback.state == msg.feedback.RETRY:
+            self.node.get_logger().info('Setting at_distance False and retry_state True')
             self.at_distance = False
             self.retry_state = True
 
