@@ -433,63 +433,91 @@ bool FollowingServer::rotateToObject(
   geometry_msgs::msg::PoseStamped & object_pose, const std::string & target_frame)
 {
   const double dt = 1.0 / controller_frequency_;
-  auto target_pose = object_pose;
-  target_pose.pose.orientation = nav2_util::geometry_utils::orientationAroundZAxis(
-    tf2::getYaw(target_pose.pose.orientation) + M_PI);
+
+  // Compute initial robot heading
+  geometry_msgs::msg::PoseStamped robot_pose;
+  if (!nav2_util::getCurrentPose(
+      robot_pose, *tf2_buffer_, object_pose.header.frame_id, base_frame_, transform_tolerance_,
+      iteration_start_time_))
+  {
+    RCLCPP_WARN(get_logger(), "Failed to get current robot pose");
+    return false;
+  }
+  double initial_yaw = tf2::getYaw(robot_pose.pose.orientation);
+
+  // Search angles: 90 deg left, then sweep 180 deg to the right (ends 90 deg right of initial)
+  std::vector<double> angles = {initial_yaw + M_PI_2, initial_yaw - M_PI_2};
 
   rclcpp::Rate loop_rate(controller_frequency_);
   auto start = this->now();
   auto timeout = rclcpp::Duration::from_seconds(rotate_to_object_timeout_);
 
-  while (rclcpp::ok()) {
-    // Update the iteration start time, used for get robot position, transformation and control
-    iteration_start_time_ = this->now();
+  // Iterate over target angles
+  for (const double & target_angle : angles) {
+    // Create a target pose oriented at target_angle
+    auto target_pose = object_pose;
+    target_pose.pose.orientation = nav2_util::geometry_utils::orientationAroundZAxis(target_angle);
 
-    publishFollowingFeedback(FollowObject::Feedback::RETRY);
+    // Rotate towards target_angle while checking for detection
+    while (rclcpp::ok()) {
+      // Update the iteration start time, used for get robot position, transformation and control
+      iteration_start_time_ = this->now();
 
-    // Stop if cancelled/preempted
-    if (checkAndWarnIfCancelled<FollowObject>(following_action_server_, "follow_object") ||
-      checkAndWarnIfPreempted<FollowObject>(following_action_server_, "follow_object"))
-    {
-      return false;
+      publishFollowingFeedback(FollowObject::Feedback::RETRY);
+
+      // Stop if cancelled/preempted
+      if (checkAndWarnIfCancelled<FollowObject>(following_action_server_, "follow_object") ||
+        checkAndWarnIfPreempted<FollowObject>(following_action_server_, "follow_object"))
+      {
+        return false;
+      }
+
+      // Get current robot pose
+      if (!nav2_util::getCurrentPose(
+          robot_pose, *tf2_buffer_, object_pose.header.frame_id, base_frame_, transform_tolerance_,
+          iteration_start_time_))
+      {
+        RCLCPP_WARN(get_logger(), "Failed to get current robot pose");
+        return false;
+      }
+
+      double angular_distance_to_heading = angles::shortest_angular_distance(
+        tf2::getYaw(robot_pose.pose.orientation), target_angle);
+
+      // If we are close enough to the target orientation, break and try next angle
+      if (fabs(angular_distance_to_heading) < angular_tolerance_) {
+        break;
+      }
+
+      // While rotating, check if we can get the tracking pose (object detected)
+      try {
+        if (getTrackingPose(object_pose, target_frame)) {
+          return true;
+        }
+      } catch (opennav_docking_core::FailedToDetectDock & e) {
+        // No detection yet, continue rotating
+      }
+
+      geometry_msgs::msg::Twist current_vel;
+      current_vel.angular.z = odom_sub_->getRawTwist().angular.z;
+
+      auto command = std::make_unique<geometry_msgs::msg::TwistStamped>();
+      command->header = robot_pose.header;
+      command->twist = controller_->computeRotateToHeadingCommand(
+        angular_distance_to_heading, current_vel, dt);
+
+      vel_publisher_->publish(std::move(command));
+
+      if (this->now() - start > timeout) {
+        throw opennav_docking_core::FailedToControl("Timed out rotating to object");
+      }
+
+      loop_rate.sleep();
     }
-
-    // If we completed a full rotation and did not find the object, we stop
-    geometry_msgs::msg::PoseStamped robot_pose;
-    if (!nav2_util::getCurrentPose(
-        robot_pose, *tf2_buffer_, object_pose.header.frame_id, base_frame_, transform_tolerance_,
-        iteration_start_time_))
-    {
-      RCLCPP_WARN(get_logger(), "Failed to get current robot pose");
-      return false;
-    }
-    auto angular_distance_to_heading = angles::shortest_angular_distance(
-      tf2::getYaw(robot_pose.pose.orientation), tf2::getYaw(target_pose.pose.orientation));
-    if (fabs(angular_distance_to_heading) < angular_tolerance_) {
-      throw opennav_docking_core::FailedToControl("Failed to rotate to object");
-    }
-
-    // Get the tracking pose from topic or frame
-    getTrackingPose(object_pose, target_frame);
-
-    geometry_msgs::msg::Twist current_vel;
-    current_vel.angular.z = odom_sub_->getRawTwist().angular.z;
-
-    auto command = std::make_unique<geometry_msgs::msg::TwistStamped>();
-    command->header = robot_pose.header;
-    command->twist = controller_->computeRotateToHeadingCommand(
-      angular_distance_to_heading, current_vel, dt);
-
-    vel_publisher_->publish(std::move(command));
-
-    if (this->now() - start > timeout) {
-      throw opennav_docking_core::FailedToControl("Timed out rotating to object");
-    }
-
-    loop_rate.sleep();
   }
 
-  return false;
+  // If we exhausted all search angles and did not detect the object, fail
+  throw opennav_docking_core::FailedToControl("Failed to rotate to object");
 }
 
 void FollowingServer::publishZeroVelocity()

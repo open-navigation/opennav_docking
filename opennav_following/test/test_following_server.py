@@ -62,8 +62,10 @@ def generate_test_description() -> LaunchDescription:
                          'angular_tolerance': 0.05,
                          'transform_tolerance': 0.5,
                          'static_object_timeout': 0.5,
+                         'search_by_rotating': True,
                          'controller': {
                              'use_collision_detection': False,
+                             'rotate_to_heading_max_angular_accel': 25.0,
                              'transform_tolerance': 0.5,
                          }}],
             output='screen',
@@ -192,13 +194,25 @@ class TestFollowingServer(unittest.TestCase):
         self.node = rclpy.create_node('test_following_server')
         self.tf_buffer = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self.node)
-        # Determine test mode from environment: 'topic' or 'frame'
+        # Determine test mode from environment: 'topic, 'frame' or 'search'
+        mode_env = os.getenv('FOLLOWING_MODE', 'topic')
+        # In 'search' mode stop publishing once the robot reaches 0.75m so the server must
+        # perform its recovery behavior (object lost)
+        if mode_env == 'search':
+            def at_distance_getter() -> bool:
+                return ((self.x ** 2 + self.y ** 2) ** 0.5) >= 0.75
+            pub_mode = 'topic'
+        else:
+            def at_distance_getter() -> bool:
+                return self.at_distance
+            pub_mode = mode_env
+
         self.object_publisher = ObjectPublisher(
             'tested_pose',
             'object_frame',
             20.0,
-            lambda: self.at_distance,
-            os.getenv('FOLLOWING_MODE', 'topic'),
+            at_distance_getter,
+            pub_mode,
         )
 
     def wait_for_node_to_be_active(self, node_name, timeout_sec=10.0):
@@ -314,7 +328,7 @@ class TestFollowingServer(unittest.TestCase):
 
         # Create the goal
         goal = FollowObject.Goal()
-        if os.getenv('FOLLOWING_MODE') == 'topic':
+        if os.getenv('FOLLOWING_MODE') == 'topic' or os.getenv('FOLLOWING_MODE') == 'search':
             goal.pose_topic = 'tested_pose'
             goal.max_duration = rclpy.time.Duration(seconds=10.0).to_msg()
         elif os.getenv('FOLLOWING_MODE') == 'frame':
@@ -386,7 +400,8 @@ class TestFollowingServer(unittest.TestCase):
 
         self.assertIsNotNone(self.action_result[2])
         if self.action_result[2] is not None:
-            if os.getenv('FOLLOWING_MODE') != 'skip_pose':
+            mode = os.getenv('FOLLOWING_MODE')
+            if mode != 'skip_pose' and mode != 'search':
                 self.assertEqual(self.action_result[2].status, GoalStatus.STATUS_SUCCEEDED)
                 self.assertEqual(self.action_result[2].result.num_retries, 0)
                 self.assertTrue(self.at_distance)
