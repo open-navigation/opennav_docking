@@ -26,3 +26,8 @@ ament_add_pytest_test(test_following_server_skip_pose test_following_server.py
   ENV
   FOLLOWING_MODE=skip_pose
 )
+
+ament_add_pytest_test(test_following_server_search test_following_server.py
+  ENV
+  FOLLOWING_MODE=search
+)

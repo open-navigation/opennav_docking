@@ -46,6 +46,8 @@ FollowingServer::FollowingServer(const rclcpp::NodeOptions & options)
   declare_parameter("desired_distance", 1.0);
   declare_parameter("skip_orientation", true);
   declare_parameter("search_by_rotating", false);
+  declare_parameter("search_angle_left", M_PI_2);
+  declare_parameter("search_angle_right", M_PI_2);
   declare_parameter("odom_topic", "odom");
   declare_parameter("odom_duration", 0.3);
   declare_parameter("transform_tolerance", 0.1);
@@ -69,6 +71,8 @@ FollowingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
   get_parameter("desired_distance", desired_distance_);
   get_parameter("skip_orientation", skip_orientation_);
   get_parameter("search_by_rotating", search_by_rotating_);
+  get_parameter("search_angle_left", search_angle_left_);
+  get_parameter("search_angle_right", search_angle_right_);
   get_parameter("transform_tolerance", transform_tolerance_);
   RCLCPP_INFO(get_logger(), "Controller frequency set to %.4fHz", controller_frequency_);
 
@@ -89,9 +93,21 @@ FollowingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
     nullptr, std::chrono::milliseconds(500),
     true);
 
-  // Create composed utilities
+  // Create the controller
+  // Note: Collision detection is not supported in following server so we force it off
+  // and warn if the user has it enabled (from launch file or parameter file)
+  declare_parameter("controller.use_collision_detection", false);
   controller_ =
     std::make_unique<opennav_docking::Controller>(node, tf2_buffer_, fixed_frame_, base_frame_);
+
+  auto get_use_collision_detection = false;
+  get_parameter("controller.use_collision_detection", get_use_collision_detection);
+  if (get_use_collision_detection) {
+    RCLCPP_ERROR(get_logger(),
+      "Collision detection is not supported in the following server. Please disable "
+      "the controller.use_collision_detection parameter.");
+    return nav2::CallbackReturn::FAILURE;
+  }
 
   // Setup filter
   double filter_coef;
@@ -231,7 +247,6 @@ void FollowingServer::followObject()
   detected_dynamic_pose_.header.stamp = rclcpp::Time(0);
 
   try {
-    lock.unlock();
     auto pose_topic = goal->pose_topic;
     auto target_frame = goal->tracked_frame;
     if (target_frame.empty()) {
@@ -243,6 +258,7 @@ void FollowingServer::followObject()
         following_action_server_->terminate_all(result);
         return;
       } else {
+        lock.unlock();
         RCLCPP_INFO(get_logger(), "Subscribing to pose topic: %s", pose_topic.c_str());
         dynamic_pose_sub_ = create_subscription<geometry_msgs::msg::PoseStamped>(
           pose_topic,
@@ -250,11 +266,11 @@ void FollowingServer::followObject()
             detected_dynamic_pose_ = *pose;
           },
           nav2::qos::StandardTopicQoS(1));  // Only want the most recent pose
+        lock.lock();
       }
     } else {
       RCLCPP_INFO(get_logger(), "Following frame: %s instead of pose", target_frame.c_str());
     }
-    lock.lock();
 
     // Following control loop: while not timeout, run controller
     geometry_msgs::msg::PoseStamped object_pose;
@@ -445,8 +461,9 @@ bool FollowingServer::rotateToObject(
   }
   double initial_yaw = tf2::getYaw(robot_pose.pose.orientation);
 
-  // Search angles: 90 deg left, then sweep 180 deg to the right (ends 90 deg right of initial)
-  std::vector<double> angles = {initial_yaw + M_PI_2, initial_yaw - M_PI_2};
+  // Search angles: left offset, then right offset from initial heading
+  std::vector<double> angles = {initial_yaw + search_angle_left_,
+    initial_yaw - search_angle_right_};
 
   rclcpp::Rate loop_rate(controller_frequency_);
   auto start = this->now();
@@ -719,6 +736,10 @@ FollowingServer::dynamicParametersCallback(std::vector<rclcpp::Parameter> parame
         desired_distance_ = parameter.as_double();
       } else if (name == "transform_tolerance") {
         transform_tolerance_ = parameter.as_double();
+      } else if (name == "search_angle_left") {
+        search_angle_left_ = parameter.as_double();
+      } else if (name == "search_angle_right") {
+        search_angle_right_ = parameter.as_double();
       }
     } else if (type == ParameterType::PARAMETER_STRING) {
       if (name == "base_frame") {

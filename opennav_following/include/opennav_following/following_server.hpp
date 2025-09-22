@@ -247,6 +247,8 @@ protected:
   bool skip_orientation_;
   // Should the robot search for the object by rotating or go to last known heading
   bool search_by_rotating_;
+  // Search angles relative to current robot orientation when rotating to find objects
+  double search_angle_left_, search_angle_right_;
 
   // Timestamp of the last time a iteration was started
   rclcpp::Time iteration_start_time_;
@@ -258,7 +260,7 @@ protected:
   nav2::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr dynamic_pose_sub_;
 
   // Publish the filtered dynamic pose
-  rclcpp_lifecycle::LifecyclePublisher<geometry_msgs::msg::PoseStamped>::SharedPtr
+  nav2::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr
     filtered_dynamic_pose_pub_;
 
   // Latest message
