@@ -46,8 +46,7 @@ FollowingServer::FollowingServer(const rclcpp::NodeOptions & options)
   declare_parameter("desired_distance", 1.0);
   declare_parameter("skip_orientation", true);
   declare_parameter("search_by_rotating", false);
-  declare_parameter("search_angle_left", M_PI_2);
-  declare_parameter("search_angle_right", M_PI_2);
+  declare_parameter("search_angle", M_PI_2);
   declare_parameter("odom_topic", "odom");
   declare_parameter("odom_duration", 0.3);
   declare_parameter("transform_tolerance", 0.1);
@@ -71,8 +70,7 @@ FollowingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
   get_parameter("desired_distance", desired_distance_);
   get_parameter("skip_orientation", skip_orientation_);
   get_parameter("search_by_rotating", search_by_rotating_);
-  get_parameter("search_angle_left", search_angle_left_);
-  get_parameter("search_angle_right", search_angle_right_);
+  get_parameter("search_angle", search_angle_);
   get_parameter("transform_tolerance", transform_tolerance_);
   RCLCPP_INFO(get_logger(), "Controller frequency set to %.4fHz", controller_frequency_);
 
@@ -462,8 +460,7 @@ bool FollowingServer::rotateToObject(
   double initial_yaw = tf2::getYaw(robot_pose.pose.orientation);
 
   // Search angles: left offset, then right offset from initial heading
-  std::vector<double> angles = {initial_yaw + search_angle_left_,
-    initial_yaw - search_angle_right_};
+  std::vector<double> angles = {initial_yaw + search_angle_, initial_yaw - search_angle_};
 
   rclcpp::Rate loop_rate(controller_frequency_);
   auto start = this->now();
@@ -736,10 +733,8 @@ FollowingServer::dynamicParametersCallback(std::vector<rclcpp::Parameter> parame
         desired_distance_ = parameter.as_double();
       } else if (name == "transform_tolerance") {
         transform_tolerance_ = parameter.as_double();
-      } else if (name == "search_angle_left") {
-        search_angle_left_ = parameter.as_double();
-      } else if (name == "search_angle_right") {
-        search_angle_right_ = parameter.as_double();
+      } else if (name == "search_angle") {
+        search_angle_ = parameter.as_double();
       }
     } else if (type == ParameterType::PARAMETER_STRING) {
       if (name == "base_frame") {

@@ -349,9 +349,8 @@ TEST(FollowingServerTests, DynamicParams)
       rclcpp::Parameter("fixed_frame", std::string("test_fixed_frame")),
       rclcpp::Parameter("skip_orientation", false),
       rclcpp::Parameter("search_by_rotating", true),
-      rclcpp::Parameter("search_angle_left", 8.0),
-      rclcpp::Parameter("search_angle_right", 9.0),
-      rclcpp::Parameter("transform_tolerance", 10.0)
+      rclcpp::Parameter("search_angle", 8.0),
+      rclcpp::Parameter("transform_tolerance", 9.0)
     });
 
   // Spin
@@ -369,9 +368,8 @@ TEST(FollowingServerTests, DynamicParams)
   EXPECT_EQ(node->get_parameter("fixed_frame").as_string(), "test_fixed_frame");
   EXPECT_EQ(node->get_parameter("skip_orientation").as_bool(), false);
   EXPECT_EQ(node->get_parameter("search_by_rotating").as_bool(), true);
-  EXPECT_EQ(node->get_parameter("search_angle_left").as_double(), 8.0);
-  EXPECT_EQ(node->get_parameter("search_angle_right").as_double(), 9.0);
-  EXPECT_EQ(node->get_parameter("transform_tolerance").as_double(), 10.0);
+  EXPECT_EQ(node->get_parameter("search_angle").as_double(), 8.0);
+  EXPECT_EQ(node->get_parameter("transform_tolerance").as_double(), 9.0);
 }
 
 }  // namespace opennav_following

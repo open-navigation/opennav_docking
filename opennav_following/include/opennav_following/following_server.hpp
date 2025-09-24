@@ -247,8 +247,8 @@ protected:
   bool skip_orientation_;
   // Should the robot search for the object by rotating or go to last known heading
   bool search_by_rotating_;
-  // Search angles relative to current robot orientation when rotating to find objects
-  double search_angle_left_, search_angle_right_;
+  // Search angle relative to current robot orientation when rotating to find objects
+  double search_angle_;
 
   // Timestamp of the last time a iteration was started
   rclcpp::Time iteration_start_time_;
