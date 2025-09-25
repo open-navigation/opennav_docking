@@ -1,0 +1,27 @@
+following_server:
+  ros__parameters:
+    controller_frequency: 50.0
+    detection_timeout: 2.0
+    rotate_to_object_timeout: 10.0
+    static_object_timeout: -1.0
+    linear_tolerance: 0.15
+    angular_tolerance: 0.15
+    max_retries: 3
+    base_frame: "base_link"
+    fixed_frame: "odom"
+    desired_distance: 0.75
+    skip_orientation: true
+    search_by_rotating: false
+    odom_topic: "odom"
+    odom_duration: 0.3
+    transform_tolerance: 0.5
+    controller:
+      k_phi: 1.0
+      k_delta: 2.0
+      beta: 0.4
+      lambda: 2.0
+      v_linear_min: 0.1
+      v_linear_max: 0.5
+      v_angular_max: 1.0
+      slowdown_radius: 0.15
+      transform_tolerance: 0.5
