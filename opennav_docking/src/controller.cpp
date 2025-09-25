@@ -223,6 +223,31 @@ bool Controller::isTrajectoryCollisionFree(
   return true;
 }
 
+geometry_msgs::msg::Twist Controller::computeRotateToHeadingCommand(
+  const double & angular_distance_to_heading,
+  const geometry_msgs::msg::Twist & current_velocity,
+  const double & dt)
+{
+  geometry_msgs::msg::Twist cmd_vel;
+  const double sign = angular_distance_to_heading > 0.0 ? 1.0 : -1.0;
+  const double angular_vel = sign * rotate_to_heading_angular_vel_;
+  const double min_feasible_angular_speed =
+    current_velocity.angular.z - rotate_to_heading_max_angular_accel_ * dt;
+  const double max_feasible_angular_speed =
+    current_velocity.angular.z + rotate_to_heading_max_angular_accel_ * dt;
+  cmd_vel.angular.z =
+    std::clamp(angular_vel, min_feasible_angular_speed, max_feasible_angular_speed);
+
+  // Check if we need to slow down to avoid overshooting
+  double max_vel_to_stop =
+    std::sqrt(2 * rotate_to_heading_max_angular_accel_ * fabs(angular_distance_to_heading));
+  if (fabs(cmd_vel.angular.z) > max_vel_to_stop) {
+    cmd_vel.angular.z = sign * max_vel_to_stop;
+  }
+
+  return cmd_vel;
+}
+
 void Controller::configureCollisionChecker(
   const rclcpp_lifecycle::LifecycleNode::SharedPtr & node,
   std::string costmap_topic, std::string footprint_topic, double transform_tolerance)
