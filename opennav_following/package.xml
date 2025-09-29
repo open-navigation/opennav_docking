@@ -12,7 +12,6 @@
 
   <depend>angles</depend>
   <depend>geometry_msgs</depend>
-  <depend>nav2_ros_common</depend>
   <depend>nav2_util</depend>
   <depend>opennav_docking</depend>
   <depend>opennav_docking_core</depend>

@@ -20,7 +20,7 @@
 #include "geometry_msgs/msg/twist.hpp"
 #include "opennav_docking_core/docking_exceptions.hpp"
 #include "opennav_following/following_server.hpp"
-#include "nav2_ros_common/node_thread.hpp"
+#include "nav2_util/node_thread.hpp"
 #include "tf2/utils.hpp"
 #include "tf2_ros/transform_broadcaster.hpp"
 
@@ -131,7 +131,7 @@ TEST(FollowingServerTests, ObjectLifecycle)
 TEST(FollowingServerTests, ErrorExceptions)
 {
   auto node = std::make_shared<FollowingServerShim>();
-  auto node_thread = nav2::NodeThread(node);
+  auto node_thread = nav2_util::NodeThread(node);
   auto node2 = std::make_shared<rclcpp::Node>("client_node");
 
   auto pub = node2->create_publisher<geometry_msgs::msg::PoseStamped>(

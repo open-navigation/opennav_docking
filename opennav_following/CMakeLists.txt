@@ -5,7 +5,6 @@ find_package(ament_cmake REQUIRED)
 find_package(angles REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nav2_common REQUIRED)
-find_package(nav2_ros_common REQUIRED)
 find_package(nav2_util REQUIRED)
 find_package(opennav_docking REQUIRED)
 find_package(opennav_docking_core REQUIRED)
@@ -17,47 +16,48 @@ find_package(tf2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
 
-nav2_package()
+# potentially replace with nav2_common, nav2_package()
+set(CMAKE_CXX_STANDARD 17)
+add_compile_options(-Wall -Wextra -Wpedantic -Werror -Wdeprecated -fPIC -Wshadow -Wnull-dereference)
+
+include_directories(
+  include
+)
 
 set(executable_name opennav_following)
 set(library_name ${executable_name}_core)
 
+set(dependencies
+  angles
+  rclcpp
+  rclcpp_action
+  rclcpp_lifecycle
+  rclcpp_components
+  nav2_util
+  geometry_msgs
+  tf2_ros
+  tf2_geometry_msgs
+  pluginlib
+  opennav_docking_core
+  opennav_docking
+  opennav_following_msgs
+)
+
 add_library(${library_name} SHARED
   src/following_server.cpp
 )
-target_include_directories(${library_name}
-  PUBLIC
-  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
-  "$<INSTALL_INTERFACE:include/${PROJECT_NAME}>"
-  "$<BUILD_INTERFACE:${nav2_ros_common_INCLUDE_DIRS}>"
-)
-target_link_libraries(${library_name} PUBLIC
-  ${geometry_msgs_TARGETS}
-  nav2_util::nav2_util_core
-  opennav_docking::controller
-  opennav_docking::pose_filter
-  ${opennav_following_msgs_TARGETS}
-  rclcpp::rclcpp
-  rclcpp_lifecycle::rclcpp_lifecycle
-  tf2_ros::tf2_ros
-  PRIVATE
-  angles::angles
-  opennav_docking_core::opennav_docking_core
-)
-target_link_libraries(${library_name} PRIVATE
-  rclcpp_components::component
-  tf2_geometry_msgs::tf2_geometry_msgs
+ament_target_dependencies(${library_name}
+  ${dependencies}
 )
 
 add_executable(${executable_name}
   src/main.cpp
 )
-target_include_directories(${executable_name}
-  PUBLIC
-  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
-  "$<INSTALL_INTERFACE:include/${PROJECT_NAME}>"
+target_link_libraries(${executable_name} ${library_name})
+
+ament_target_dependencies(${executable_name}
+  ${dependencies}
 )
-target_link_libraries(${executable_name} PRIVATE ${library_name} rclcpp::rclcpp)
 
 rclcpp_components_register_nodes(${library_name} "opennav_following::FollowingServer")
 
@@ -87,18 +87,7 @@ if(BUILD_TESTING)
   add_subdirectory(test)
 endif()
 
-ament_export_include_directories(include/${PROJECT_NAME})
-ament_export_libraries(${library_name})
-ament_export_dependencies(
-  geometry_msgs
-  nav2_ros_common
-  nav2_util
-  opennav_docking
-  opennav_docking_core
-  opennav_following_msgs
-  rclcpp
-  rclcpp_lifecycle
-  tf2_ros
-)
-ament_export_targets(${PROJECT_NAME})
+ament_export_include_directories(include)
+ament_export_libraries(${library_name} controller pose_filter)
+ament_export_dependencies(${dependencies})
 ament_package()
