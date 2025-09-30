@@ -20,7 +20,6 @@
 #include <string>
 
 #include "nav2_behavior_tree/bt_cancel_action_node.hpp"
-#include "nav2_ros_common/lifecycle_node.hpp"
 #include "opennav_following_msgs/action/follow_object.hpp"
 
 namespace opennav_following_bt

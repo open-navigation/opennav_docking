@@ -150,7 +150,6 @@ TEST(FollowingServerTests, ErrorExceptions)
   std::vector<std::string> error_ids{
     "TransformException", "FailedToDetectObject", "FailedToControl",
     "DockingException", "exception"};
-  std::vector<int> error_codes{901, 902, 903, 999, 999};
 
   // Call action, check error code
   for (unsigned int i = 0; i != error_ids.size(); i++) {
@@ -174,7 +173,8 @@ TEST(FollowingServerTests, ErrorExceptions)
           node2, future_result, 5s) == rclcpp::FutureReturnCode::SUCCESS)
       {
         auto result = future_result.get();
-        EXPECT_EQ(result.result->error_code, error_codes[i]);
+        // Just check that we got a result because there is no error codes in humble
+        EXPECT_EQ(result.result->num_retries, 0);
       } else {
         EXPECT_TRUE(false);
       }

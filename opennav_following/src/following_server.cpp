@@ -122,7 +122,6 @@ FollowingServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
   // And publish the filtered pose
   filtered_dynamic_pose_pub_ = node->create_publisher<geometry_msgs::msg::PoseStamped>(
     "filtered_dynamic_pose", 1);
-
   // Initialize static object detection variables
   static_timer_initialized_ = false;
   static_object_start_time_ = rclcpp::Time(0);
@@ -258,8 +257,6 @@ void FollowingServer::followObject()
       if (pose_topic.empty()) {
         RCLCPP_ERROR(get_logger(),
           "Both pose topic and target frame are empty. Cannot follow object.");
-        result->error_code = FollowObject::Result::FAILED_TO_DETECT_OBJECT;
-        result->error_msg = "No pose topic or target frame provided.";
         following_action_server_->terminate_all(result);
         return;
       } else {
@@ -353,25 +350,15 @@ void FollowingServer::followObject()
       loop_rate.sleep();
     }
   } catch (const tf2::TransformException & e) {
-    result->error_msg = std::string("Transform error: ") + e.what();
-    RCLCPP_ERROR(get_logger(), result->error_msg.c_str());
-    result->error_code = FollowObject::Result::TF_ERROR;
+    RCLCPP_ERROR(this->get_logger(), "Transform error: %s", e.what());
   } catch (opennav_docking_core::FailedToDetectDock & e) {
-    result->error_msg = e.what();
-    RCLCPP_ERROR(get_logger(), result->error_msg.c_str());
-    result->error_code = FollowObject::Result::FAILED_TO_DETECT_OBJECT;
+    RCLCPP_ERROR(this->get_logger(), "%s", e.what());
   } catch (opennav_docking_core::FailedToControl & e) {
-    result->error_msg = e.what();
-    RCLCPP_ERROR(get_logger(), result->error_msg.c_str());
-    result->error_code = FollowObject::Result::FAILED_TO_CONTROL;
+    RCLCPP_ERROR(this->get_logger(), "%s", e.what());
   } catch (opennav_docking_core::DockingException & e) {
-    result->error_msg = e.what();
-    RCLCPP_ERROR(get_logger(), result->error_msg.c_str());
-    result->error_code = FollowObject::Result::UNKNOWN;
+    RCLCPP_ERROR(this->get_logger(), "%s", e.what());
   } catch (std::exception & e) {
-    result->error_msg = e.what();
-    RCLCPP_ERROR(get_logger(), result->error_msg.c_str());
-    result->error_code = FollowObject::Result::UNKNOWN;
+    RCLCPP_ERROR(this->get_logger(), "%s", e.what());
   }
 
   // Stop the robot and report
