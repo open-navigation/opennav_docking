@@ -1,0 +1,23 @@
+#goal definition
+
+string pose_topic  # Topic to publish the pose of the object to follow
+string tracked_frame  # Target frame to follow (Optional, used if pose_topic is not set)
+builtin_interfaces/Duration max_duration
+
+---
+#result definition
+
+builtin_interfaces/Duration total_elapsed_time
+uint16 num_retries 0  # Number of retries attempted
+---
+#feedback definition
+
+uint16 NONE=0
+uint16 INITIAL_PERCEPTION=1
+uint16 CONTROLLING=2
+uint16 STOPPING=3
+uint16 RETRY=4
+
+uint16 state  # Current following state
+builtin_interfaces/Duration following_time
+uint16 num_retries 0  # Number of retries attempted
