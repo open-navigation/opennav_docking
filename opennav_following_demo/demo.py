@@ -58,6 +58,7 @@ class FollowObjectTester(Node):
             self.get_logger().info('"FollowObject" action server not available, waiting...')
 
         goal_msg = FollowObject.Goal()
+        goal_msg.pose_topic = '/detected_dynamic_pose'
         future = self.follow_action_client.send_goal_async(
             goal_msg, feedback_callback=self.action_feedback_callback)
         self.goal_handle = future.result()
