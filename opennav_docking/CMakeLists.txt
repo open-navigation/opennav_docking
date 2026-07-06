@@ -13,6 +13,7 @@ find_package(visualization_msgs REQUIRED)
 find_package(nav2_graceful_controller REQUIRED)
 find_package(nav2_msgs REQUIRED)
 find_package(nav2_util REQUIRED)
+find_package(nav2_costmap_2d REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(builtin_interfaces REQUIRED)
@@ -46,6 +47,7 @@ set(dependencies
   nav2_graceful_controller
   nav2_util
   nav2_msgs
+  nav2_costmap_2d
   nav_msgs
   geometry_msgs
   builtin_interfaces
