@@ -6,6 +6,7 @@ find_package(angles REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nav2_common REQUIRED)
 find_package(nav2_util REQUIRED)
+find_package(nav_2d_utils REQUIRED)
 find_package(opennav_docking REQUIRED)
 find_package(opennav_docking_core REQUIRED)
 find_package(opennav_following_msgs REQUIRED)
@@ -34,6 +35,7 @@ set(dependencies
   rclcpp_lifecycle
   rclcpp_components
   nav2_util
+  nav_2d_utils
   geometry_msgs
   tf2_ros
   tf2_geometry_msgs
