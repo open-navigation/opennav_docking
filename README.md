@@ -32,7 +32,7 @@ The Docking Framework has 5 main components:
 - `DockingServer`: The main action server and logic for performing the docking/undocking actions
 - `Navigator`: A NavigateToPose action client to navigate the robot to the dock's staging pose if not with the prestaging tolerances 
 - `DockDatabase`: A database of dock instances in an environment and their associated interfaces for transacting with each type. An arbitrary number of types are supported.
-- `Controller`: A spiral-based graceful controller to use for the vision-control loop for docking
+- `Controller`: The vision-control loop for docking. Differential-drive bases use the spiral-based graceful controller; omnidirectional bases can opt into a holonomic P-controller (`controller.use_holonomic`)
 - `ChargingDock`: Plugins that describe the dock and how to transact with it (check if charging, detection, etc). You can find this plugin header in the `opennav_docking_core` package.
 
 The `ChargingDock` plugins are the heart of the customizability of the framework to support any type of charging dock for any kind of robot. The `DockDatabase` is how you describe where these docks exist in your environment to interact with and any of them may be used in your docking request. 
@@ -222,6 +222,7 @@ For debugging purposes, there are several publishers which can be used with RVIZ
 | controller.v_linear_max |  TODO | double | 0.25    |
 | controller.v_angular_max |  TODO | double | 0.75    |
 | controller.slowdown_radius |  TODO | double | 0.25     |
+| controller.use_holonomic | Use holonomic (vx, vy, wz) P-control instead of the graceful differential-drive law | bool | false     |
 | controller.use_collision_detection | Whether to use collision detection to avoid obstacles | bool | true     |
 | controller.costmap_topic | The topic to use for the costmap | string | "local_costmap/costmap_raw"     |
 | controller.footprint_topic | The topic to use for the robot's footprint | string | "local_costmap/published_footprint"     |

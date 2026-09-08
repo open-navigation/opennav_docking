@@ -65,6 +65,12 @@ Controller::Controller(
     node, "controller.simulation_time_step", rclcpp::ParameterValue(0.1));
   nav2_util::declare_parameter_if_not_declared(
     node, "controller.dock_collision_threshold", rclcpp::ParameterValue(0.3));
+  nav2_util::declare_parameter_if_not_declared(
+    node, "controller.rotate_to_heading_angular_vel", rclcpp::ParameterValue(1.0));
+  nav2_util::declare_parameter_if_not_declared(
+    node, "controller.rotate_to_heading_max_angular_accel", rclcpp::ParameterValue(2.0));
+  nav2_util::declare_parameter_if_not_declared(
+    node, "controller.use_holonomic", rclcpp::ParameterValue(false));
 
   node->get_parameter("controller.k_phi", k_phi_);
   node->get_parameter("controller.k_delta", k_delta_);
@@ -74,9 +80,14 @@ Controller::Controller(
   node->get_parameter("controller.v_linear_max", v_linear_max_);
   node->get_parameter("controller.v_angular_max", v_angular_max_);
   node->get_parameter("controller.slowdown_radius", slowdown_radius_);
+  node->get_parameter("controller.rotate_to_heading_angular_vel", rotate_to_heading_angular_vel_);
+  node->get_parameter("controller.rotate_to_heading_max_angular_accel", rotate_to_heading_max_angular_accel_);
+  node->get_parameter("controller.use_holonomic", use_holonomic_);
   control_law_ = std::make_unique<nav2_graceful_controller::SmoothControlLaw>(
     k_phi_, k_delta_, beta_, lambda_, slowdown_radius_, v_linear_min_, v_linear_max_,
     v_angular_max_);
+  holonomic_control_law_ = std::make_unique<HolonomicControlLaw>(
+    k_phi_, k_delta_, v_linear_max_, v_angular_max_);
 
   // Add callback for dynamic parameters
   dyn_params_handler_ = node->add_on_set_parameters_callback(
@@ -102,6 +113,7 @@ Controller::Controller(
 Controller::~Controller()
 {
   control_law_.reset();
+  holonomic_control_law_.reset();
   trajectory_pub_.reset();
   collision_checker_.reset();
   costmap_sub_.reset();
@@ -113,7 +125,11 @@ bool Controller::computeVelocityCommand(
   bool backward)
 {
   std::lock_guard<std::mutex> lock(dynamic_params_lock_);
-  cmd = control_law_->calculateRegularVelocity(pose, backward);
+  if (use_holonomic_) {
+    cmd = holonomic_control_law_->calculateRegularVelocity(pose);
+  } else {
+    cmd = control_law_->calculateRegularVelocity(pose, backward);
+  }
   return isTrajectoryCollisionFree(pose, is_docking, backward);
 }
 
@@ -149,8 +165,13 @@ bool Controller::isTrajectoryCollisionFree(
 
   do{
     // Apply velocities to calculate next pose
-    next_pose.pose = control_law_->calculateNextPose(
-      simulation_time_step_, target_pose, next_pose.pose, backward);
+    if (use_holonomic_) {
+      next_pose.pose = holonomic_control_law_->calculateNextPose(
+        simulation_time_step_, target_pose, next_pose.pose);
+    } else {
+      next_pose.pose = control_law_->calculateNextPose(
+        simulation_time_step_, target_pose, next_pose.pose, backward);
+    }
 
     // Add the pose to the trajectory for visualization
     trajectory.poses.push_back(next_pose);
@@ -265,6 +286,10 @@ Controller::dynamicParametersCallback(std::vector<rclcpp::Parameter> parameters)
       control_law_->setCurvatureConstants(k_phi_, k_delta_, beta_, lambda_);
       control_law_->setSlowdownRadius(slowdown_radius_);
       control_law_->setSpeedLimit(v_linear_min_, v_linear_max_, v_angular_max_);
+
+      // Update the holonomic control law with the new params
+      holonomic_control_law_->setGains(k_phi_, k_delta_);
+      holonomic_control_law_->setSpeedLimit(v_linear_max_, v_angular_max_);
     }
   }
 
