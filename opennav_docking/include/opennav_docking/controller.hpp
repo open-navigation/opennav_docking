@@ -26,6 +26,7 @@
 #include "nav2_costmap_2d/footprint_subscriber.hpp"
 #include "nav2_costmap_2d/costmap_topic_collision_checker.hpp"
 #include "nav2_graceful_controller/smooth_control_law.hpp"
+#include "opennav_docking/holonomic_control_law.hpp"
 #include "nav_msgs/msg/path.hpp"
 #include "nav2_util/lifecycle_node.hpp"
 
@@ -118,10 +119,19 @@ protected:
   rclcpp::Logger logger_{rclcpp::get_logger("Controller")};
   rclcpp::Clock::SharedPtr clock_;
 
-  // Smooth control law
+  // Mode selection
+  bool use_holonomic_;
+
+  // Smooth control law when use_holonomic_ is false
   std::unique_ptr<nav2_graceful_controller::SmoothControlLaw> control_law_;
+  // Holonomic control law when use_holonomic_ is true
+  std::unique_ptr<HolonomicControlLaw> holonomic_control_law_;
   double k_phi_, k_delta_, beta_, lambda_;
   double slowdown_radius_, v_linear_min_, v_linear_max_, v_angular_max_;
+
+  // Used by computeRotateToHeadingCommand
+  double rotate_to_heading_angular_vel_;
+  double rotate_to_heading_max_angular_accel_;
 
   // The trajectory of the robot while dock / undock for visualization / debug purposes
   rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr trajectory_pub_;
